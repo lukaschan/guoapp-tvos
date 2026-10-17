@@ -127,4 +127,10 @@ final class Store: ObservableObject {
         }
         persist()
     }
+
+    /// 删除某部剧的全部观看记录（最近观看里该剧的整条记录）。
+    func deleteHistory(for drama: Drama) {
+        progress.removeAll { $0.drama.id == drama.id }
+        persist()
+    }
 }
