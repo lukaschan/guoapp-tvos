@@ -2,13 +2,10 @@ import SwiftUI
 
 /// 首页：内容发现页。
 ///
-/// 结构（自上而下）：
-/// 1. 我的追剧货架 —— 来自本地真实数据（有追剧时显示）；
-/// 2. 目录浏览 —— 站源、分类、榜单筛选 + 海报网格（保留原有全部分类、
-///    无限滚动与榜单能力，切换分类时自动回到目录顶部）。
+/// 结构：目录浏览 —— 站源、分类、榜单筛选 + 海报网格（保留原有全部分类、
+/// 无限滚动与榜单能力，切换分类时自动回到目录顶部）。
 struct HomeView: View {
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var store: Store
     @State private var categories: [Category] = [.all]
     @State private var selectedCategory = ""
     @State private var items: [Drama] = []
@@ -33,16 +30,6 @@ struct HomeView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: TVTheme.sectionSpacing) {
-                        if !store.follows.isEmpty {
-                            TVShelfRow(title: "我的追剧", icon: "bookmark.fill") {
-                                ForEach(Array(store.follows.prefix(12)), id: \.drama.id) { followed in
-                                    TVPosterCard(
-                                        drama: followed.drama,
-                                        subtitle: followSubtitle(followed.drama)
-                                    )
-                                }
-                            }
-                        }
                         catalogSection
                     }
                     .padding(.horizontal, TVTheme.pageInset)
@@ -50,7 +37,7 @@ struct HomeView: View {
                     .padding(.bottom, 56)
                 }
                 .onChange(of: loadKey) { _ in
-                    // 切换站源 / 分类 / 榜单后回到目录区，货架不被反复扫过。
+                    // 切换站源 / 分类 / 榜单后回到目录区。
                     DispatchQueue.main.async {
                         proxy.scrollTo("catalog-top", anchor: .top)
                     }
@@ -179,13 +166,6 @@ struct HomeView: View {
                     }
                 }
         }
-    }
-
-    // MARK: - 货架文案
-
-    private func followSubtitle(_ drama: Drama) -> String? {
-        guard let progress = store.latestProgress(for: drama.id) else { return nil }
-        return "上次看到 第\(progress.episode)集"
     }
 
     // MARK: - 数据加载（业务逻辑与原版一致）
