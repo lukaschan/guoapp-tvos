@@ -155,7 +155,7 @@ struct TVChip: View {
     var compact = false
     let action: () -> Void
 
-    @FocusState private var focused = false
+    @FocusState private var focused: Bool
 
     var body: some View {
         Button(action: action) {
@@ -195,7 +195,7 @@ struct TVPrimaryButton: View {
     var icon: String? = nil
     let action: () -> Void
 
-    @FocusState private var focused = false
+    @FocusState private var focused: Bool
 
     var body: some View {
         Button(action: action) {
@@ -227,7 +227,7 @@ struct TVSecondaryButton: View {
     var icon: String? = nil
     let action: () -> Void
 
-    @FocusState private var focused = false
+    @FocusState private var focused: Bool
 
     var body: some View {
         Button(action: action) {
@@ -366,7 +366,7 @@ struct TVEpisodeButton: View {
     var isCurrent = false
     let action: () -> Void
 
-    @FocusState private var focused = false
+    @FocusState private var focused: Bool
 
     var body: some View {
         Button(action: action) {
@@ -447,7 +447,7 @@ struct TVSettingRow<Label: View>: View {
     let action: () -> Void
     @ViewBuilder var label: () -> Label
 
-    @FocusState private var focused = false
+    @FocusState private var focused: Bool
 
     var body: some View {
         Button(action: action) {
@@ -631,7 +631,7 @@ struct TVHeroCard: View {
     var hint: String = "按确认键进入详情"
 
     @State private var image: UIImage?
-    @FocusState private var focused = false
+    @FocusState private var focused: Bool
 
     var body: some View {
         NavigationLink(value: drama) {

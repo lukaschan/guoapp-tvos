@@ -90,7 +90,7 @@ struct TVPosterCard: View {
     var progress: Double? = nil
     var rank: Int? = nil
 
-    @FocusState private var focused = false
+    @FocusState private var focused: Bool
 
     var body: some View {
         NavigationLink(value: drama) {
