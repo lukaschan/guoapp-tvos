@@ -1,0 +1,147 @@
+name: Build tvOS packages
+
+# 独立仓只构建 tvOS：手动触发，构建两个版本并发布 Release。
+# 版本号来自根目录 VERSION（如 0.2.74+84），需与 Xcode 工程的
+# MARKETING_VERSION（0.2.74）+ CURRENT_PROJECT_VERSION（84）保持一致。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tvos-build-${{ github.ref }}
+
+env:
+  GOPROXY: https://proxy.golang.org,direct
+  GOSUMDB: sum.golang.org
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "只能从 main 分支手动发布，当前为 $GITHUB_REF。" >&2
+            exit 1
+          fi
+          version=$(cat VERSION)
+          if [ -z "$version" ]; then
+            echo "VERSION 为空。" >&2
+            exit 1
+          fi
+          tag="tvos-v${version//+/-}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null || gh release view "$tag" >/dev/null 2>&1; then
+            echo "版本 $version（$tag）已发布过，请先提升 VERSION。" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: native/go.mod
+          cache-dependency-path: native/go.sum
+      # Go 核心测试不阻塞出包（与原单仓行为一致），结果仍会显示在运行详情里。
+      - run: go test -race ./...
+        working-directory: native
+        continue-on-error: true
+      - run: go test -race -ldflags="-X duanjuapp/native/core.buildAllSources=true" ./...
+        working-directory: native
+        continue-on-error: true
+
+  tvos:
+    needs: prepare
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - edition: hongguojian
+            arguments: ''
+          - edition: zhenguojian
+            arguments: '--all-sources'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: native/go.mod
+          cache-dependency-path: native/go.sum
+      - name: Check Xcode and Go
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcode-select -p
+          xcodebuild -version
+          xcrun --sdk appletvos --show-sdk-path
+          xcrun --sdk appletvos --find clang
+          go version
+      - name: Build unsigned tvOS packages
+        run: python scripts/build_tvos.py ${{ matrix.arguments }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.edition }}-tvos-unsigned
+          path: dist/tvos/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    needs: [checks, prepare, tvos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: 发布 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          cat > notes.md <<EOF
+          Apple TV（tvOS 16+）原生应用，两个版本功能相同，区别只在站源范围，按需选择：
+
+          - 红果鉴 hongguojian：仅红果站源
+          - 真果鉴 zhenguojian：全部站源
+
+          tvOS：
+          - *-tvos-unsigned.ipa：未签名 IPA，需在 Mac 上用 Xcode 签名后安装到 Apple TV
+
+          注意：追剧与观看进度存在 Caches，系统空间不足时可能被清理。
+          EOF
+          changes="$(awk -v heading="## ${VERSION}" '
+            $0 == heading { found = 1; next }
+            found && /^## / { exit }
+            found && !started && /^[[:space:]]*$/ { next }
+            found { started = 1; print }
+          ' CHANGELOG.md)"
+          if [ -n "$changes" ]; then
+            { printf '更新内容：\n\n%s\n\n' "$changes"; cat notes.md; } > notes.tmp
+            mv notes.tmp notes.md
+          fi
+          gh release create "$TAG" release/* --target "$GITHUB_SHA" --title "tvOS ${VERSION}" --notes-file notes.md
