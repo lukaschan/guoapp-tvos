@@ -32,8 +32,9 @@
 因此播放改用 [MPVKit](https://github.com/mpvkit/MPVKit)（libmpv），密钥经
 FFmpeg demuxer 选项直传 libavformat。
 
-- MPVKit 在工程中**锁定 exact 1.1.0-n9.0.2**（`project.pbxproj`），不随上游自动升级；
-  升级时需改工程配置并跑 CI 验证。
+- MPVKit 在工程中要求 `upToNextMajorVersion`（最低 1.0.0），实际版本由提交进仓库的
+  `Package.resolved` 锁定为 **1.1.0-n9.0.2**（SPM 锁版本标准做法），不随上游自动升级；
+  升级时需更新 `Package.resolved` 并跑 CI 验证。
 - MPVKit 1.1.0-n9.0.2 内置：mpv v0.41.0、FFmpeg n9.0.2、libplacebo v7.360.1、MoltenVK v1.4.2。
 - 许可证：MPVKit 本身为 **LGPL-3.0**（见其仓库 LICENSE）；其内置的 libmpv 来自
   mpv（GPL-2.0-or-later），FFmpeg 的许可取决于 MPVKit 的构建配置（1.0.0 起已移除

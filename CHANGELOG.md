@@ -10,7 +10,8 @@
   同仓维护成本高，tvOS 构建进发布流程），本仓按该建议执行。
 - 文档同步：README / CHANGELOG / Info.plist 里「AVPlayer」改为 MPVKit（libmpv），
   播放实际已用 MPVKit，不再是 AVPlayer。
-- MPVKit 锁定 exact 1.1.0-n9.0.2（mpv v0.41.0 / FFmpeg n9.0.2），不再随上游自动升级；
+- MPVKit 锁定 1.1.0-n9.0.2（mpv v0.41.0 / FFmpeg n9.0.2），由提交进仓库的
+  `Package.resolved` 钉住，不再随上游自动升级；
   MPVKit 本身为 LGPL-3.0，内置 libmpv 来自 mpv（GPL-2.0-or-later），分发前以
   MPVKit 仓库 LICENSE 与 Release 说明为准。
 - 设置页「关于」区提示：追剧与观看进度存在 Caches，系统空间不足时可能被清理。
