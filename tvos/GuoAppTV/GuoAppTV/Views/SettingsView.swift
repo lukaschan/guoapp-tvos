@@ -122,7 +122,7 @@ struct SettingsView: View {
             .padding(.horizontal, 28)
             .padding(.vertical, 22)
             aboutNote("原生 tvOS 应用 · Go 核心 · mpv 播放")
-            aboutNote("未签名包需在 Mac 上用 Xcode 签名后安装到 Apple TV。")
+            aboutNote("“最近观看”中按播放/暂停键，以决定是否删除该观看记录")
             aboutNote("追剧与观看进度存在 Caches，系统空间不足时可能被清理。")
         }
     }
