@@ -83,6 +83,9 @@ struct PosterView: View {
 /// 焦点海报卡：整卡可聚焦，进入详情页。
 /// 卡面保持干净：海报 + 标题 + 可选副标题 / 进度条，无厚重容器与多余边框。
 /// 焦点时轻微放大 + 柔和投影（无描边），由 tvFocusEffect 统一处理。
+/// 注意：NavigationLink 在 tvOS 上有系统默认的焦点白框，自定义 ButtonStyle
+/// 压不住，必须用 .plain 才能彻底去掉；按压缩放改由 tvFocusEffect 的
+/// 焦点放大承担（选中即放大，视觉反馈已足够）。
 struct TVPosterCard: View {
     let drama: Drama
     var title: String? = nil
@@ -118,7 +121,7 @@ struct TVPosterCard: View {
                 }
             }
         }
-        .buttonStyle(TVPressButtonStyle())
+        .buttonStyle(.plain)
         .focused($focused)
         .tvFocusEffect(focused: focused, scale: TVTheme.focusScale, cornerRadius: TVTheme.posterRadius, stroke: false)
         .zIndex(focused ? 1 : 0)
