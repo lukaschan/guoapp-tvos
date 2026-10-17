@@ -1,11 +1,10 @@
 import SwiftUI
 
-/// 首页：现代流媒体式的内容发现页。
+/// 首页：内容发现页。
 ///
 /// 结构（自上而下）：
-/// 1. 继续观看大卡 —— 基于真实「最近观看」数据的首屏视觉中心；
-/// 2. 继续观看 / 我的追剧货架 —— 同样来自本地真实数据；
-/// 3. 目录浏览 —— 站源、分类、榜单筛选 + 海报网格（保留原有全部分类、
+/// 1. 我的追剧货架 —— 来自本地真实数据（有追剧时显示）；
+/// 2. 目录浏览 —— 站源、分类、榜单筛选 + 海报网格（保留原有全部分类、
 ///    无限滚动与榜单能力，切换分类时自动回到目录顶部）。
 struct HomeView: View {
     @EnvironmentObject private var appState: AppState
@@ -34,23 +33,6 @@ struct HomeView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: TVTheme.sectionSpacing) {
-                        if let latest = store.recentHistory.first {
-                            TVHeroCard(drama: latest.drama, progressLine: heroLine(latest))
-                        }
-                        if store.recentHistory.count > 1 {
-                            TVShelfRow(title: "继续观看", icon: "clock.arrow.circlepath") {
-                                ForEach(
-                                    Array(store.recentHistory.dropFirst().prefix(11)),
-                                    id: \.episodeKey
-                                ) { entry in
-                                    TVPosterCard(
-                                        drama: entry.drama,
-                                        subtitle: shelfSubtitle(entry),
-                                        progress: progressFraction(for: entry)
-                                    )
-                                }
-                            }
-                        }
                         if !store.follows.isEmpty {
                             TVShelfRow(title: "我的追剧", icon: "bookmark.fill") {
                                 ForEach(Array(store.follows.prefix(12)), id: \.drama.id) { followed in
@@ -214,28 +196,9 @@ struct HomeView: View {
 
     // MARK: - 货架文案
 
-    private func heroLine(_ entry: WatchProgress) -> String {
-        if entry.duration > 1 && entry.position >= entry.duration - 1 {
-            return "上次看到 第\(entry.episode)集 · 已看完"
-        }
-        return "上次看到 第\(entry.episode)集 · 看到 \(tvTimecode(entry.position))"
-    }
-
-    private func shelfSubtitle(_ entry: WatchProgress) -> String {
-        if entry.duration > 1 && entry.position >= entry.duration - 1 {
-            return "第\(entry.episode)集 · 已看完"
-        }
-        return "第\(entry.episode)集 · 看到 \(tvTimecode(entry.position))"
-    }
-
     private func followSubtitle(_ drama: Drama) -> String? {
         guard let progress = store.latestProgress(for: drama.id) else { return nil }
         return "上次看到 第\(progress.episode)集"
-    }
-
-    private func progressFraction(for entry: WatchProgress) -> Double {
-        guard entry.duration > 0 else { return 0 }
-        return min(max(entry.position / entry.duration, 0), 1)
     }
 
     // MARK: - 数据加载（业务逻辑与原版一致）

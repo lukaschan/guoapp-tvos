@@ -20,6 +20,10 @@ struct DetailView: View {
         var id: String { "\(episode.number)" }
     }
 
+    /// 展示用的剧信息：详情接口返回的完整数据优先（简介 / 分类等更全），
+    /// 详情未加载出来时回落到目录传来的剧信息。
+    private var displayDrama: Drama { detail?.drama ?? drama }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: TVTheme.sectionSpacing) {
@@ -79,12 +83,12 @@ struct DetailView: View {
 
     private var infoColumn: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text(drama.title)
+            Text(displayDrama.title)
                 .font(.system(size: 46, weight: .bold))
                 .lineLimit(3)
             metaPills
-            if !drama.description.isEmpty {
-                Text(drama.description)
+            if !displayDrama.description.isEmpty {
+                Text(displayDrama.description)
                     .font(.system(size: 21))
                     .foregroundColor(TVTheme.textSecondary)
                     .lineSpacing(6)
@@ -135,10 +139,10 @@ struct DetailView: View {
 
     private var metaParts: [String] {
         var parts: [String] = []
-        if !drama.category.isEmpty { parts.append(drama.category) }
-        if !drama.releaseLabel.isEmpty { parts.append(drama.releaseLabel) }
-        if drama.episodes > 0 { parts.append("共 \(drama.episodes) 集") }
-        if !drama.heat.isEmpty { parts.append("热度 \(drama.heat)") }
+        if !displayDrama.category.isEmpty { parts.append(displayDrama.category) }
+        if !displayDrama.releaseLabel.isEmpty { parts.append(displayDrama.releaseLabel) }
+        if displayDrama.episodes > 0 { parts.append("共 \(displayDrama.episodes) 集") }
+        if !displayDrama.heat.isEmpty { parts.append("热度 \(displayDrama.heat)") }
         return parts
     }
 

@@ -32,17 +32,11 @@ enum TVTheme {
 
     // 焦点动效：短促、克制的弹簧；不夸张、不弹跳
     static let focusScale: CGFloat = 1.06     // 海报卡焦点放大
-    static let heroScale: CGFloat = 1.02      // 大卡焦点放大（面积大，幅度更小）
     static let chipScale: CGFloat = 1.08      // 小胶囊焦点放大
     static let focusAnimation = Animation.spring(response: 0.28, dampingFraction: 0.78)
     static let pressAnimation = Animation.easeOut(duration: 0.12)
 
     // 沉浸式底图的压暗遮罩
-    /// 首页精选大卡：左深右浅，保证左侧文字可读。
-    static let heroScrim = LinearGradient(
-        colors: [.black.opacity(0.92), .black.opacity(0.55), .black.opacity(0.12)],
-        startPoint: .leading, endPoint: .trailing
-    )
     /// 详情页背景：自上而下压暗到底，与纯黑页面无缝衔接。
     static let detailScrim = LinearGradient(
         colors: [.black.opacity(0.30), .black.opacity(0.72), .black],
@@ -616,74 +610,6 @@ struct TVShelfRow<Cards: View>: View {
                 .padding(.vertical, 10)
                 .padding(.horizontal, 2)
             }
-        }
-    }
-}
-
-// MARK: - 精选大卡（继续观看）
-
-/// 首页首屏大卡：基于「最近观看」的真实数据，
-/// 模糊海报为底、左侧海报缩略图与进度信息，点击进入详情续播。
-struct TVHeroCard: View {
-    let drama: Drama
-    var progressLine: String? = nil
-    var tag: String = "继续观看"
-    var hint: String = "按确认键进入详情"
-
-    @State private var image: UIImage?
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        NavigationLink(value: drama) {
-            ZStack(alignment: .bottomLeading) {
-                TVBlurredBackdrop(image: image)
-                TVTheme.heroScrim
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.80)],
-                    startPoint: .center, endPoint: .bottom
-                )
-                HStack(alignment: .bottom, spacing: 36) {
-                    PosterView(drama: drama)
-                        .frame(height: 300)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-                        )
-                        .shadow(color: .black.opacity(0.5), radius: 20, y: 10)
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text(tag)
-                            .font(.system(size: 19, weight: .semibold))
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 7)
-                            .background(Capsule().fill(TVTheme.accentGradient))
-                            .foregroundColor(.white)
-                        Text(drama.title)
-                            .font(.system(size: 46, weight: .bold))
-                            .lineLimit(2)
-                        if let progressLine, !progressLine.isEmpty {
-                            Text(progressLine)
-                                .font(.system(size: 23))
-                                .foregroundColor(TVTheme.textSecondary)
-                        }
-                        Text(hint)
-                            .font(.system(size: 18))
-                            .foregroundColor(TVTheme.textTertiary)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(40)
-            }
-            .frame(height: 380)
-            .frame(maxWidth: .infinity)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        }
-        .buttonStyle(TVPressButtonStyle())
-        .focused($focused)
-        .tvFocusEffect(focused: focused, scale: TVTheme.heroScale, cornerRadius: 24, stroke: false)
-        .zIndex(focused ? 1 : 0)
-        .task(id: "\(drama.id)\0\(drama.cover)") {
-            image = await PosterCache.shared.image(for: drama)
         }
     }
 }
