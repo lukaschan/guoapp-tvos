@@ -196,7 +196,7 @@ struct SearchView: View {
 ///
 /// SwiftUI TextField 在 tvOS 聚焦时，系统会在焦点层画一个白框，
 /// 焦点层在所有 App 视图之上，任何 SwiftUI 遮罩都盖不住。
-/// 这里用 UITextField 子类（canBecomeFocused = false，focusEffect = nil），
+/// 这里用 UITextField 子类（canBecomeFocused = false），
 /// 永不参与焦点导航、永不画白框；由外部点按直接调 becomeFirstResponder()
 /// 拉起键盘，只负责收输入与回车搜索。
 private struct TVSearchTextField: UIViewRepresentable {
@@ -214,7 +214,6 @@ private struct TVSearchTextField: UIViewRepresentable {
         field.autocorrectionType = .no
         field.spellCheckingType = .no
         field.autocapitalizationType = .none
-        field.focusEffect = nil
         field.delegate = context.coordinator
         field.addTarget(context.coordinator, action: #selector(Coordinator.editingChanged(_:)), for: .editingChanged)
         return field
