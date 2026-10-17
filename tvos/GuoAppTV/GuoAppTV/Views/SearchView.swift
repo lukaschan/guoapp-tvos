@@ -29,7 +29,6 @@ struct SearchView: View {
                 .padding(.top, 24)
                 .padding(.bottom, 56)
             }
-            .navigationTitle("搜索")
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
             }
@@ -45,6 +44,7 @@ struct SearchView: View {
                 .foregroundColor(searchFocused ? TVTheme.textPrimary : TVTheme.textTertiary)
             TextField("输入剧名、演员或关键词", text: $query)
                 .font(.system(size: 26))
+                .foregroundColor(.white)
                 .focused($searchFocused)
                 .submitLabel(.search)
                 .onSubmit { Task { await search() } }
@@ -78,7 +78,7 @@ struct SearchView: View {
         .padding(.vertical, 20)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(searchFocused ? TVTheme.surfaceBright : TVTheme.surface)
+                .fill(searchFocused ? Color(white: 0.18) : Color(white: 0.10))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)

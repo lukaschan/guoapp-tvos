@@ -43,7 +43,6 @@ struct SettingsView: View {
                 .padding(.top, 20)
                 .padding(.bottom, 56)
             }
-            .navigationTitle("设置")
             .sheet(item: $activePicker) { picker in
                 pickerSheet(picker)
             }

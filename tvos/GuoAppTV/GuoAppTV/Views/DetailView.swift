@@ -12,7 +12,6 @@ struct DetailView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var playTarget: PlayTarget?
-    @State private var backdropImage: UIImage?
 
     private struct PlayTarget: Identifiable {
         let episode: Episode
@@ -35,9 +34,6 @@ struct DetailView: View {
         .background(Color.black.ignoresSafeArea())
         .navigationTitle(drama.title)
         .task { await load() }
-        .task(id: "\(drama.id)\0\(drama.cover)") {
-            backdropImage = await PosterCache.shared.image(for: drama)
-        }
         .fullScreenCover(item: $playTarget) { target in
             PlayerView(
                 drama: detail?.drama ?? drama,
@@ -51,23 +47,13 @@ struct DetailView: View {
     // MARK: - 头部
 
     private var header: some View {
-        ZStack(alignment: .bottomLeading) {
-            TVBlurredBackdrop(image: backdropImage)
-            TVTheme.detailScrim
-            HStack(alignment: .bottom, spacing: 44) {
-                posterColumn
-                infoColumn
-            }
-            .padding(.horizontal, TVTheme.pageInset)
-            .padding(.vertical, 40)
+        HStack(alignment: .bottom, spacing: 44) {
+            posterColumn
+            infoColumn
         }
-        .frame(minHeight: 520)
-        .frame(maxWidth: .infinity)
-        .clipped()
-        .overlay(alignment: .top) {
-            // 顶部向纯黑过渡，与导航栏自然衔接。
-            TVTheme.topFade.frame(height: 110).allowsHitTesting(false)
-        }
+        .padding(.horizontal, TVTheme.pageInset)
+        .padding(.vertical, 40)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var posterColumn: some View {

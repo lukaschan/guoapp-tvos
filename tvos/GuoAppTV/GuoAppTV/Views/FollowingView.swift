@@ -40,7 +40,6 @@ struct FollowingView: View {
                     }
                 }
             }
-            .navigationTitle("追剧")
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
             }

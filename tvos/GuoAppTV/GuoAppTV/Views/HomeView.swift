@@ -46,7 +46,7 @@ struct HomeView: View {
                         catalogSection
                     }
                     .padding(.horizontal, TVTheme.pageInset)
-                    .padding(.top, 20)
+                    .padding(.top, 8)
                     .padding(.bottom, 56)
                 }
                 .onChange(of: loadKey) { _ in
@@ -123,27 +123,22 @@ struct HomeView: View {
     }
 
     private var sourceRow: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            rowLabel("站源")
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(SourceSite.available(allSources: appState.allSources)) { site in
-                        TVChip(title: site.name, isSelected: site.id == appState.selectedSource) {
-                            selectedCategory = ""
-                            appState.selectedSource = site.id
-                        }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(SourceSite.available(allSources: appState.allSources)) { site in
+                    TVChip(title: site.name, isSelected: site.id == appState.selectedSource) {
+                        selectedCategory = ""
+                        appState.selectedSource = site.id
                     }
                 }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 2)
             }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 2)
         }
     }
 
     private var categoryRow: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            rowLabel(isRankingMode ? "榜单" : "分类")
-            ScrollViewReader { proxy in
+        ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(categories) { category in
@@ -183,15 +178,7 @@ struct HomeView: View {
                         }
                     }
                 }
-            }
         }
-    }
-
-    private func rowLabel(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 19, weight: .medium))
-            .foregroundColor(TVTheme.textTertiary)
-            .padding(.leading, 6)
     }
 
     // MARK: - 货架文案

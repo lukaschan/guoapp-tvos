@@ -36,18 +36,6 @@ enum TVTheme {
     static let focusAnimation = Animation.spring(response: 0.28, dampingFraction: 0.78)
     static let pressAnimation = Animation.easeOut(duration: 0.12)
 
-    // 沉浸式底图的压暗遮罩
-    /// 详情页背景：自上而下压暗到底，与纯黑页面无缝衔接。
-    static let detailScrim = LinearGradient(
-        colors: [.black.opacity(0.30), .black.opacity(0.72), .black],
-        startPoint: .top, endPoint: .bottom
-    )
-    /// 顶部导航栏过渡。
-    static let topFade = LinearGradient(
-        colors: [.black, .clear],
-        startPoint: .top, endPoint: .bottom
-    )
-
     // 海报网格：大屏横向约每行 7 张，随屏宽自适应
     static func posterColumns(minimum: CGFloat = 216) -> [GridItem] {
         [GridItem(.adaptive(minimum: minimum, maximum: minimum * 1.3), spacing: gridSpacing)]
@@ -113,29 +101,6 @@ extension View {
         modifier(TVFocusEffect(
             focused: focused, scale: scale, cornerRadius: cornerRadius, stroke: stroke
         ))
-    }
-}
-
-// MARK: - 模糊底图
-
-/// 模糊海报背景：详情页与首页精选卡的沉浸式底图。
-/// 比容器外扩 70pt，避免模糊后四边发暗；由外层 clipShape 裁切。
-struct TVBlurredBackdrop: View {
-    let image: UIImage?
-    var blur: CGFloat = 44
-
-    var body: some View {
-        Group {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Rectangle().fill(Color(white: 0.08))
-            }
-        }
-        .blur(radius: blur, opaque: true)
-        .padding(-70)
     }
 }
 

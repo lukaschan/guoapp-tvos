@@ -34,7 +34,6 @@ struct HistoryView: View {
                     }
                 }
             }
-            .navigationTitle("最近观看")
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
             }
