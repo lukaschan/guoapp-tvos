@@ -21,6 +21,7 @@
 		A1000000000000000000004B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002B /* SettingsView.swift */; };
 		A1000000000000000000004C /* PosterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002C /* PosterView.swift */; };
 		A10000000000000000000052 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000051 /* HistoryView.swift */; };
+		A10000000000000000000053 /* TVDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000054 /* TVDesign.swift */; };
 		A1000000000000000000004D /* DuanjuCore.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000031 /* DuanjuCore.xcframework */; };
 		A10000000000000000000050 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002F /* Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -41,6 +42,7 @@
 		A1000000000000000000002B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A1000000000000000000002C /* PosterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PosterView.swift; sourceTree = "<group>"; };
 		A10000000000000000000051 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		A10000000000000000000054 /* TVDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVDesign.swift; sourceTree = "<group>"; };
 		A1000000000000000000002D /* GuoAppTV-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "GuoAppTV-Bridging-Header.h"; sourceTree = "<group>"; };
 		A1000000000000000000002E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1000000000000000000002F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -106,6 +108,7 @@
 				A1000000000000000000002B /* SettingsView.swift */,
 				A1000000000000000000002C /* PosterView.swift */,
 				A10000000000000000000051 /* HistoryView.swift */,
+				A10000000000000000000054 /* TVDesign.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -205,6 +208,7 @@
 				A1000000000000000000004B /* SettingsView.swift in Sources */,
 				A1000000000000000000004C /* PosterView.swift in Sources */,
 				A10000000000000000000052 /* HistoryView.swift in Sources */,
+				A10000000000000000000053 /* TVDesign.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
