@@ -38,41 +38,43 @@ struct SearchView: View {
     // MARK: - 搜索框
 
     private var searchField: some View {
-        // 可见层只是深黑底 + 白字的展示层；真正的 TextField 透明隐藏，
-        // 只负责拉起键盘与接收输入。tvOS 会给 TextField 画系统白底，
-        // 画在透明层上永远看不见，搜索栏底色因此始终不变黑。
+        // 可见层是深黑底 + 白字的展示层；真正的 TextField 在下层保持可见
+        // （才能正常拉起键盘），上层用不透明深色遮住它聚焦时系统画的白底。
         HStack(spacing: 14) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 25, weight: .medium))
                 .foregroundColor(searchFocused ? TVTheme.textPrimary : TVTheme.textTertiary)
-            TextField("", text: $query)
-                .focused($searchFocused)
-                .submitLabel(.search)
-                .onSubmit { Task { await search() } }
-                .onChange(of: query) { newValue in
-                    if newValue.isEmpty {
-                        suggestions = []
-                        results = []
-                        searched = false
-                    } else {
-                        searched = false
+            ZStack(alignment: .leading) {
+                TextField("", text: $query)
+                    .focused($searchFocused)
+                    .submitLabel(.search)
+                    .onSubmit { Task { await search() } }
+                    .onChange(of: query) { newValue in
+                        if newValue.isEmpty {
+                            suggestions = []
+                            results = []
+                            searched = false
+                        } else {
+                            searched = false
+                        }
                     }
-                }
-                .task(id: query) {
-                    guard !query.isEmpty else { return }
-                    try? await Task.sleep(nanoseconds: 300_000_000)
-                    guard !Task.isCancelled else { return }
-                    suggestions = (try? await CoreClient.shared.suggestions(query: query)) ?? []
-                }
-                .opacity(0)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay(alignment: .leading) {
-                    Text(query.isEmpty ? "输入剧名、演员或关键词" : query)
-                        .font(.system(size: 26))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-                        .allowsHitTesting(false)
-                }
+                    .task(id: query) {
+                        guard !query.isEmpty else { return }
+                        try? await Task.sleep(nanoseconds: 300_000_000)
+                        guard !Task.isCancelled else { return }
+                        suggestions = (try? await CoreClient.shared.suggestions(query: query)) ?? []
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // 不透明深色遮罩：盖住 TextField 聚焦时系统画的白底。
+                // TextField 本身保持可见（不用 opacity 0），才能正常拉起键盘。
+                Color(white: 0.10)
+                    .allowsHitTesting(false)
+                Text(query.isEmpty ? "输入剧名、演员或关键词" : query)
+                    .font(.system(size: 26))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .allowsHitTesting(false)
+            }
             if !query.isEmpty {
                 Button {
                     query = ""
