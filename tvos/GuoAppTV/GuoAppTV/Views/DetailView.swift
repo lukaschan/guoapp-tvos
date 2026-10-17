@@ -3,7 +3,7 @@ import UIKit
 
 /// 详情页：沉浸式影视详情。
 ///
-/// 上半部分以模糊海报为底：左侧海报、右侧标题 / 信息胶囊 / 简介 / 主次操作；
+/// 上半部分：左侧海报、右侧标题 / 信息胶囊 / 简介 / 主次操作（标题与海报顶端齐平）；
 /// 下半部分为选集网格，已看分集带进度条，「上次看到」的分集用强调色标出。
 struct DetailView: View {
     let drama: Drama
@@ -46,7 +46,7 @@ struct DetailView: View {
     // MARK: - 头部
 
     private var header: some View {
-        HStack(alignment: .bottom, spacing: 44) {
+        HStack(alignment: .top, spacing: 44) {
             posterColumn
             infoColumn
         }
@@ -74,9 +74,9 @@ struct DetailView: View {
             metaPills
             if !displayDrama.description.isEmpty {
                 Text(displayDrama.description)
-                    .font(.system(size: 21))
+                    .font(.system(size: 26))
                     .foregroundColor(TVTheme.textSecondary)
-                    .lineSpacing(6)
+                    .lineSpacing(8)
                     .lineLimit(4)
             }
             HStack(spacing: 20) {
