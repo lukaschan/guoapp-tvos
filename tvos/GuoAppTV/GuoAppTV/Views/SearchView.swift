@@ -38,39 +38,41 @@ struct SearchView: View {
     // MARK: - 搜索框
 
     private var searchField: some View {
+        // 可见层只是深黑底 + 白字的展示层；真正的 TextField 透明隐藏，
+        // 只负责拉起键盘与接收输入。tvOS 会给 TextField 画系统白底，
+        // 画在透明层上永远看不见，搜索栏底色因此始终不变黑。
         HStack(spacing: 14) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 25, weight: .medium))
                 .foregroundColor(searchFocused ? TVTheme.textPrimary : TVTheme.textTertiary)
-            ZStack(alignment: .leading) {
-                if query.isEmpty {
-                    Text("输入剧名、演员或关键词")
+            TextField("", text: $query)
+                .focused($searchFocused)
+                .submitLabel(.search)
+                .onSubmit { Task { await search() } }
+                .onChange(of: query) { newValue in
+                    if newValue.isEmpty {
+                        suggestions = []
+                        results = []
+                        searched = false
+                    } else {
+                        searched = false
+                    }
+                }
+                .task(id: query) {
+                    guard !query.isEmpty else { return }
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    guard !Task.isCancelled else { return }
+                    suggestions = (try? await CoreClient.shared.suggestions(query: query)) ?? []
+                }
+                .opacity(0)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .leading) {
+                    Text(query.isEmpty ? "输入剧名、演员或关键词" : query)
                         .font(.system(size: 26))
                         .foregroundColor(.white)
+                        .lineLimit(1)
+                        .allowsHitTesting(false)
                 }
-                TextField("", text: $query)
-                    .font(.system(size: 26))
-                    .foregroundColor(.white)
-                    .textFieldStyle(.plain)
-                    .focused($searchFocused)
-                    .submitLabel(.search)
-                    .onSubmit { Task { await search() } }
-                    .onChange(of: query) { newValue in
-                        if newValue.isEmpty {
-                            suggestions = []
-                            results = []
-                            searched = false
-                        } else {
-                            searched = false
-                        }
-                    }
-                    .task(id: query) {
-                        guard !query.isEmpty else { return }
-                        try? await Task.sleep(nanoseconds: 300_000_000)
-                        guard !Task.isCancelled else { return }
-                        suggestions = (try? await CoreClient.shared.suggestions(query: query)) ?? []
-                    }
-            }
             if !query.isEmpty {
                 Button {
                     query = ""
@@ -86,11 +88,7 @@ struct SearchView: View {
         .padding(.vertical, 20)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(searchFocused ? Color(white: 0.18) : Color(white: 0.10))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Color.white.opacity(searchFocused ? 0.85 : 0), lineWidth: 3)
+                .fill(Color(white: 0.10))
         )
         .onAppear {
             // 进入搜索页默认聚焦搜索框；从详情页返回时不打扰已结果状态。
