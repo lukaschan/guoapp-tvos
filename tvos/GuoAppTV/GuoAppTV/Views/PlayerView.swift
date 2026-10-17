@@ -609,19 +609,29 @@ struct PlayerView: View {
                         .allowsHitTesting(false)
                 }
             } else if let error {
-                VStack(spacing: 24) {
-                    Text("播放失败").font(.title)
-                    Text(error).foregroundColor(.secondary).multilineTextAlignment(.center)
+                VStack(spacing: 28) {
+                    TVStatusView(
+                        icon: "exclamationmark.triangle.fill",
+                        title: "播放失败",
+                        message: error,
+                        expands: false
+                    )
                     HStack(spacing: 20) {
-                        Button("重试") { Task { await load() } }
-                        Button("返回") { dismiss() }
+                        TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
+                            Task { await load() }
+                        }
+                        TVSecondaryButton(title: "返回", icon: "chevron.left") {
+                            dismiss()
+                        }
                     }
                 }
                 .padding(60)
             } else {
-                ProgressView("正在解析播放地址…")
+                TVLoadingView("正在解析播放地址…")
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.ignoresSafeArea())
         .task {
             await load()
         }

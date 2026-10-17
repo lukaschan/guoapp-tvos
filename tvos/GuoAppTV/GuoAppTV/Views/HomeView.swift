@@ -1,7 +1,15 @@
 import SwiftUI
 
+/// 首页：现代流媒体式的内容发现页。
+///
+/// 结构（自上而下）：
+/// 1. 继续观看大卡 —— 基于真实「最近观看」数据的首屏视觉中心；
+/// 2. 继续观看 / 我的追剧货架 —— 同样来自本地真实数据；
+/// 3. 目录浏览 —— 站源、分类、榜单筛选 + 海报网格（保留原有全部分类、
+///    无限滚动与榜单能力，切换分类时自动回到目录顶部）。
 struct HomeView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var store: Store
     @State private var categories: [Category] = [.all]
     @State private var selectedCategory = ""
     @State private var items: [Drama] = []
@@ -23,41 +31,49 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 12) {
-                categoryRow
-                if appState.allSources {
-                    sourceRow
-                }
-                if !warning.isEmpty {
-                    Text(warning).font(.subheadline).foregroundColor(.secondary)
-                }
-                if loading && items.isEmpty {
-                    Spacer()
-                    HStack { Spacer(); ProgressView("正在加载…"); Spacer() }
-                    Spacer()
-                } else if let error, items.isEmpty {
-                    Spacer()
-                    VStack(spacing: 16) {
-                        Text(error).foregroundColor(.secondary).multilineTextAlignment(.center)
-                        Button("重试") { Task { await reload(firstPage: true) } }
-                    }
-                    .frame(maxWidth: .infinity)
-                    Spacer()
-                } else {
-                    PosterGrid(items: items, onReachEnd: {
-                        Task { await loadMore() }
-                    })
-                    if loading && !items.isEmpty {
-                        HStack {
-                            Spacer()
-                            ProgressView("正在加载…")
-                            Spacer()
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: TVTheme.sectionSpacing) {
+                        if let latest = store.recentHistory.first {
+                            TVHeroCard(drama: latest.drama, progressLine: heroLine(latest))
                         }
-                        .padding(.bottom, 8)
+                        if store.recentHistory.count > 1 {
+                            TVShelfRow(title: "继续观看", icon: "clock.arrow.circlepath") {
+                                ForEach(
+                                    Array(store.recentHistory.dropFirst().prefix(11)),
+                                    id: \.episodeKey
+                                ) { entry in
+                                    TVPosterCard(
+                                        drama: entry.drama,
+                                        subtitle: shelfSubtitle(entry),
+                                        progress: progressFraction(for: entry)
+                                    )
+                                }
+                            }
+                        }
+                        if !store.follows.isEmpty {
+                            TVShelfRow(title: "我的追剧", icon: "bookmark.fill") {
+                                ForEach(Array(store.follows.prefix(12)), id: \.drama.id) { followed in
+                                    TVPosterCard(
+                                        drama: followed.drama,
+                                        subtitle: followSubtitle(followed.drama)
+                                    )
+                                }
+                            }
+                        }
+                        catalogSection
+                    }
+                    .padding(.horizontal, TVTheme.pageInset)
+                    .padding(.top, 20)
+                    .padding(.bottom, 56)
+                }
+                .onChange(of: loadKey) { _ in
+                    // 切换站源 / 分类 / 榜单后回到目录区，货架不被反复扫过。
+                    DispatchQueue.main.async {
+                        proxy.scrollTo("catalog-top", anchor: .top)
                     }
                 }
             }
-            .padding(.horizontal, 48)
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
             }
@@ -67,84 +83,162 @@ struct HomeView: View {
         }
     }
 
-    private var sourceRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(SourceSite.available(allSources: appState.allSources)) { site in
-                    let selected = site.id == appState.selectedSource
-                    Button(site.name) {
-                        selectedCategory = ""
-                        appState.selectedSource = site.id
-                    }
-                    .font(.system(size: 16))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background(selected ? Color.white : Color.white.opacity(0.12))
-                    .foregroundColor(selected ? .black : .white)
-                    .cornerRadius(8)
+    // MARK: - 目录浏览区
+
+    private var catalogSection: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            if appState.allSources {
+                sourceRow
+            }
+            categoryRow
+            if !warning.isEmpty {
+                Text(warning)
+                    .font(.system(size: 19))
+                    .foregroundColor(TVTheme.textTertiary)
+            }
+            catalogContent
+        }
+        .id("catalog-top")
+    }
+
+    @ViewBuilder
+    private var catalogContent: some View {
+        if loading && items.isEmpty {
+            TVLoadingView("正在加载…")
+                .padding(.vertical, 160)
+        } else if let error, items.isEmpty {
+            VStack(spacing: 26) {
+                TVStatusView(
+                    icon: "exclamationmark.triangle",
+                    title: "内容加载失败",
+                    message: error,
+                    expands: false
+                )
+                TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
+                    Task { await reload(firstPage: true) }
+                }
+            }
+            .padding(.vertical, 90)
+        } else if items.isEmpty {
+            TVStatusView(
+                icon: "sparkles",
+                title: "暂无内容",
+                message: "换个分类或站源看看。",
+                expands: false
+            )
+            .padding(.vertical, 90)
+        } else {
+            VStack(spacing: 20) {
+                TVPosterGrid(items: items, showRank: isRankingMode, onReachEnd: {
+                    Task { await loadMore() }
+                })
+                if loading && !items.isEmpty {
+                    TVLoadingView("正在加载更多…")
+                        .padding(.vertical, 24)
                 }
             }
         }
     }
 
-    private var categoryRow: some View {
-        ScrollViewReader { proxy in
+    private var sourceRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            rowLabel("站源")
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(categories) { category in
-                        let selected = category.id == selectedCategory
-                        Button(category.name) {
-                            selectedCategory = category.id
-                        }
-                        .font(.system(size: 16))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
-                        .background(selected ? Color.white : Color.white.opacity(0.12))
-                        .foregroundColor(selected ? .black : .white)
-                        .cornerRadius(8)
-                    }
-                    // 红果榜单：与分类同一行，仅红果站源有。
-                    if appState.selectedSource == "hongguo" {
-                        let selected = isRankingMode
-                        Button("红果榜单") {
-                            selectedCategory = Self.rankingCategoryId
-                        }
-                        .font(.system(size: 16))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
-                        .background(selected ? Color.white : Color.white.opacity(0.12))
-                        .foregroundColor(selected ? .black : .white)
-                        .cornerRadius(8)
-                        // 榜单模式下，榜单切换按钮紧跟在“红果榜单”右边，
-                        // 同一行横向滚动、不换行；按钮和字体都更小，省空间。
-                        if isRankingMode {
-                            ForEach(rankingBoards) { board in
-                                let boardSelected = board.id == selectedBoard
-                                Button(board.name) {
-                                    selectedBoard = board.id
-                                }
-                                .font(.system(size: 13))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(boardSelected ? Color.white : Color.white.opacity(0.12))
-                                .foregroundColor(boardSelected ? .black : .white)
-                                .cornerRadius(6)
-                                .id(board.id == rankingBoards.first?.id ? "board-first" : board.id)
-                            }
+                HStack(spacing: 12) {
+                    ForEach(SourceSite.available(allSources: appState.allSources)) { site in
+                        TVChip(title: site.name, isSelected: site.id == appState.selectedSource) {
+                            selectedCategory = ""
+                            appState.selectedSource = site.id
                         }
                     }
                 }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 2)
             }
-            // 榜单出现后自动滚到第一个榜单按钮，避免它藏在屏幕外。
-            .onChange(of: isRankingMode && !rankingBoards.isEmpty) { shouldScroll in
-                if shouldScroll {
-                    DispatchQueue.main.async {
-                        proxy.scrollTo("board-first", anchor: .leading)
+        }
+    }
+
+    private var categoryRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            rowLabel(isRankingMode ? "榜单" : "分类")
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(categories) { category in
+                            TVChip(title: category.name, isSelected: category.id == selectedCategory) {
+                                selectedCategory = category.id
+                            }
+                        }
+                        // 红果榜单：与分类同一行，仅红果站源有。
+                        if appState.selectedSource == "hongguo" {
+                            TVChip(title: "红果榜单", isSelected: isRankingMode) {
+                                selectedCategory = Self.rankingCategoryId
+                            }
+                            // 榜单模式下，榜单切换胶囊紧跟在「红果榜单」右边，
+                            // 同一行横向滚动、不换行。
+                            if isRankingMode {
+                                ForEach(rankingBoards) { board in
+                                    TVChip(
+                                        title: board.name,
+                                        isSelected: board.id == selectedBoard,
+                                        compact: true
+                                    ) {
+                                        selectedBoard = board.id
+                                    }
+                                    .id(board.id == rankingBoards.first?.id ? "board-first" : board.id)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 2)
+                }
+                // 榜单出现后自动滚到第一个榜单按钮，避免它藏在屏幕外。
+                .onChange(of: isRankingMode && !rankingBoards.isEmpty) { shouldScroll in
+                    if shouldScroll {
+                        DispatchQueue.main.async {
+                            proxy.scrollTo("board-first", anchor: .leading)
+                        }
                     }
                 }
             }
         }
     }
+
+    private func rowLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 19, weight: .medium))
+            .foregroundColor(TVTheme.textTertiary)
+            .padding(.leading, 6)
+    }
+
+    // MARK: - 货架文案
+
+    private func heroLine(_ entry: WatchProgress) -> String {
+        if entry.duration > 1 && entry.position >= entry.duration - 1 {
+            return "上次看到 第\(entry.episode)集 · 已看完"
+        }
+        return "上次看到 第\(entry.episode)集 · 看到 \(tvTimecode(entry.position))"
+    }
+
+    private func shelfSubtitle(_ entry: WatchProgress) -> String {
+        if entry.duration > 1 && entry.position >= entry.duration - 1 {
+            return "第\(entry.episode)集 · 已看完"
+        }
+        return "第\(entry.episode)集 · 看到 \(tvTimecode(entry.position))"
+    }
+
+    private func followSubtitle(_ drama: Drama) -> String? {
+        guard let progress = store.latestProgress(for: drama.id) else { return nil }
+        return "上次看到 第\(progress.episode)集"
+    }
+
+    private func progressFraction(for entry: WatchProgress) -> Double {
+        guard entry.duration > 0 else { return 0 }
+        return min(max(entry.position / entry.duration, 0), 1)
+    }
+
+    // MARK: - 数据加载（业务逻辑与原版一致）
 
     private func reload(firstPage: Bool) async {
         if firstPage { page = 1 }
@@ -183,7 +277,7 @@ struct HomeView: View {
                     let fetched = try await CoreClient.shared.categories(
                         source: appState.selectedSource
                     )
-                    // 核心返回的分类里可能自带“全部”，与本地的 .all 重复；
+                    // 核心返回的分类里可能自带「全部」，与本地的 .all 重复；
                     // 按名称去重，保留第一个（即本地的 .all）。
                     var seenNames = Set<String>()
                     categories = ([.all] + fetched).filter { seenNames.insert($0.name).inserted }

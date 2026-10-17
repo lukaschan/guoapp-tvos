@@ -1,5 +1,7 @@
 import SwiftUI
 
+/// 追剧页：统一的海报卡片网格。
+/// 每张卡显示上次看到的位置；长按（遥控器菜单键）可取消追剧。
 struct FollowingView: View {
     @EnvironmentObject private var store: Store
 
@@ -7,22 +9,46 @@ struct FollowingView: View {
         NavigationStack {
             Group {
                 if store.follows.isEmpty {
-                    VStack(spacing: 12) {
-                        Text("还没有追剧")
-                        Text("在详情页点「追剧」，即可收藏到这里。")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
+                    TVStatusView(
+                        icon: "bookmark",
+                        title: "还没有追剧",
+                        message: "在详情页点「追剧」，即可收藏到这里。",
+                        expands: false
+                    )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, TVTheme.pageInset)
                 } else {
-                    PosterGrid(items: store.follows.map { $0.drama })
+                    ScrollView {
+                        LazyVGrid(columns: TVTheme.posterColumns(), spacing: 32) {
+                            ForEach(store.follows, id: \.drama.id) { followed in
+                                TVPosterCard(
+                                    drama: followed.drama,
+                                    subtitle: followSubtitle(followed.drama)
+                                )
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        store.toggleFollow(followed.drama)
+                                    } label: {
+                                        Label("取消追剧", systemImage: "bookmark.slash")
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, TVTheme.pageInset)
+                        .padding(.top, 20)
+                        .padding(.bottom, 56)
+                    }
                 }
             }
-            .padding(.horizontal, 48)
             .navigationTitle("追剧")
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
             }
         }
+    }
+
+    private func followSubtitle(_ drama: Drama) -> String? {
+        guard let progress = store.latestProgress(for: drama.id) else { return nil }
+        return "上次看到 第\(progress.episode)集"
     }
 }
