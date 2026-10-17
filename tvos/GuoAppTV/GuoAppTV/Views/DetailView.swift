@@ -32,7 +32,6 @@ struct DetailView: View {
             .padding(.bottom, 56)
         }
         .background(Color.black.ignoresSafeArea())
-        .navigationTitle(drama.title)
         .task { await load() }
         .fullScreenCover(item: $playTarget) { target in
             PlayerView(

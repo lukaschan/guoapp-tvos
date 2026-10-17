@@ -42,27 +42,35 @@ struct SearchView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 25, weight: .medium))
                 .foregroundColor(searchFocused ? TVTheme.textPrimary : TVTheme.textTertiary)
-            TextField("输入剧名、演员或关键词", text: $query)
-                .font(.system(size: 26))
-                .foregroundColor(.white)
-                .focused($searchFocused)
-                .submitLabel(.search)
-                .onSubmit { Task { await search() } }
-                .onChange(of: query) { newValue in
-                    if newValue.isEmpty {
-                        suggestions = []
-                        results = []
-                        searched = false
-                    } else {
-                        searched = false
+            ZStack(alignment: .leading) {
+                if query.isEmpty {
+                    Text("输入剧名、演员或关键词")
+                        .font(.system(size: 26))
+                        .foregroundColor(.white)
+                }
+                TextField("", text: $query)
+                    .font(.system(size: 26))
+                    .foregroundColor(.white)
+                    .textFieldStyle(.plain)
+                    .focused($searchFocused)
+                    .submitLabel(.search)
+                    .onSubmit { Task { await search() } }
+                    .onChange(of: query) { newValue in
+                        if newValue.isEmpty {
+                            suggestions = []
+                            results = []
+                            searched = false
+                        } else {
+                            searched = false
+                        }
                     }
-                }
-                .task(id: query) {
-                    guard !query.isEmpty else { return }
-                    try? await Task.sleep(nanoseconds: 300_000_000)
-                    guard !Task.isCancelled else { return }
-                    suggestions = (try? await CoreClient.shared.suggestions(query: query)) ?? []
-                }
+                    .task(id: query) {
+                        guard !query.isEmpty else { return }
+                        try? await Task.sleep(nanoseconds: 300_000_000)
+                        guard !Task.isCancelled else { return }
+                        suggestions = (try? await CoreClient.shared.suggestions(query: query)) ?? []
+                    }
+            }
             if !query.isEmpty {
                 Button {
                     query = ""
