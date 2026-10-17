@@ -4,6 +4,8 @@ import SwiftUI
 /// 卡片展示海报、看到第几集与进度条；点海报进详情页续播。
 struct HistoryView: View {
     @EnvironmentObject private var store: Store
+    /// 待确认删除的观看记录（按遥控器播放/暂停键时设置）。
+    @State private var pendingDelete: WatchProgress?
 
     var body: some View {
         NavigationStack {
@@ -26,6 +28,9 @@ struct HistoryView: View {
                                     subtitle: subtitle(for: entry),
                                     progress: progressFraction(for: entry)
                                 )
+                                .onPlayPauseCommand {
+                                    pendingDelete = entry
+                                }
                             }
                         }
                         .padding(.horizontal, TVTheme.pageInset)
@@ -36,6 +41,25 @@ struct HistoryView: View {
             }
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
+            }
+            .confirmationDialog(
+                "删除观看记录",
+                isPresented: Binding(
+                    get: { pendingDelete != nil },
+                    set: { if !$0 { pendingDelete = nil } }
+                )
+            ) {
+                Button("删除", role: .destructive) {
+                    if let entry = pendingDelete {
+                        store.deleteHistory(for: entry.drama)
+                    }
+                    pendingDelete = nil
+                }
+                Button("取消", role: .cancel) {
+                    pendingDelete = nil
+                }
+            } message: {
+                Text("确定要删除《\(pendingDelete?.drama.title ?? "")》的观看记录吗？")
             }
         }
     }
