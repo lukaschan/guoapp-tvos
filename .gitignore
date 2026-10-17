@@ -1,0 +1,24 @@
+# tvOS 独立仓忽略文件（仅 tvOS 构建产物）
+build/
+dist/
+native/build/
+tvos/DuanjuCore/*.xcframework/
+tvos/GuoAppTV/GuoAppTV/DuanjuCore.h
+tvos/GuoAppTV/build/
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
+*.iml
+.venv/
+venv/
+.pytest_cache/
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+*.p12
+*.pfx
+**/xcuserdata/
