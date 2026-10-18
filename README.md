@@ -2,6 +2,8 @@
 
 红果鉴 / 真果鉴的 Apple TV 原生应用：SwiftUI 界面 + Go 核心 + MPVKit（libmpv）播放。
 
+![Description](Screenshot.jpg)
+
 > 与上游的关系：本仓是独立仓库。上游 [Xanerix/guoapp](https://github.com/Xanerix/guoapp)
 > 的 tvOS 版是独立 SwiftUI 应用，与主仓库只共享 Go 核心与 `DuanjuRequest` JSON 协议；
 > 上游维护者建议拆独立仓（见 [Issue #13](https://github.com/Xanerix/guoapp/issues/13)），
