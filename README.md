@@ -1,4 +1,4 @@
-# guoapp tvOS（Apple TV）
+# 红果 tvOS（Apple TV）
 
 红果鉴 / 真果鉴的 Apple TV 原生应用：SwiftUI 界面 + Go 核心 + MPVKit（libmpv）播放。
 
