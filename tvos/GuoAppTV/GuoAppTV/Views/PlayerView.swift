@@ -565,6 +565,11 @@ struct PlayerView: View {
     @State private var plan: PlaybackPlan?
     @State private var error: String?
     @State private var lastSavedPosition = -1.0
+    /// 下一集预取好的播放计划（还剩 10 秒时后台解析好，切集时直接用）。
+    @State private var prefetchedPlan: PlaybackPlan?
+    /// 预取针对的分集下标（成功或失败都记录，避免失败后反复重试刷接口）。
+    @State private var prefetchedIndex: Int?
+    @State private var prefetchTask: Task<Void, Never>?
 
     init(drama: Drama, episodes: [Episode], startIndex: Int, startPosition: Double) {
         self.drama = drama
@@ -649,9 +654,14 @@ struct PlayerView: View {
         .onDisappear {
             saveProgress()
             controller.stop()
+            prefetchTask?.cancel()
+            prefetchTask = nil
             Task {
                 if let plan {
                     try? await CoreClient.shared.release(session: plan.session)
+                }
+                if let prefetchedPlan {
+                    try? await CoreClient.shared.release(session: prefetchedPlan.session)
                 }
             }
         }
@@ -664,6 +674,19 @@ struct PlayerView: View {
         }
         error = nil
         let episode = episodes[currentIndex]
+        // 优先用预取好的计划（上一集还剩 10 秒时已后台解析好），
+        // 切集时免去再等解析地址，是衔接卡顿的主因之一。
+        if prefetchedIndex == currentIndex {
+            let cached = prefetchedPlan
+            prefetchedPlan = nil
+            prefetchedIndex = nil
+            if let cached {
+                plan = cached
+                controller.play(plan: cached, start: start, danmakuEnabled: danmakuEnabled, speed: playbackSpeed)
+                return
+            }
+            // 预取失败过：直接走正常解析（不重试预取）。
+        }
         do {
             let resolved = try await CoreClient.shared.resolve(
                 drama: drama, episode: episode, quality: preferredQuality
@@ -705,10 +728,36 @@ struct PlayerView: View {
 
     private func handleProgress(position: Double, duration: Double) {
         guard position > 0, duration > 0 else { return }
+        maybePrefetchNext(position: position, duration: duration)
         // 与 Dart 侧一致：约每 5 秒落一次进度，避免频繁写盘。
         guard abs(position - lastSavedPosition) >= 5 else { return }
         lastSavedPosition = position
         saveProgress(position: position, duration: duration)
+    }
+
+    /// 当前集还剩 10 秒时，后台解析下一集播放地址（预取）。
+    /// 切集时直接用预取好的计划，免去再等解析地址。
+    private func maybePrefetchNext(position: Double, duration: Double) {
+        let remaining = duration - position
+        guard remaining <= 10, remaining > 0 else { return }
+        let nextIndex = currentIndex + 1
+        guard nextIndex < episodes.count else { return }
+        guard prefetchedIndex != nextIndex, prefetchTask == nil else { return }
+        prefetchedIndex = nextIndex
+        let episode = episodes[nextIndex]
+        prefetchTask = Task {
+            defer { prefetchTask = nil }
+            guard let plan = try? await CoreClient.shared.resolve(
+                drama: drama, episode: episode, quality: preferredQuality
+            ) else { return }
+            // 解析完成时若用户已不在触发那集（已切集/已退出），
+            // 预取的计划用不上，释放其会话避免泄漏。
+            guard !Task.isCancelled, currentIndex + 1 == nextIndex else {
+                try? await CoreClient.shared.release(session: plan.session)
+                return
+            }
+            prefetchedPlan = plan
+        }
     }
 
     private func saveProgress(position: Double? = nil, duration: Double? = nil) {

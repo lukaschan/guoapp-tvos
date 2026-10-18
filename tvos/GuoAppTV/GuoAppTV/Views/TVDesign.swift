@@ -31,7 +31,7 @@ enum TVTheme {
     static let textTertiary = Color.white.opacity(0.40)
 
     // 焦点动效：短促、克制的弹簧；不夸张、不弹跳
-    static let focusScale: CGFloat = 1.06     // 海报卡焦点放大
+    static let focusScale: CGFloat = 1.12     // 海报卡焦点放大
     static let chipScale: CGFloat = 1.08      // 小胶囊焦点放大
     static let focusAnimation = Animation.spring(response: 0.28, dampingFraction: 0.78)
     static let pressAnimation = Animation.easeOut(duration: 0.12)
