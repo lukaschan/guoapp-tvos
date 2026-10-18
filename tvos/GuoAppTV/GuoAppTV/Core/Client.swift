@@ -24,6 +24,33 @@ actor CoreClient {
     private var initialized = false
     private var playbackSequence = 0
 
+    /// 首页目录缓存：切标签回来时直接用缓存，避免每次重新联网拉取。
+    /// 带 TTL（30 分钟），过期后重新拉取，保证内容新鲜。
+    /// 只缓存浏览（query 为空），搜索结果不缓存，保证搜索实时。
+    private struct CacheEntry<Value> {
+        let value: Value
+        let timestamp: Date
+    }
+    private static let cacheTTL: TimeInterval = 1800
+    private var catalogCache: [String: CacheEntry<CatalogPage>] = [:]
+    private var categoriesCache: [String: CacheEntry<[Category]>] = [:]
+    private var rankingBoardsCache: CacheEntry<[RankingBoard]>?
+    private var rankingsCache: [String: CacheEntry<RankingPage>] = [:]
+
+    private func isFresh(_ timestamp: Date) -> Bool {
+        Date().timeIntervalSince(timestamp) < Self.cacheTTL
+    }
+
+    /// 写缓存时顺带清理过期条目，避免缓存无限增长。
+    private func purgeExpiredCache() {
+        catalogCache = catalogCache.filter { isFresh($0.value.timestamp) }
+        categoriesCache = categoriesCache.filter { isFresh($0.value.timestamp) }
+        if let entry = rankingBoardsCache, !isFresh(entry.timestamp) {
+            rankingBoardsCache = nil
+        }
+        rankingsCache = rankingsCache.filter { isFresh($0.value.timestamp) }
+    }
+
     private func call(_ payload: [String: Any]) async throws -> [String: Any] {
         let data = try JSONSerialization.data(withJSONObject: payload)
         let text = String(decoding: data, as: UTF8.self)
@@ -73,27 +100,51 @@ actor CoreClient {
     private(set) var allSources = false
 
     func categories(source: String, force: Bool = false) async throws -> [Category] {
+        if !force, let entry = categoriesCache[source], isFresh(entry.timestamp) {
+            return entry.value
+        }
         let data = try await call(["action": "categories", "source": source, "force": force])
         let rows = data["items"] as? [Any] ?? []
-        return rows.compactMap { ($0 as? [String: Any]).map(Category.init(dict:)) }
+        let result = rows.compactMap { ($0 as? [String: Any]).map(Category.init(dict:)) }
+        purgeExpiredCache()
+        categoriesCache[source] = CacheEntry(value: result, timestamp: Date())
+        return result
     }
 
     /// 榜单列表（Go 核心 `rankingBoards`）。
     func rankingBoards() async throws -> [RankingBoard] {
+        if let entry = rankingBoardsCache, isFresh(entry.timestamp) {
+            return entry.value
+        }
         let data = try await call(["action": "rankingBoards"])
         let rows = data["items"] as? [Any] ?? []
-        return rows.compactMap { ($0 as? [String: Any]).map(RankingBoard.init(dict:)) }
+        let result = rows.compactMap { ($0 as? [String: Any]).map(RankingBoard.init(dict:)) }
+        purgeExpiredCache()
+        rankingBoardsCache = CacheEntry(value: result, timestamp: Date())
+        return result
     }
 
     /// 某一榜单的一页（Go 核心 `rankings`）。
     func rankings(board: String, page: Int = 1) async throws -> RankingPage {
+        let key = "\(board)|\(page)"
+        if let entry = rankingsCache[key], isFresh(entry.timestamp) {
+            return entry.value
+        }
         let data = try await call(["action": "rankings", "board": board, "page": page])
-        return RankingPage(dict: data)
+        let result = RankingPage(dict: data)
+        purgeExpiredCache()
+        rankingsCache[key] = CacheEntry(value: result, timestamp: Date())
+        return result
     }
 
     func catalog(
         source: String, page: Int = 1, query: String = "", category: String = "", force: Bool = false
     ) async throws -> CatalogPage {
+        // 只缓存浏览（query 为空），搜索结果不缓存，保证搜索实时。
+        let cacheKey: String? = query.isEmpty ? "\(source)|\(page)|\(category)" : nil
+        if !force, let key = cacheKey, let entry = catalogCache[key], isFresh(entry.timestamp) {
+            return entry.value
+        }
         let data = try await call([
             "action": "catalog",
             "source": source,
@@ -102,7 +153,12 @@ actor CoreClient {
             "category": category,
             "force": force,
         ])
-        return CatalogPage(dict: data)
+        let result = CatalogPage(dict: data)
+        if let key = cacheKey {
+            purgeExpiredCache()
+            catalogCache[key] = CacheEntry(value: result, timestamp: Date())
+        }
+        return result
     }
 
     func suggestions(query: String) async throws -> [String] {
