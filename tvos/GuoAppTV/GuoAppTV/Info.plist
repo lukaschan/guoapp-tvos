@@ -22,9 +22,15 @@
 	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<!-- MPVKit（libmpv）拉流需直连站源（含 http），放开 ATS；Go 核心走原生 socket，不受 ATS 影响。 -->
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
+	</dict>
+	<key>TVTopShelfImage</key>
+	<dict>
+		<key>TVTopShelfPrimaryImage</key>
+		<string>Top Shelf Image</string>
+		<key>TVTopShelfPrimaryImageWide</key>
+		<string>Top Shelf Image Wide</string>
 	</dict>
 </dict>
 </plist>
