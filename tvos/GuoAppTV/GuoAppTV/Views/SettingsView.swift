@@ -124,6 +124,7 @@ struct SettingsView: View {
             aboutNote("原生 tvOS 应用 · Go 核心 · MPV 播放")
             aboutNote("播放时按遥控器 ↑ 放慢、↓ 加快，可实时调整倍速。")
             aboutNote("“最近观看”中按遥控器“播放/暂停”键，可删除该观看记录。")
+            aboutNote("“首页”按遥控器“播放/暂停”键，可手动刷新。")
             aboutNote("追剧与观看进度存在 Caches，系统空间不足时可能被清理。")
         }
     }
