@@ -51,6 +51,14 @@ actor CoreClient {
         rankingsCache = rankingsCache.filter { isFresh($0.value.timestamp) }
     }
 
+    /// 清空首页目录缓存（首页按播放/暂停键手动刷新时调用，强制重新拉取）。
+    func invalidateHomeCache() {
+        catalogCache.removeAll()
+        categoriesCache.removeAll()
+        rankingBoardsCache = nil
+        rankingsCache.removeAll()
+    }
+
     private func call(_ payload: [String: Any]) async throws -> [String: Any] {
         let data = try JSONSerialization.data(withJSONObject: payload)
         let text = String(decoding: data, as: UTF8.self)
