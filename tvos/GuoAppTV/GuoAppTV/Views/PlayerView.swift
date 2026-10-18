@@ -252,6 +252,13 @@ final class PlayerController: NSObject, ObservableObject {
         command(["seek", "\(seconds)", "relative"])
     }
 
+    /// 播放中实时改倍速（mpv 的 speed 属性可热改，不用重建播放器）。
+    func setSpeed(_ speed: Double) {
+        guard let handle = mpv else { return }
+        var value = speed
+        _ = mpv_set_property(handle, "speed", MPV_FORMAT_DOUBLE, &value)
+    }
+
     // MARK: - 播放启动
 
     private func startPlayback(plan: PlaybackPlan, start: Double, danmakuEnabled: Bool, speed: Double = 1.0) {
@@ -565,6 +572,12 @@ struct PlayerView: View {
     @State private var plan: PlaybackPlan?
     @State private var error: String?
     @State private var lastSavedPosition = -1.0
+    /// 倍速指示（按上下键调倍速时短暂显示当前倍速）。
+    @State private var showSpeedIndicator = false
+    @State private var speedIndicatorTask: Task<Void, Never>?
+
+    /// 倍速档位：与设置页 speedOptions 一致，改动时两边同步。
+    private static let speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0]
     /// 下一集预取好的播放计划（还剩 10 秒时后台解析好，切集时直接用）。
     @State private var prefetchedPlan: PlaybackPlan?
     /// 预取针对的分集下标（成功或失败都记录，避免失败后反复重试刷接口）。
@@ -596,6 +609,8 @@ struct PlayerView: View {
                         switch direction {
                         case .left: controller.seek(by: -10)
                         case .right: controller.seek(by: 10)
+                        case .up: adjustSpeed(slower: true)
+                        case .down: adjustSpeed(slower: false)
                         default: break
                         }
                     }
@@ -610,6 +625,18 @@ struct PlayerView: View {
                         .background(Color.black.opacity(0.65))
                         .cornerRadius(10)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .padding(48)
+                        .allowsHitTesting(false)
+                }
+                if showSpeedIndicator {
+                    Text(String(format: "%.2fx", playbackSpeed))
+                        .font(.system(size: 44, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 38)
+                        .padding(.vertical, 18)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(14)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                         .padding(48)
                         .allowsHitTesting(false)
                 }
@@ -656,6 +683,8 @@ struct PlayerView: View {
             controller.stop()
             prefetchTask?.cancel()
             prefetchTask = nil
+            speedIndicatorTask?.cancel()
+            speedIndicatorTask = nil
             Task {
                 if let plan {
                     try? await CoreClient.shared.release(session: plan.session)
@@ -723,6 +752,31 @@ struct PlayerView: View {
             }
         } else {
             self.error = "播放失败，请返回重试"
+        }
+    }
+
+    /// 遥控器上下键调倍速：上键放慢（往低档切）、下键加快（往高档切）。
+    /// 同步写回 playbackSpeed（持久化，设置页与下一集都跟上），并实时生效。
+    private func adjustSpeed(slower: Bool) {
+        let options = Self.speedOptions
+        let current = playbackSpeed
+        // 找到当前倍速在档位列表中的位置（浮点比较用容差）。
+        let index = options.firstIndex { abs($0 - current) < 0.001 }
+            ?? options.firstIndex { $0 >= current }
+            ?? (options.count - 1)
+        let nextIndex = slower
+            ? max(index - 1, 0)
+            : min(index + 1, options.count - 1)
+        let next = options[nextIndex]
+        guard abs(next - current) > 0.001 else { return } // 已到边界（0.50x / 3.00x），不动
+        playbackSpeed = next
+        controller.setSpeed(next)
+        showSpeedIndicator = true
+        speedIndicatorTask?.cancel()
+        speedIndicatorTask = Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { return }
+            showSpeedIndicator = false
         }
     }
 
