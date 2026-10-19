@@ -4,8 +4,8 @@
 
 ![Description](Screenshot.jpg)
 
-> 与上游的关系：本仓是独立仓库。上游 [Xanerix/guoapp](https://github.com/Xanerix/guoapp)
-> 的 tvOS 版是独立 SwiftUI 应用，与主仓库只共享 Go 核心与 `DuanjuRequest` JSON 协议；
+> 与上游的关系：本仓是独立仓库，是上游 [Xanerix/guoapp](https://github.com/Xanerix/guoapp)
+> 的 tvOS 版（独立 SwiftUI 应用），与主仓库只共享 Go 核心与 `DuanjuRequest` JSON 协议；
 > 上游维护者建议拆独立仓（见 [Issue #13](https://github.com/Xanerix/guoapp/issues/13)），
 > 本仓即按该建议拆出。上游的 Flutter 应用仍在原仓库维护。
 
