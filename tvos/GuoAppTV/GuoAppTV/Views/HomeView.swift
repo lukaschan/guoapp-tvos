@@ -81,7 +81,9 @@ struct HomeView: View {
                     .font(.system(size: 19))
                     .foregroundColor(TVTheme.textTertiary)
             }
+            // 海报区往下挪：单独给海报加顶部间距，只动海报、不动上面那行。
             catalogContent
+                .padding(.top, 12)
         }
         .id("catalog-top")
     }
