@@ -156,8 +156,7 @@ struct HomeView: View {
                     ForEach(rankingBoards) { board in
                         TVChip(
                             title: board.name,
-                            isSelected: board.id == selectedBoard,
-                            compact: true
+                            isSelected: board.id == selectedBoard
                         ) {
                             // 点榜单直接进榜单模式（若当前在分类模式）。
                             selectedCategory = Self.rankingCategoryId
