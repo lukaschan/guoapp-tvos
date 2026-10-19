@@ -1,0 +1,61 @@
+name: Sync upstream core
+
+# 定期自动同步上游核心：把 submodule 指针（upstream/）更新到上游 main 最新，
+# 推到 main 后自动触发 tvOS 构建验证（build.yml）。
+# 若上游无更新，不做任何事；若构建失败，GitHub 会发失败通知，届时可手动回退指针。
+#
+# 注意：本工作流依赖 submodule 转换已落地（upstream/ 已是 submodule）。
+# 若 submodule 尚未落地，本工作流会失败。
+
+on:
+  schedule:
+    # 每周一 03:00 UTC（北京时间 11:00）检查一次上游。
+    - cron: '0 3 * * 1'
+  workflow_dispatch:  # 手动触发，便于立即测试
+
+permissions:
+  contents: write  # 提交并推送 submodule 指针更新
+  actions: write   # 触发 tvOS 构建工作流
+
+concurrency:
+  group: sync-upstream-core
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: 更新 submodule 到上游最新 main
+        id: update
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git submodule update --remote -- upstream
+          if git diff --quiet -- upstream; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "上游核心无更新，指针已是最新。"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "上游核心有更新："
+            git -C upstream log --oneline -5
+          fi
+      - name: 提交并推送指针更新
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          NEW_COMMIT="$(git -C upstream rev-parse HEAD)"
+          NEW_SUBJECT="$(git -C upstream log -1 --format=%s)"
+          git add upstream
+          git commit -m "同步上游核心到 ${NEW_COMMIT:0:7}（${NEW_SUBJECT}）"
+          git push origin HEAD:main
+      - name: 触发 tvOS 构建验证
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run build.yml --ref main
