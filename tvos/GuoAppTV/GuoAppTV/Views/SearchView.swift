@@ -112,29 +112,10 @@ struct SearchView: View {
     private var suggestionList: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(suggestions.prefix(8), id: \.self) { suggestion in
-                Button {
+                TVSuggestionRow(title: suggestion) {
                     query = suggestion
                     Task { await search() }
-                } label: {
-                    HStack(spacing: 14) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 20))
-                            .foregroundColor(TVTheme.textTertiary)
-                        Text(suggestion)
-                            .font(.system(size: 23))
-                            .foregroundColor(TVTheme.textPrimary)
-                            .lineLimit(1)
-                        Spacer()
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(TVTheme.surfaceDim)
-                    )
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(TVPressButtonStyle())
             }
         }
     }
@@ -191,6 +172,41 @@ struct SearchView: View {
             self.error = error.localizedDescription
         }
         loading = false
+    }
+}
+
+/// 搜索推荐词条行：可聚焦，焦点时放大 + 投影（与海报卡一致的焦点视觉），
+/// 遥控器划过时能看清当前选中哪条。
+private struct TVSuggestionRow: View {
+    let title: String
+    let action: () -> Void
+
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 20))
+                    .foregroundColor(TVTheme.textTertiary)
+                Text(title)
+                    .font(.system(size: 23))
+                    .foregroundColor(TVTheme.textPrimary)
+                    .lineLimit(1)
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(TVTheme.surfaceDim)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(TVPressButtonStyle())
+        .focused($focused)
+        .tvFocusEffect(focused: focused, scale: TVTheme.focusScale, cornerRadius: 14, stroke: false)
+        .zIndex(focused ? 1 : 0)
     }
 }
 
