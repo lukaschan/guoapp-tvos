@@ -19,6 +19,9 @@ struct HomeView: View {
     @State private var rankingBoards: [RankingBoard] = []
     @State private var selectedBoard = ""
     @State private var rankingBoardsSource = ""
+    @State private var didApplyDefaultRanking = false
+    /// 是否已应用过「红果默认展开榜单」：只应用一次，避免覆盖用户之后
+    /// 手动点的「全部」；切标签回来时视图重建，默认再次生效。
 
     /// 榜单模式的哨兵分类 id：与核心分类 id 不冲突。
     private static let rankingCategoryId = "__ranking__"
@@ -51,6 +54,13 @@ struct HomeView: View {
             }
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
+            }
+            .onAppear {
+                // 首次进入首页且为红果站源时，默认展开榜单，不用每次手动点。
+                if !didApplyDefaultRanking, appState.selectedSource == "hongguo" {
+                    didApplyDefaultRanking = true
+                    selectedCategory = Self.rankingCategoryId
+                }
             }
             .task(id: loadKey) {
                 await reload(firstPage: true)
@@ -120,7 +130,8 @@ struct HomeView: View {
             HStack(spacing: 12) {
                 ForEach(SourceSite.available(allSources: appState.allSources)) { site in
                     TVChip(title: site.name, isSelected: site.id == appState.selectedSource) {
-                        selectedCategory = ""
+                        // 切到红果默认展开榜单，其他站源默认全部。
+                        selectedCategory = site.id == "hongguo" ? Self.rankingCategoryId : ""
                         appState.selectedSource = site.id
                     }
                 }
