@@ -26,10 +26,27 @@
 
 ## 与上游共享的部分
 
-- **Go 核心**：`native/` 是上游 `native/` 目录的快照副本，固定在 commit
-  `d7e69fb0cd5b25da4107450738aabac11a1f260a`（2026-10-16），详见
-  [`native/PIN.md`](native/PIN.md)。本仓与上游共享 Go 核心与 `DuanjuRequest` JSON 协议。
+- **Go 核心**：`upstream/` 是上游仓库 [Xanerix/guoapp](https://github.com/Xanerix/guoapp)
+  的 **git submodule**，Go 核心在 `upstream/native/`，当前指向 commit
+  `283cd16`（`feat: 红果分集带出横竖屏标记`）。本仓与上游共享 Go 核心与
+  `DuanjuRequest` JSON 协议。
 - **播放协议**：播放地址、解密密钥等由 Go 核心通过 JSON 协议提供。
+
+### 同步上游核心
+
+```sh
+cd upstream
+git fetch origin
+git checkout <上游新 commit>   # 如只想跟最新 main：git checkout origin/main
+cd ..
+git add upstream
+git commit -m "同步上游核心到 <commit>"
+```
+
+同步后跑一次 `python3 scripts/build_tvos.py`（或跑 CI）确认通过，并在
+`CHANGELOG.md`「未发布」一节记一笔同步到的 commit。注意：submodule 指针
+固定在某个 commit，不会自动跟随上游 main；CI 会随本仓一起拉取该指针
+对应的核心版本，构建结果可复现。
 
 ## 播放：MPVKit（libmpv），不是 AVPlayer
 
@@ -53,9 +70,11 @@ Caches。**系统在存储不足时可能清理 Caches**，追剧与进度可能
 
 ## 构建
 
-需要 macOS + 完整 Xcode：
+需要 macOS + 完整 Xcode。首次克隆须带子模块（否则 `upstream/` 为空，构建会失败）：
 
 ```sh
+git clone --recurse-submodules https://github.com/lukaschan/guoapp-tvos.git
+# 已克隆过的仓库：git submodule update --init --recursive
 python3 scripts/build_tvos.py [--all-sources]
 ```
 
@@ -72,7 +91,7 @@ python3 scripts/build_tvos.py [--all-sources]
 | 目录 / 文件 | 说明 |
 | --- | --- |
 | `tvos/` | Apple TV 原生应用（SwiftUI + Go 核心 + MPVKit） |
-| `native/` | Go 核心快照（固定 commit，见 `native/PIN.md`） |
+| `upstream/` | 上游仓库 git submodule，Go 核心在 `upstream/native/`（见上文「与上游共享的部分」） |
 | `scripts/build_tvos.py` | 构建脚本：先编 Go 核心为 xcframework，再用 xcodebuild 出包 |
 | `.github/workflows/build.yml` | CI：构建两个版本并发布 Release |
 | `VERSION` | 版本号 |

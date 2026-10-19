@@ -1,6 +1,6 @@
 import Foundation
 
-/// Swift 侧对 Go 核心 C ABI 的薄封装（见 native/bridge/main.go）。
+/// Swift 侧对 Go 核心 C ABI 的薄封装（见 upstream/native/bridge/main.go）。
 ///
 /// Go 侧只暴露两个函数：`DuanjuRequest` 收一个 UTF-8 JSON 字符串，
 /// 返回新分配的 UTF-8 JSON 字符串；调用方必须用 `DuanjuFree` 释放。

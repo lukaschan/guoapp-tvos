@@ -12,7 +12,7 @@ enum CoreError: LocalizedError {
     }
 }
 
-/// Go 核心的 Swift 客户端（见 native/core/app_runtime.go 的 NativeRequest）。
+/// Go 核心的 Swift 客户端（见 upstream/native/core/app_runtime.go 的 NativeRequest）。
 ///
 /// 协议就是一层 JSON：请求 `{action, ...}`，响应 `{ok, data, error, code}`。
 /// 核心调用是阻塞的（站源请求最长 60 秒），所以统一走一条专用串行队列，

@@ -4,6 +4,14 @@
 
 ## 未发布
 
+- Go 核心改走 git submodule：删 vendored 快照 `native/`，上游仓库以 submodule
+  形式放在 `upstream/`，核心在 `upstream/native/`，指针指向 commit `283cd16`
+  （`feat: 红果分集带出横竖屏标记`，相对旧快照 `d7e69fb` 仅新增 `Chapter.vertical`
+  可选字段，向后兼容）；构建脚本、CI、`.gitignore` 的核心路径改为
+  `upstream/native`，CI 拉取时带 `submodules: recursive`；克隆须用
+  `git clone --recurse-submodules`（下载 ZIP 不含子模块内容）。
+  同步上游核心：见 README「与上游共享的部分」一节。
+
 - 从上游 [Xanerix/guoapp](https://github.com/Xanerix/guoapp) 拆为独立仓：本仓只含 tvOS
   应用 + Go 核心快照（`native/`，固定 commit `d7e69fb`）+ 构建脚本与 CI；上游维护者
   在 [Issue #13](https://github.com/Xanerix/guoapp/issues/13) 建议独立仓（两套 UI

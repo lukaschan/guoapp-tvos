@@ -53,16 +53,19 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Go 核心在上游 submodule（upstream/native），需拉取子模块才能跑测试。
+          submodules: recursive
       - uses: actions/setup-go@v5
         with:
-          go-version-file: native/go.mod
-          cache-dependency-path: native/go.sum
+          go-version-file: upstream/native/go.mod
+          cache-dependency-path: upstream/native/go.sum
       # Go 核心测试不阻塞出包（与原单仓行为一致），结果仍会显示在运行详情里。
       - run: go test -race ./...
-        working-directory: native
+        working-directory: upstream/native
         continue-on-error: true
       - run: go test -race -ldflags="-X duanjuapp/native/core.buildAllSources=true" ./...
-        working-directory: native
+        working-directory: upstream/native
         continue-on-error: true
 
   tvos:
@@ -79,13 +82,16 @@ jobs:
             arguments: '--all-sources'
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Go 核心在上游 submodule（upstream/native），需拉取子模块才能构建。
+          submodules: recursive
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - uses: actions/setup-go@v5
         with:
-          go-version-file: native/go.mod
-          cache-dependency-path: native/go.sum
+          go-version-file: upstream/native/go.mod
+          cache-dependency-path: upstream/native/go.sum
       - name: Check Xcode and Go
         shell: bash
         run: |

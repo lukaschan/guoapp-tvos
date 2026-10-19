@@ -1,7 +1,7 @@
 # tvOS 独立仓忽略文件（仅 tvOS 构建产物）
 build/
 dist/
-native/build/
+upstream/native/build/
 tvos/DuanjuCore/*.xcframework/
 tvos/GuoAppTV/GuoAppTV/DuanjuCore.h
 tvos/GuoAppTV/build/

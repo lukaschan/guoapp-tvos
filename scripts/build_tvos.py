@@ -15,6 +15,9 @@ from app_build import BuildVariant, add_variant_argument
 root = Path(__file__).resolve().parents[1]
 project = root / 'tvos' / 'GuoAppTV' / 'GuoAppTV.xcodeproj'
 app_name = 'GuoAppTV'
+# Go 核心在上游仓库的 native/ 目录；上游整仓以 git submodule 形式
+# 放在 upstream/（见 .gitmodules），核心路径即 upstream/native。
+core = root / 'upstream' / 'native'
 
 
 def run(arguments, **kwargs):
@@ -82,7 +85,7 @@ def build_core(simulator=False, variant=BuildVariant()):
     for sdk, architecture, triple in slices:
         sdk_path = subprocess.check_output(['xcrun', '--sdk', sdk, '--show-sdk-path'], text=True).strip()
         compiler = subprocess.check_output(['xcrun', '--sdk', sdk, '--find', 'clang'], text=True).strip()
-        directory = root / 'native' / 'build' / 'tvos' / f'{sdk}-{architecture}'
+        directory = core / 'build' / 'tvos' / f'{sdk}-{architecture}'
         headers = directory / 'Headers'
         headers.mkdir(parents=True, exist_ok=True)
         output = directory / 'libDuanjuCore.a'
@@ -92,14 +95,14 @@ def build_core(simulator=False, variant=BuildVariant()):
             'CGO_CFLAGS': flags, 'CGO_LDFLAGS': flags,
         }
         run([go, 'build', '-trimpath', '-buildmode=c-archive', '-ldflags=' + variant.linker_flags,
-             '-o', str(output), './bridge'], cwd=root / 'native', env=build_env)
+             '-o', str(output), './bridge'], cwd=core, env=build_env)
         shutil.copy2(output.with_suffix('.h'), headers / 'DuanjuCore.h')
         libraries.append((sdk, output, headers))
     arguments = ['xcodebuild', '-create-xcframework']
     device = libraries[0]
     arguments.extend(['-library', str(device[1]), '-headers', str(device[2])])
     if simulator:
-        universal = root / 'native' / 'build' / 'tvos' / 'simulator-universal'
+        universal = core / 'build' / 'tvos' / 'simulator-universal'
         universal.mkdir(parents=True, exist_ok=True)
         archive = universal / 'libDuanjuCore.a'
         run(['xcrun', 'lipo', '-create', str(libraries[1][1]), str(libraries[2][1]), '-output', str(archive)])
