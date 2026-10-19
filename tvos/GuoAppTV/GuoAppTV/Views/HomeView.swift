@@ -21,7 +21,7 @@ struct HomeView: View {
     @State private var rankingBoardsSource = ""
     @State private var didApplyDefaultRanking = false
     /// 是否已应用过「红果默认展开榜单」：只应用一次，避免覆盖用户之后
-    /// 手动点的「全部」；切标签回来时视图重建，默认再次生效。
+    /// 手动点的分类或「全部」；视图存活期间选择一直保留。
 
     /// 榜单模式的哨兵分类 id：与核心分类 id 不冲突。
     private static let rankingCategoryId = "__ranking__"
@@ -37,7 +37,7 @@ struct HomeView: View {
                         catalogSection
                     }
                     .padding(.horizontal, TVTheme.pageInset)
-                    .padding(.top, 8)
+                    .padding(.top, 0)
                     .padding(.bottom, 56)
                 }
                 // 首页按播放/暂停键：手动刷新（清空缓存、强制重拉）。
@@ -71,7 +71,7 @@ struct HomeView: View {
     // MARK: - 目录浏览区
 
     private var catalogSection: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 12) {
             if appState.allSources {
                 sourceRow
             }
@@ -141,47 +141,33 @@ struct HomeView: View {
         }
     }
 
+    /// 分类 + 榜单同一行：「全部」保留，「红果榜单」标签隐藏、只展示榜单列表；
+    /// 点哪个只切内容、不收起；不自动滚动。
     private var categoryRow: some View {
-        ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(categories) { category in
-                            TVChip(title: category.name, isSelected: category.id == selectedCategory) {
-                                selectedCategory = category.id
-                            }
-                        }
-                        // 红果榜单：与分类同一行，仅红果站源有。
-                        if appState.selectedSource == "hongguo" {
-                            TVChip(title: "红果榜单", isSelected: isRankingMode) {
-                                selectedCategory = Self.rankingCategoryId
-                            }
-                            // 榜单模式下，榜单切换胶囊紧跟在「红果榜单」右边，
-                            // 同一行横向滚动、不换行。
-                            if isRankingMode {
-                                ForEach(rankingBoards) { board in
-                                    TVChip(
-                                        title: board.name,
-                                        isSelected: board.id == selectedBoard,
-                                        compact: true
-                                    ) {
-                                        selectedBoard = board.id
-                                    }
-                                    .id(board.id == rankingBoards.first?.id ? "board-first" : board.id)
-                                }
-                            }
-                        }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(categories) { category in
+                    TVChip(title: category.name, isSelected: category.id == selectedCategory) {
+                        selectedCategory = category.id
                     }
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 2)
                 }
-                // 榜单出现后自动滚到第一个榜单按钮，避免它藏在屏幕外。
-                .onChange(of: isRankingMode && !rankingBoards.isEmpty) { shouldScroll in
-                    if shouldScroll {
-                        DispatchQueue.main.async {
-                            proxy.scrollTo("board-first", anchor: .leading)
+                // 榜单：仅红果站源有；「红果榜单」标签隐藏，只展示榜单列表。
+                if appState.selectedSource == "hongguo" {
+                    ForEach(rankingBoards) { board in
+                        TVChip(
+                            title: board.name,
+                            isSelected: board.id == selectedBoard,
+                            compact: true
+                        ) {
+                            // 点榜单直接进榜单模式（若当前在分类模式）。
+                            selectedCategory = Self.rankingCategoryId
+                            selectedBoard = board.id
                         }
                     }
                 }
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 2)
         }
     }
 
@@ -203,16 +189,43 @@ struct HomeView: View {
         loading = true
         error = nil
         do {
-            if isRankingMode {
-                // 榜单模式：榜单列表只拿一次，默认选中第一个榜。
-                if rankingBoardsSource != appState.selectedSource {
+            // 分类列表：与模式无关，始终拉取，保证行里始终有子分类。
+            // 只在站源变化时拿一次（首屏/切站源/刷新时）；榜单模式下拉取失败不报错
+            //（不影响看榜单），分类模式下拉取失败则报错（看不到分类内容）。
+            if firstPage, categoriesSource != appState.selectedSource {
+                do {
+                    let fetched = try await CoreClient.shared.categories(
+                        source: appState.selectedSource
+                    )
+                    // 核心返回的分类里可能自带「全部」，与本地的 .all 重复；
+                    // 按名称去重，保留第一个（即本地的 .all）。
+                    var seenNames = Set<String>()
+                    categories = ([.all] + fetched).filter { seenNames.insert($0.name).inserted }
+                    categoriesSource = appState.selectedSource
+                } catch {
+                    if !isRankingMode { throw error }
+                    // 榜单模式：分类拉取失败不阻塞，只展示榜单。
+                }
+            }
+            // 榜单列表（红果站源）：与模式无关，始终拉取，保证行里始终有子榜单。
+            // 只在站源变化时拿一次（首屏/切站源/刷新时）；分类模式下拉取失败不报错
+            //（不影响看分类），榜单模式下拉取失败则报错（看不到榜单内容）。
+            if firstPage, appState.selectedSource == "hongguo",
+               rankingBoardsSource != appState.selectedSource {
+                do {
                     let boards = try await CoreClient.shared.rankingBoards()
                     rankingBoards = boards.filter { $0.source == "hongguo" }
                     rankingBoardsSource = appState.selectedSource
-                    if selectedBoard.isEmpty
-                        || !rankingBoards.contains(where: { $0.id == selectedBoard }) {
-                        selectedBoard = rankingBoards.first?.id ?? ""
-                    }
+                } catch {
+                    if isRankingMode { throw error }
+                    // 分类模式：榜单拉取失败不阻塞，只展示分类。
+                }
+            }
+            if isRankingMode {
+                // 榜单模式：默认选中第一个榜。
+                if selectedBoard.isEmpty
+                    || !rankingBoards.contains(where: { $0.id == selectedBoard }) {
+                    selectedBoard = rankingBoards.first?.id ?? ""
                 }
                 if selectedBoard.isEmpty {
                     items = []
@@ -231,16 +244,6 @@ struct HomeView: View {
                     warning = result.warning
                 }
             } else {
-                if categoriesSource != appState.selectedSource {
-                    let fetched = try await CoreClient.shared.categories(
-                        source: appState.selectedSource
-                    )
-                    // 核心返回的分类里可能自带「全部」，与本地的 .all 重复；
-                    // 按名称去重，保留第一个（即本地的 .all）。
-                    var seenNames = Set<String>()
-                    categories = ([.all] + fetched).filter { seenNames.insert($0.name).inserted }
-                    categoriesSource = appState.selectedSource
-                }
                 let result = try await CoreClient.shared.catalog(
                     source: appState.selectedSource, page: page, category: selectedCategory
                 )
