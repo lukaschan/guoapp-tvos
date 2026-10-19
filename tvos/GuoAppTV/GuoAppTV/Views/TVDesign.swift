@@ -10,8 +10,10 @@ import UIKit
 enum TVTheme {
     // 布局
     static let pageInset: CGFloat = 64        // 页面左右安全边距
+    static let posterPageInset: CGFloat = 32  // 海报页左右边距（pageInset 的一半，海报页用）
     static let sectionSpacing: CGFloat = 40   // 内容分区间距
     static let gridSpacing: CGFloat = 24      // 海报横向间距
+    static let posterColumnSpacing: CGFloat = 32 // 海报列间距（比 gridSpacing 大，海报之间更疏）
     static let posterRadius: CGFloat = 14     // 海报圆角
 
     // 色彩：纯黑沉浸背景 + 三档白色表面 + 单一暖色强调（红果）
@@ -38,7 +40,7 @@ enum TVTheme {
 
     // 海报网格：大屏横向约每行 7 张，随屏宽自适应
     static func posterColumns(minimum: CGFloat = 216) -> [GridItem] {
-        [GridItem(.adaptive(minimum: minimum, maximum: minimum * 1.3), spacing: gridSpacing)]
+        [GridItem(.adaptive(minimum: minimum, maximum: minimum * 1.3), spacing: posterColumnSpacing)]
     }
 
     // 选集网格

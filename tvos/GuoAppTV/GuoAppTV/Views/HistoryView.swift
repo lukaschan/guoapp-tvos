@@ -18,7 +18,7 @@ struct HistoryView: View {
                         expands: false
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.horizontal, TVTheme.pageInset)
+                    .padding(.horizontal, TVTheme.posterPageInset)
                 } else {
                     ScrollView {
                         LazyVGrid(columns: TVTheme.posterColumns(), spacing: 32) {
@@ -33,7 +33,7 @@ struct HistoryView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, TVTheme.pageInset)
+                        .padding(.horizontal, TVTheme.posterPageInset)
                         .padding(.top, 20)
                         .padding(.bottom, 56)
                     }

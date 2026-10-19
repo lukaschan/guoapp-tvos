@@ -29,7 +29,7 @@ struct SearchView: View {
                     }
                     resultSection
                 }
-                .padding(.horizontal, TVTheme.pageInset)
+                .padding(.horizontal, TVTheme.posterPageInset)
                 .padding(.top, 24)
                 .padding(.bottom, 56)
             }
@@ -168,7 +168,9 @@ struct SearchView: View {
             )
             .padding(.vertical, 100)
         } else if !results.isEmpty {
+            // 搜索海报往下挪：单独给海报加顶部间距，只动海报、不动搜索框。
             TVPosterGrid(items: results)
+                .padding(.top, 12)
         }
     }
 

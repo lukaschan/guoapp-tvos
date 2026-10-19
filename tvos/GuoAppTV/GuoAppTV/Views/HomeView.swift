@@ -36,7 +36,7 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: TVTheme.sectionSpacing) {
                         catalogSection
                     }
-                    .padding(.horizontal, TVTheme.pageInset)
+                    .padding(.horizontal, TVTheme.posterPageInset)
                     .padding(.top, 0)
                     .padding(.bottom, 56)
                 }
