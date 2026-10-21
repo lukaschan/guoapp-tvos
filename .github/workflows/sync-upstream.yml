@@ -1,7 +1,8 @@
 name: Sync upstream core
 
 # 定期自动同步上游核心：把 submodule 指针（upstream/）更新到上游 main 最新，
-# 推到 main 后自动触发 tvOS 构建验证（build.yml）。
+# 推到 main 后自动触发 tvOS 构建发布（build.yml）。
+# 有更新时还会自动递增 VERSION 并在 CHANGELOG 补一节，确保每次同步都能发布新 Release。
 # 若上游无更新，不做任何事；若构建失败，GitHub 会发失败通知，届时可手动回退指针。
 #
 # 注意：本工作流依赖 submodule 转换已落地（upstream/ 已是 submodule）。
@@ -44,16 +45,45 @@ jobs:
             echo "上游核心有更新："
             git -C upstream log --oneline -5
           fi
-      - name: 提交并推送指针更新
+      - name: 自动提升版本号并补更新日志
+        id: bump
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          NEW_COMMIT="$(git -C upstream rev-parse --short HEAD)"
+          NEW_SUBJECT="$(git -C upstream log -1 --format=%s)"
+          export NEW_COMMIT NEW_SUBJECT
+          python3 - <<'PYEOF'
+          import os
+          raw = open('VERSION').read()
+          ver = raw.strip()
+          head, dot, tail = ver.rpartition('.')
+          assert dot and tail.isdigit(), f'VERSION 格式无法递增: {ver!r}'
+          new_ver = f'{head}.{int(tail) + 1}'
+          open('VERSION', 'w').write(new_ver + ('\n' if raw.endswith('\n') else ''))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'version={new_ver}\n')
+          section = (f'## {new_ver}\n\n'
+                     f'- 同步上游核心到 Xanerix/guoapp `{os.environ["NEW_COMMIT"]}`'
+                     f'（{os.environ["NEW_SUBJECT"]}）。本次仅更新 Go 核心'
+                     f'（submodule 指针），tvOS 应用代码无改动。\n\n')
+          lines = open('CHANGELOG.md').read().splitlines(keepends=True)
+          idx = next((i for i, ln in enumerate(lines)
+                      if ln.startswith('## ') and '未发布' not in ln), len(lines))
+          lines[idx:idx] = [section]
+          open('CHANGELOG.md', 'w').write(''.join(lines))
+          print(f'VERSION -> {new_ver}，CHANGELOG 已补一节')
+          PYEOF
+      - name: 提交并推送（指针 + 版本 + 更新日志）
         if: steps.update.outputs.changed == 'true'
         run: |
           set -euo pipefail
           NEW_COMMIT="$(git -C upstream rev-parse HEAD)"
           NEW_SUBJECT="$(git -C upstream log -1 --format=%s)"
-          git add upstream
-          git commit -m "同步上游核心到 ${NEW_COMMIT:0:7}（${NEW_SUBJECT}）"
+          git add upstream VERSION CHANGELOG.md
+          git commit -m "同步上游核心到 ${NEW_COMMIT:0:7}（${NEW_SUBJECT}），版本升至 ${{ steps.bump.outputs.version }}"
           git push origin HEAD:main
-      - name: 触发 tvOS 构建验证
+      - name: 触发 tvOS 构建发布
         if: steps.update.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
