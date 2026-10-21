@@ -9,8 +9,8 @@ name: Sync upstream core
 
 on:
   schedule:
-    # 每周一 03:00 UTC（北京时间 11:00）检查一次上游。
-    - cron: '0 3 * * 1'
+    # 每隔天 03:17 UTC（北京时间 11:17）检查一次上游（按当月奇数日触发；月底 31 日→次月 1 日会连着两天，无碍）。
+    - cron: '17 3 */2 * *'
   workflow_dispatch:  # 手动触发，便于立即测试
 
 permissions:
