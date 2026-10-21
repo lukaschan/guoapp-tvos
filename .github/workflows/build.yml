@@ -8,7 +8,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # 顶层必须给 write：只在 release job 单独声明 write 时，本仓签发的令牌仍是只读，
+  # gh release create 会 403（2026-10-21 run 39631488179 实测两次失败）；
+  # sync-upstream.yml 用顶层 write 声明则可正常推送，故此处对齐。
+  contents: write
 
 concurrency:
   group: tvos-build-${{ github.ref }}
