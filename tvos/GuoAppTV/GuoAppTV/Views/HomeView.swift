@@ -143,17 +143,12 @@ struct HomeView: View {
         }
     }
 
-    /// 分类 + 榜单同一行：「全部」保留，「红果榜单」标签隐藏、只展示榜单列表；
-    /// 点哪个只切内容、不收起；不自动滚动。
+    /// 分类 + 榜单同一行：红果站源的榜单排在最前（「全部」之前），
+    /// 「红果榜单」标签隐藏、只展示榜单列表；点哪个只切内容、不收起；不自动滚动。
     private var categoryRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(categories) { category in
-                    TVChip(title: category.name, isSelected: category.id == selectedCategory) {
-                        selectedCategory = category.id
-                    }
-                }
-                // 榜单：仅红果站源有；「红果榜单」标签隐藏，只展示榜单列表。
+                // 榜单：仅红果站源有，排在「全部」之前；「红果榜单」标签隐藏，只展示榜单列表。
                 if appState.selectedSource == "hongguo" {
                     ForEach(rankingBoards) { board in
                         TVChip(
@@ -164,6 +159,11 @@ struct HomeView: View {
                             selectedCategory = Self.rankingCategoryId
                             selectedBoard = board.id
                         }
+                    }
+                }
+                ForEach(categories) { category in
+                    TVChip(title: category.name, isSelected: category.id == selectedCategory) {
+                        selectedCategory = category.id
                     }
                 }
             }
