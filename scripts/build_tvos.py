@@ -156,9 +156,12 @@ def main():
              '-resolvePackageDependencies'])
         # 注意：xcodebuild 要求 -derivedDataPath 必须配合 -scheme，
         # 用 -target 会直接报错退出（exit 64）。
+        # 关于页显示的版本以根目录 VERSION 为准：构建时覆盖工程里的
+        # MARKETING_VERSION（工程文件里的旧值不再手动同步）。
         run(['xcodebuild', '-project', str(project), '-scheme', app_name,
              '-sdk', 'appletvos', '-configuration', 'Release',
-             '-derivedDataPath', str(derived), '-archivePath', str(archive), 'archive'])
+             '-derivedDataPath', str(derived), '-archivePath', str(archive),
+             f'MARKETING_VERSION={version}', 'archive'])
         exported = derived / 'export'
         if exported.exists():
             shutil.rmtree(exported)
@@ -174,7 +177,8 @@ def main():
              '-resolvePackageDependencies'])
         run(['xcodebuild', '-project', str(project), '-scheme', app_name,
              '-sdk', 'appletvos', '-configuration', 'Release',
-             '-derivedDataPath', str(derived), 'CODE_SIGNING_ALLOWED=NO', 'build'])
+             '-derivedDataPath', str(derived), 'CODE_SIGNING_ALLOWED=NO',
+             f'MARKETING_VERSION={version}', 'build'])
         application = derived / 'Build' / 'Products' / 'Release-appletvos' / f'{app_name}.app'
         validate_unsigned_application(application)
         # 两个版本共用一个工程：按版本改包内显示名（红果鉴 / 真果鉴）。

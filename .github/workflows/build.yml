@@ -1,8 +1,10 @@
 name: Build tvOS packages
 
 # 独立仓只构建 tvOS：手动触发，构建两个版本并发布 Release。
-# 版本号来自根目录 VERSION（如 0.2.74+84），需与 Xcode 工程的
-# MARKETING_VERSION（0.2.74）+ CURRENT_PROJECT_VERSION（84）保持一致。
+# 版本号唯一来源是根目录 VERSION：构建脚本（scripts/build_tvos.py）会把
+# MARKETING_VERSION 覆盖为 VERSION 再编译，关于页显示的即 VERSION；
+# 工程文件里的 MARKETING_VERSION 仅供直接用 Xcode 打开构建时兜底，
+# 同步脚本每次升 VERSION 时会一并改它，平时不用手动同步。
 
 on:
   workflow_dispatch:
