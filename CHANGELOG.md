@@ -26,6 +26,10 @@
 - 修复播放一会后 tvOS 屏保自动弹出：mpv 不是 AVPlayer，系统不知道在播视频；
   播放时禁止系统空闲计时器，暂停 / 停止 / 切后台时恢复。
 
+## 2.38
+
+- 同步上游核心到 Xanerix/guoapp `f8ff2f6`（feat: 全局界面动效 (#58)）。本次仅更新 Go 核心（submodule 指针），tvOS 应用代码无改动。
+
 ## 2.37
 
 - 同步上游核心到 Xanerix/guoapp `6a7ba87`（feat: Windows / macOS 启动时恢复上次的普通窗口位置和大小（最大化、全屏、小窗不记录），所在显示器不在时用默认位置；Windows 默认位置改为主屏幕居中（1.0.2+102））。本次仅更新 Go 核心（submodule 指针），tvOS 应用代码无改动。
