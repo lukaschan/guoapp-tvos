@@ -25,6 +25,12 @@ struct SeriesTitleTests {
         #expect(SeriesTitle.parse("霸总第201部") == nil)
     }
 
+    /// 网络来的标题可能很怪：十 / 百 前面一长串数字不能整数溢出崩溃，应判为非系列。
+    @Test func hugeDigitRunDoesNotCrash() {
+        #expect(SeriesTitle.parse("霸总第" + String(repeating: "九", count: 40) + "十部") == nil)
+        #expect(SeriesTitle.parse("霸总第十" + String(repeating: "九", count: 40) + "部") == nil)
+    }
+
     @Test func fullWidthAndPunctuation() {
         #expect(SeriesTitle.parse("霸总（第２部）") == SeriesTitle(base: "霸总", part: 2, unit: "部"))
     }

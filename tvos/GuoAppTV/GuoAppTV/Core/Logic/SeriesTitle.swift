@@ -63,6 +63,8 @@ struct SeriesTitle: Equatable, Sendable {
         for character in label {
             if let value = digits[character] {
                 digit = digit * 10 + value
+                // 标题来自网络：一长串数字会让 Int 溢出崩溃。digit 超过上限时结果必然超过上限（核心同样会判为非系列）。
+                if digit > maximumPart { return nil }
                 continue
             }
             let value = character == "百" ? 100 : 10
