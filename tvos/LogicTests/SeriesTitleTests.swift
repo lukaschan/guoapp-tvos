@@ -39,6 +39,31 @@ struct SeriesTitleTests {
         #expect(SeriesTitle.parse("Boss 战 第2部")?.key == SeriesTitle.parse("boss战第二部")?.key)
     }
 
+    /// 红果真实片名：长系列后期常省掉「第」（「…44季」），要和「…第二季」归到一起。
+    @Test func arabicSeasonWithoutDi() {
+        #expect(SeriesTitle.parse("谁说没灵根不能修仙的？之无灵证道44季")
+            == SeriesTitle(base: "谁说没灵根不能修仙的？之无灵证道", part: 44, unit: "季"))
+        let entries = group([
+            Item(title: "谁说没灵根不能修仙的？之无灵证道"),
+            Item(title: "谁说没灵根不能修仙的？之无灵证道45季"),
+            Item(title: "谁说没灵根不能修仙的？之无灵证道第二季"),
+            Item(title: "谁说没灵根不能修仙的？之无灵证道44季"),
+            Item(title: "谁说没灵根不能修仙的？之无灵证道第22季"),
+        ])
+        #expect(entries.count == 1)
+        guard case .series(let series) = entries.first else {
+            Issue.record("should be one series")
+            return
+        }
+        #expect(series.partNumbers == [1, 2, 22, 44, 45])
+    }
+
+    /// 没有「第」的中文数字太容易误判（「人间四季」不是第 4 季），只接受阿拉伯数字。
+    @Test func chineseNumeralNeedsDi() {
+        #expect(SeriesTitle.parse("人间四季") == nil)
+        #expect(SeriesTitle.parse("我的一部") == nil)
+    }
+
     @Test func groupsSameSeries() {
         let entries = group([Item(title: "霸总"), Item(title: "霸总 第二部"), Item(title: "别的剧"), Item(title: "霸总第3部")])
         #expect(entries.count == 2)
@@ -87,5 +112,7 @@ struct SeriesTitleTests {
         #expect(SeriesGrouping.partsLabel([1, 2, 3], unit: "部") == "第 1–3 部")
         #expect(SeriesGrouping.partsLabel([1, 3], unit: "部") == "第 1、3 部")
         #expect(SeriesGrouping.partsLabel([2], unit: "季") == "第 2 季")
+        // 部数很多又不连续时只给首尾（角标「共 N 部」给出实际数量），避免一长串。
+        #expect(SeriesGrouping.partsLabel([1, 2, 3, 4, 5, 7], unit: "季") == "第 1–7 季")
     }
 }

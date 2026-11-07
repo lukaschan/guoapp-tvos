@@ -19,6 +19,7 @@ struct SeriesShelf: View {
                     .font(.system(size: TVTheme.TextSize.caption))
                     .foregroundColor(TVTheme.textTertiary)
             }
+            ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 32) {
                     ForEach(group.parts, id: \.item.id) { part in
@@ -33,11 +34,15 @@ struct SeriesShelf: View {
                         .frame(width: 160)
                         // 当前这部就是本页，不再重复进入。
                         .disabled(isCurrent)
+                        .id(part.item.id)
                     }
                 }
                 // 给焦点放大留出空间
                 .padding(.vertical, 30)
                 .padding(.horizontal, 4)
+            }
+            // 长系列（几十季）一打开就停在当前这部附近，不用从第 1 部翻过去。
+            .onAppear { proxy.scrollTo(currentID, anchor: .center) }
             }
         }
     }

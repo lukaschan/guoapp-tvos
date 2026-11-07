@@ -15,25 +15,32 @@ struct SeriesTitle: Equatable, Sendable {
     var key: String { Self.normalize(base) + ":" + unit }
 
     static let maximumPart = 200
-    // 以「第 N 部 / 季」结尾，后面允许跟标点或空白。
+    // 以「第 N 部 / 季」结尾，后面允许跟标点或空白；红果长系列后期常省掉「第」（「…44季」），
+    // 所以无「第」时也接受，但只认阿拉伯数字（「人间四季」这类中文数字太容易误判）。
+    // 第 1 组：带「第」的数字（阿拉伯或中文）；第 2 组：不带「第」的阿拉伯数字；第 3 组：单位。
     private static let suffix = try! NSRegularExpression(
-        pattern: "第\\s*([0-9零〇一二两兩三四五六七八九十百]+)\\s*([季部])[\\p{P}\\s]*$"
+        pattern: "(?:第\\s*([0-9零〇一二两兩三四五六七八九十百]+)|([0-9]+))\\s*([季部])[\\p{P}\\s]*$"
     )
     private static let digits: [Character: Int] = [
         "零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "兩": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9,
     ]
 
     static func parse(_ title: String) -> SeriesTitle? {
-        let text = title.trimmingCharacters(in: .whitespacesAndNewlines).precomposedStringWithCompatibilityMapping
+        let original = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 匹配用 NFKC（全角数字、括号转半角）；显示用原文，保留「？」等全角标点。
+        let text = original.precomposedStringWithCompatibilityMapping
         let range = NSRange(text.startIndex..., in: text)
         guard let match = suffix.firstMatch(in: text, range: range),
               let whole = Range(match.range, in: text),
-              let numberRange = Range(match.range(at: 1), in: text),
-              let unitRange = Range(match.range(at: 2), in: text),
+              let numberRange = Range(match.range(at: 1), in: text) ?? Range(match.range(at: 2), in: text),
+              let unitRange = Range(match.range(at: 3), in: text),
               let part = parseNumber(String(text[numberRange])),
               (1...maximumPart).contains(part)
         else { return nil }
-        let base = String(text[..<whole.lowerBound]).trimmingTrailing { $0.isWhitespace || $0.isPunctuation }
+        let prefixCount = text[..<whole.lowerBound].count
+        // NFKC 一般逐字对应；字数变了（少见的兼容字符）就退回规范化后的剧名。
+        let rawBase = original.count == text.count ? String(original.prefix(prefixCount)) : String(text[..<whole.lowerBound])
+        let base = rawBase.trimmingTrailing { $0.isWhitespace || $0.isPunctuation }
         guard !base.isEmpty else { return nil }
         return SeriesTitle(base: base, part: part, unit: String(text[unitRange]))
     }
@@ -216,13 +223,14 @@ enum SeriesGrouping {
         return result
     }
 
-    /// 「第 1–3 部」（连续）/「第 1、3 部」（不连续）/「第 2 季」（单个）。
+    /// 「第 1–3 部」（连续，或超过 4 部时的首尾）/「第 1、3 部」（不连续且不多）/「第 2 季」（单个）。
     static func partsLabel(_ parts: [Int], unit: String) -> String {
         let sorted = parts.sorted()
         guard let first = sorted.first, let last = sorted.last else { return "" }
         if sorted.count == 1 { return "第 \(first) \(unit)" }
         let contiguous = zip(sorted, sorted.dropFirst()).allSatisfy { $1 == $0 + 1 }
-        if contiguous { return "第 \(first)–\(last) \(unit)" }
+        // 连续，或部数多到列不下时只给首尾（实际数量由「共 N 部」角标给出）。
+        if contiguous || sorted.count > 4 { return "第 \(first)–\(last) \(unit)" }
         return "第 " + sorted.map(String.init).joined(separator: "、") + " \(unit)"
     }
 }
