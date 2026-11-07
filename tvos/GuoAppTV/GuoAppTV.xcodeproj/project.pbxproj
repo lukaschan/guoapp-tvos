@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000059 /* EpisodeRanges.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005A /* EpisodeRanges.swift */; };
 		A10000000000000000000040 /* GuoAppTVApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000020 /* GuoAppTVApp.swift */; };
 		A10000000000000000000041 /* Bridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000021 /* Bridge.swift */; };
 		A10000000000000000000042 /* Client.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000022 /* Client.swift */; };
@@ -29,6 +30,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A1000000000000000000005A /* EpisodeRanges.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/EpisodeRanges.swift; sourceTree = "<group>"; };
 		A10000000000000000000009 /* GuoAppTV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GuoAppTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000020 /* GuoAppTVApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuoAppTVApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000021 /* Bridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bridge.swift; sourceTree = "<group>"; };
@@ -96,6 +98,7 @@
 				A10000000000000000000022 /* Client.swift */,
 				A10000000000000000000023 /* Models.swift */,
 				A10000000000000000000024 /* Store.swift */,
+				A1000000000000000000005A /* EpisodeRanges.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -217,6 +220,7 @@
 				A10000000000000000000053 /* TVDesign.swift in Sources */,
 				A10000000000000000000055 /* PlayerControlsView.swift in Sources */,
 				A10000000000000000000057 /* PlayerController.swift in Sources */,
+				A10000000000000000000059 /* EpisodeRanges.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

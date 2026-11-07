@@ -25,3 +25,6 @@ venv/
 **/xcuserdata/
 # 本机 Apple TV 部署参数（scripts/deploy_tvos.py --save 生成，含个人 Team ID）
 tvos-deploy.local.json
+# 纯逻辑测试包（tvos/Package.swift）的 SwiftPM 产物
+tvos/.build/
+tvos/.swiftpm/
