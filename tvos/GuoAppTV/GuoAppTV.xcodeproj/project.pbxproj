@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000067 /* SeriesTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000068 /* SeriesTitle.swift */; };
 		A10000000000000000000065 /* MyListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000066 /* MyListView.swift */; };
 		A10000000000000000000063 /* ContinueWatchingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000064 /* ContinueWatchingCard.swift */; };
 		A10000000000000000000061 /* EpisodeNumberGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000062 /* EpisodeNumberGrid.swift */; };
@@ -34,6 +35,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A10000000000000000000068 /* SeriesTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/SeriesTitle.swift; sourceTree = "<group>"; };
 		A10000000000000000000066 /* MyListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyListView.swift; sourceTree = "<group>"; };
 		A10000000000000000000064 /* ContinueWatchingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueWatchingCard.swift; sourceTree = "<group>"; };
 		A10000000000000000000062 /* EpisodeNumberGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeNumberGrid.swift; sourceTree = "<group>"; };
@@ -109,6 +111,7 @@
 				A1000000000000000000005A /* EpisodeRanges.swift */,
 				A1000000000000000000005C /* WatchStatus.swift */,
 				A1000000000000000000005E /* ResumeTarget.swift */,
+				A10000000000000000000068 /* SeriesTitle.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -237,6 +240,7 @@
 				A10000000000000000000061 /* EpisodeNumberGrid.swift in Sources */,
 				A10000000000000000000063 /* ContinueWatchingCard.swift in Sources */,
 				A10000000000000000000065 /* MyListView.swift in Sources */,
+				A10000000000000000000067 /* SeriesTitle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
