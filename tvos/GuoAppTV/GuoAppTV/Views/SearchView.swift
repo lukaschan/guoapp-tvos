@@ -153,9 +153,41 @@ struct SearchView: View {
             .padding(.vertical, 100)
         } else if !results.isEmpty {
             // 搜索海报往下挪：单独给海报加顶部间距，只动海报、不动搜索框。
-            TVPosterGrid(items: results, onPlay: { launcher.play($0, store: store) })
+            resultGrid
                 .padding(.top, 12)
         }
+    }
+
+    /// 搜索结果：同一系列的各部合成一张卡片（「共 N 部」），其余单部剧原样显示。
+    private var resultGrid: some View {
+        let entries = SeriesGrouping.group(results, title: \.title, source: \.source)
+        return LazyVGrid(columns: TVTheme.posterColumns(), spacing: 32) {
+            ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
+                switch entry {
+                case .single(let drama):
+                    TVPosterCard(drama: drama)
+                        .onPlayPauseCommand { launcher.play(drama, store: store) }
+                case .series(let group):
+                    let target = seriesTarget(group)
+                    TVPosterCard(
+                        drama: group.parts[0].item,
+                        title: group.base,
+                        subtitle: SeriesGrouping.partsLabel(group.partNumbers, unit: group.unit),
+                        badge: "共 \(group.parts.count) \(group.unit)",
+                        linkValue: target
+                    )
+                    .onPlayPauseCommand { launcher.play(target, store: store) }
+                }
+            }
+        }
+    }
+
+    /// 系列卡片进入 / 播放哪一部：最近看过的那部，没看过就第一部。
+    private func seriesTarget(_ group: SeriesGroup<Drama>) -> Drama {
+        let watched = group.parts.compactMap { part in
+            store.latestProgress(for: part.item.id).map { (part.item, $0.updatedAt) }
+        }
+        return watched.max { $0.1 < $1.1 }?.0 ?? group.parts[0].item
     }
 
     // MARK: - 搜索（业务逻辑与原版一致）
@@ -171,6 +203,10 @@ struct SearchView: View {
                 source: appState.selectedSource, query: query
             )
             results = result.items
+            // 归组出的系列存进 SeriesLookup，进详情页时「本系列」直接命中、不再搜索。
+            for case .series(let group) in SeriesGrouping.group(result.items, title: \.title, source: \.source) {
+                await SeriesLookup.shared.remember(group)
+            }
         } catch {
             self.error = error.localizedDescription
         }

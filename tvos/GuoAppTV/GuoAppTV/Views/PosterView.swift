@@ -90,11 +90,15 @@ struct TVPosterCard: View {
     var subtitle: String? = nil
     var progress: Double? = nil
     var rank: Int? = nil
+    /// 右上角角标（系列卡片的「共 N 部」）。
+    var badge: String? = nil
+    /// 点按进入哪部剧的详情；默认就是海报这部（系列卡片进入最近看的那一部）。
+    var linkValue: Drama? = nil
 
     @FocusState private var focused: Bool
 
     var body: some View {
-        NavigationLink(value: drama) {
+        NavigationLink(value: linkValue ?? drama) {
             VStack(alignment: .leading, spacing: 12) {
                 poster
                 VStack(alignment: .leading, spacing: 4) {
@@ -129,6 +133,21 @@ struct TVPosterCard: View {
         TVPosterImage(drama: drama)
             .clipShape(RoundedRectangle(cornerRadius: TVTheme.posterRadius, style: .continuous))
             .overlay(alignment: .topLeading) { rankBadge }
+            .overlay(alignment: .topTrailing) { cornerBadge }
+    }
+
+    /// 右上角角标：系列卡片显示「共 N 部」。
+    @ViewBuilder
+    private var cornerBadge: some View {
+        if let badge {
+            Text(badge)
+                .font(.system(size: TVTheme.TextSize.caption2, weight: .bold))
+                .foregroundColor(TVTheme.textPrimary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 3)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(TVTheme.accent))
+                .padding(10)
+        }
     }
 
     /// 榜单排名角标：前三名用品牌强调色，其余低调呈现。
