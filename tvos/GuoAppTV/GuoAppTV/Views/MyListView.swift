@@ -43,19 +43,25 @@ struct MyListView: View {
 
     @ViewBuilder
     private var continueWatching: some View {
-        let history = store.recentHistory
+        // 同一系列只留最新看的那一部（第二部看到一半就不再单独列第一部）。
+        let history = SeriesGrouping.newestPartPerSeries(
+            store.recentHistory, title: \.drama.title, source: \.drama.source
+        )
         if !history.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 shelfHeader("继续观看", hint: "按播放键直接续播 · 长按可查看详情或移除")
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 40) {
-                        ForEach(history, id: \.drama.id) { entry in
+                        ForEach(history, id: \.item.drama.id) { collapsed in
+                            let entry = collapsed.item
                             Button {
                                 launcher.play(entry.drama, store: store)
                             } label: {
                                 ContinueWatchingCard(
                                     progress: entry,
-                                    isLoading: launcher.loadingDramaID == entry.drama.id
+                                    isLoading: launcher.loadingDramaID == entry.drama.id,
+                                    seriesTitle: collapsed.seriesTitle,
+                                    partLabel: collapsed.partLabel
                                 )
                             }
                             .buttonStyle(ContinueCardButtonStyle())

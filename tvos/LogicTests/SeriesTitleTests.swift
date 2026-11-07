@@ -68,6 +68,21 @@ struct SeriesTitleTests {
         #expect(group([Item(title: "霸总 第二部")]) == [.single(Item(title: "霸总 第二部"))])
     }
 
+    /// 继续观看：同一系列只留最新看的那一部（历史已按时间倒序），并标出第几部、用系列名作标题。
+    @Test func newestPartPerSeries() {
+        let history = [Item(title: "霸总 第二部"), Item(title: "别的剧"), Item(title: "霸总")]
+        let collapsed = SeriesGrouping.newestPartPerSeries(history, title: \.title, source: \.source)
+        #expect(collapsed.map(\.item.title) == ["霸总 第二部", "别的剧"])
+        #expect(collapsed.map(\.partLabel) == ["第 2 部", nil])
+        #expect(collapsed.map(\.seriesTitle) == ["霸总", nil])
+    }
+
+    @Test func lonePartStillLabelled() {
+        let collapsed = SeriesGrouping.newestPartPerSeries([Item(title: "霸总第三部")], title: \.title, source: \.source)
+        #expect(collapsed.first?.partLabel == "第 3 部")
+        #expect(collapsed.first?.seriesTitle == "霸总")
+    }
+
     @Test func partsLabel() {
         #expect(SeriesGrouping.partsLabel([1, 2, 3], unit: "部") == "第 1–3 部")
         #expect(SeriesGrouping.partsLabel([1, 3], unit: "部") == "第 1、3 部")

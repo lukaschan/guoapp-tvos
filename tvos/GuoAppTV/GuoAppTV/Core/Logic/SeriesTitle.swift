@@ -116,6 +116,13 @@ enum SeriesEntry<Item> {
 extension SeriesEntry: Sendable where Item: Sendable {}
 extension SeriesEntry: Equatable where Item: Equatable {}
 
+/// 「继续观看」里的一项：所属系列时带「第 N 部」标签与系列名。
+struct CollapsedSeriesItem<Item> {
+    let item: Item
+    let partLabel: String?
+    let seriesTitle: String?
+}
+
 /// 归组过程中的临时分组（泛型函数里不能嵌套类型）。
 private struct PendingSeries {
     var base: String
@@ -178,6 +185,35 @@ enum SeriesGrouping {
             }
         }
         return entries
+    }
+
+    /// 「继续观看」用：items 已按观看时间倒序，同一系列只留最先出现（最新看）的那一部，
+    /// 并给出「第 N 部」标签与系列名；不成系列但标题带后缀的单部剧也给标签。
+    static func newestPartPerSeries<Item>(
+        _ items: [Item],
+        title: (Item) -> String,
+        source: (Item) -> String
+    ) -> [CollapsedSeriesItem<Item>] {
+        let indexed = Array(items.enumerated())
+        var membership: [Int: (key: String, part: Int, unit: String, base: String)] = [:]
+        for case .series(let group) in Self.group(indexed, title: { title($0.element) }, source: { source($0.element) }) {
+            for part in group.parts {
+                membership[part.item.offset] = (group.key, part.part, group.unit, group.base)
+            }
+        }
+        var seen = Set<String>()
+        var result: [CollapsedSeriesItem<Item>] = []
+        for (index, item) in indexed {
+            if let info = membership[index] {
+                guard seen.insert(info.key).inserted else { continue }
+                result.append(CollapsedSeriesItem(item: item, partLabel: "第 \(info.part) \(info.unit)", seriesTitle: info.base))
+            } else if let parsed = SeriesTitle.parse(title(item)) {
+                result.append(CollapsedSeriesItem(item: item, partLabel: "第 \(parsed.part) \(parsed.unit)", seriesTitle: parsed.base))
+            } else {
+                result.append(CollapsedSeriesItem(item: item, partLabel: nil, seriesTitle: nil))
+            }
+        }
+        return result
     }
 
     /// 「第 1–3 部」（连续）/「第 1、3 部」（不连续）/「第 2 季」（单个）。

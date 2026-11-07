@@ -5,6 +5,9 @@ import SwiftUI
 struct ContinueWatchingCard: View {
     let progress: WatchProgress
     var isLoading = false
+    /// 系列里的某一部：标题用系列名，进度文案前加「第 N 部 · 」。
+    var seriesTitle: String? = nil
+    var partLabel: String? = nil
 
     var body: some View {
         let status = WatchStatus(
@@ -27,11 +30,11 @@ struct ContinueWatchingCard: View {
                     }
                 }
             VStack(alignment: .leading, spacing: 10) {
-                Text(progress.drama.title)
+                Text(seriesTitle ?? progress.drama.title)
                     .font(.system(size: TVTheme.TextSize.body, weight: .bold))
                     .foregroundColor(TVTheme.textPrimary)
                     .lineLimit(2)
-                Text(status.cardCaption)
+                Text([partLabel, status.cardCaption].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
                     .font(.system(size: TVTheme.TextSize.caption))
                     .foregroundColor(TVTheme.textPrimary.opacity(0.7))
                     .lineLimit(1)
