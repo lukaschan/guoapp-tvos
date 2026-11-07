@@ -53,3 +53,11 @@ struct WatchStatus: Equatable, Sendable {
         return "\(state) · 共 \(totalEpisodes) 集"
     }
 }
+
+/// 总集数：剧信息里给了就用（目录 / 详情的 episodes），没给（0）时用详情分集列表的数量补上，
+/// 这样「共 M 集」、整部剧进度与「已看完」对这类剧也能工作。
+enum EpisodeCount {
+    static func effective(reported: Int, detailCount: Int) -> Int {
+        reported > 0 ? reported : max(detailCount, 0)
+    }
+}

@@ -165,7 +165,7 @@ struct SearchView: View {
             ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
                 switch entry {
                 case .single(let drama):
-                    TVPosterCard(drama: drama)
+                    TVPosterCard(drama: drama, isLoading: launcher.loadingDramaID == drama.id)
                         .onPlayPauseCommand { launcher.play(drama, store: store) }
                 case .series(let group):
                     let target = seriesTarget(group)
@@ -174,7 +174,8 @@ struct SearchView: View {
                         title: group.base,
                         subtitle: SeriesGrouping.partsLabel(group.partNumbers, unit: group.unit),
                         badge: "共 \(group.parts.count) \(group.unit)",
-                        linkValue: target
+                        linkValue: target,
+                        isLoading: launcher.loadingDramaID == target.id
                     )
                     .onPlayPauseCommand { launcher.play(target, store: store) }
                 }

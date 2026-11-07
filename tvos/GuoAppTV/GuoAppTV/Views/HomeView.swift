@@ -115,7 +115,7 @@ struct HomeView: View {
             VStack(spacing: 20) {
                 TVPosterGrid(items: items, showRank: isRankingMode, onReachEnd: {
                     Task { await loadMore() }
-                }, onPlay: { launcher.play($0, store: store) })
+                }, onPlay: { launcher.play($0, store: store) }, loadingID: launcher.loadingDramaID)
                 if loading && !items.isEmpty {
                     TVLoadingView("正在加载更多…")
                         .padding(.vertical, 24)

@@ -98,7 +98,11 @@ struct MyListView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .top, spacing: 40) {
                         ForEach(store.follows, id: \.drama.id) { follow in
-                            TVPosterCard(drama: follow.drama, subtitle: followCaption(follow.drama))
+                            TVPosterCard(
+                                drama: follow.drama,
+                                subtitle: followCaption(follow.drama),
+                                isLoading: launcher.loadingDramaID == follow.drama.id
+                            )
                                 .frame(width: 200)
                                 .onPlayPauseCommand { launcher.play(follow.drama, store: store) }
                                 .contextMenu {

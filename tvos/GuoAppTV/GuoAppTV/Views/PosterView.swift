@@ -95,6 +95,8 @@ struct TVPosterCard: View {
     var badgeColor: Color = TVTheme.accent
     /// 点按进入哪部剧的详情；默认就是海报这部（系列卡片进入最近看的那一部）。
     var linkValue: Drama? = nil
+    /// 按播放键后正在取详情：海报上叠加载圈。
+    var isLoading = false
 
     @FocusState private var focused: Bool
 
@@ -135,6 +137,15 @@ struct TVPosterCard: View {
             .clipShape(RoundedRectangle(cornerRadius: TVTheme.posterRadius, style: .continuous))
             .overlay(alignment: .topLeading) { rankBadge }
             .overlay(alignment: .topTrailing) { cornerBadge }
+            .overlay {
+                if isLoading {
+                    ZStack {
+                        Color.black.opacity(0.45)
+                        ProgressView()
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: TVTheme.posterRadius, style: .continuous))
+                }
+            }
     }
 
     /// 右上角角标：系列卡片显示「共 N 部」。
@@ -181,6 +192,8 @@ struct TVPosterGrid: View {
     var onReachEnd: (() -> Void)? = nil
     /// 海报上按播放键：直接播放（继续观看或从第 1 集开始）。
     var onPlay: ((Drama) -> Void)? = nil
+    /// 正在取详情准备播放的剧（海报上显示加载圈）。
+    var loadingID: String? = nil
 
     var body: some View {
         LazyVGrid(columns: TVTheme.posterColumns(), spacing: 32) {
@@ -189,7 +202,8 @@ struct TVPosterGrid: View {
                     drama: drama,
                     subtitle: subtitle.map { $0(drama) } ?? nil,
                     progress: progress.map { $0(drama) } ?? nil,
-                    rank: showRank ? index + 1 : nil
+                    rank: showRank ? index + 1 : nil,
+                    isLoading: drama.id == loadingID
                 )
                 .onAppear {
                     if drama.id == items.last?.id {

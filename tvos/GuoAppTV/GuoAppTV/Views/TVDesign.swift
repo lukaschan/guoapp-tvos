@@ -175,6 +175,8 @@ struct TVChip: View {
 struct TVPrimaryButton: View {
     let title: String
     var icon: String? = nil
+    /// 准备中：图标换成加载圈。
+    var isLoading = false
     let action: () -> Void
 
     @FocusState private var focused: Bool
@@ -182,7 +184,9 @@ struct TVPrimaryButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                if let icon {
+                if isLoading {
+                    ProgressView()
+                } else if let icon {
                     Image(systemName: icon)
                         .font(.system(size: TVTheme.TextSize.caption, weight: .semibold))
                 }

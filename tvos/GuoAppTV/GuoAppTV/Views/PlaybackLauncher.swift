@@ -36,7 +36,7 @@ final class PlaybackLauncher: ObservableObject {
                 }
                 presentation = PlaybackPresentation(
                     // 与详情页一致：用详情里的剧信息；解析不出 id 时退回传入的剧，保证进度记在同一部剧下。
-                    drama: detail.drama.id.isEmpty ? drama : detail.drama,
+                    drama: Self.withEpisodeCount(detail.drama.id.isEmpty ? drama : detail.drama, detail.episodes.count),
                     episodes: detail.episodes,
                     startIndex: target.index,
                     startPosition: target.position
@@ -45,6 +45,28 @@ final class PlaybackLauncher: ObservableObject {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+}
+
+extension PlaybackLauncher {
+    /// 已有分集列表时直接弹出播放页（详情页点分集、继续观看按钮），与 play 共用同一个播放页与防重入。
+    func present(drama: Drama, episodes: [Episode], startIndex: Int, startPosition: Double) {
+        guard LaunchGate.canStart(loadingDramaID: loadingDramaID, presenting: presentation != nil),
+              episodes.indices.contains(startIndex)
+        else { return }
+        presentation = PlaybackPresentation(
+            drama: Self.withEpisodeCount(drama, episodes.count),
+            episodes: episodes,
+            startIndex: startIndex,
+            startPosition: startPosition
+        )
+    }
+
+    /// 剧信息没给总集数时用分集列表数量补上，记进观看记录后「共 M 集」/「已看完」才能工作。
+    static func withEpisodeCount(_ drama: Drama, _ count: Int) -> Drama {
+        var copy = drama
+        copy.episodes = EpisodeCount.effective(reported: drama.episodes, detailCount: count)
+        return copy
     }
 }
 

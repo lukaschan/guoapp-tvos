@@ -11,17 +11,10 @@ struct DetailView: View {
     @State private var detail: DramaDetail?
     @State private var loading = true
     @State private var error: String?
-    @State private var playTarget: PlayTarget?
     /// 同名剧的各部（第 N 部 / 季），后台查询；单部剧为 nil。
     @State private var series: SeriesGroup<Drama>?
-    /// 「观看下一部」走统一的直接播放（取下一部的详情后续播）。
+    /// 本页所有播放（点分集、继续观看、观看下一部）都走同一个播放页，避免两个全屏页互相抢。
     @StateObject private var launcher = PlaybackLauncher()
-
-    private struct PlayTarget: Identifiable {
-        let episode: Episode
-        let position: Double
-        var id: String { "\(episode.number)" }
-    }
 
     /// 展示用的剧信息：详情接口返回的完整数据优先（简介 / 分类等更全），
     /// 详情未加载出来时回落到目录传来的剧信息。
@@ -34,19 +27,14 @@ struct DetailView: View {
                 episodesSection
             }
             .padding(.bottom, 56)
-            .playbackLauncher(launcher)
         }
         .background(TVTheme.background.ignoresSafeArea())
-        .task { await load() }
-        .task { series = await SeriesLookup.shared.parts(of: drama) }
-        .fullScreenCover(item: $playTarget) { target in
-            PlayerView(
-                drama: detail?.drama ?? drama,
-                episodes: detail?.episodes ?? [],
-                startIndex: (detail?.episodes.firstIndex { $0.id == target.episode.id }) ?? 0,
-                startPosition: target.position
-            )
+        .task {
+            await load()
+            // 详情到了再查本系列：搜索排在详情之后，不挡第一屏。
+            series = await SeriesLookup.shared.parts(of: drama)
         }
+        .playbackLauncher(launcher)
     }
 
     // MARK: - 头部
@@ -87,7 +75,11 @@ struct DetailView: View {
                     .lineLimit(3)
             }
             HStack(spacing: 20) {
-                TVPrimaryButton(title: resumeLabel, icon: "play.fill") {
+                TVPrimaryButton(
+                    title: launcher.loadingDramaID != nil ? "正在准备…" : resumeLabel,
+                    icon: "play.fill",
+                    isLoading: launcher.loadingDramaID != nil
+                ) {
                     playResume()
                 }
                 TVSecondaryButton(
@@ -185,8 +177,10 @@ struct DetailView: View {
                 progress: episodeProgress,
                 trailing: "共 \(detail.episodes.count) 集"
             ) { index in
-                playTarget = PlayTarget(episode: detail.episodes[index], position: 0)
+                launcher.present(drama: displayDrama, episodes: detail.episodes, startIndex: index, startPosition: 0)
             }
+            // 取下一部详情时（观看下一部）暂不响应分集点按，避免同时弹两个播放页。
+            .disabled(launcher.loadingDramaID != nil)
             if let series {
                 SeriesShelf(group: series, currentID: drama.id)
             }
@@ -227,7 +221,7 @@ struct DetailView: View {
             return
         }
         guard let target = resumeTarget, let episodes = detail?.episodes else { return }
-        playTarget = PlayTarget(episode: episodes[target.index], position: target.position)
+        launcher.present(drama: displayDrama, episodes: episodes, startIndex: target.index, startPosition: target.position)
     }
 
     private func load() async {
