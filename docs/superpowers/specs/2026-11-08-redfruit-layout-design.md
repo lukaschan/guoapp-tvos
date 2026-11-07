@@ -104,6 +104,32 @@ there.
 - **About notes:** remove the stale ones (↑↓ changes speed; Play/Pause deletes in 最近观看) and describe the
   current remote mapping.
 
+### 系列: grouping a drama's parts (phase 1; owner request 2026-11-08, design delegated to the builder)
+- **Rule** (mirrors the core, `upstream/native/core/provider_hongguo_search_seasons.go` and `hongguoSearchText`):
+  - A title ending in `第N部` or `第N季` belongs to series `base`. N is Arabic or Chinese numerals (零〇一二两兩三…十百),
+    1–200, optionally followed by punctuation or spaces.
+  - The group key is `normalize(base) + ":" + unit`, where normalize is NFKC, lower-case, spaces and
+    punctuation removed. So 部 and 季 are different series.
+  - A title whose normalised form equals the key is part 1.
+  - Only dramas from the same source are grouped.
+- **搜索:** one card per series group of 2 or more parts.
+  - The card has the lowest part's poster, the title `base`, a badge "共 N 部" (or "共 N 季"), and the
+    subtitle "第 1–N 部" (the actual part numbers when not contiguous, e.g. "第 1、3 部").
+  - Selecting it opens the most recently watched part, otherwise the lowest part. Play/Pause resumes it.
+- **Detail, 本系列 row** (directly below the 选集 grid):
+  - One card per part: the poster, "第二部 · 80 集" and the poster caption from `WatchStatus`.
+  - Tags: 当前 on the part being viewed, 下一部 on the following part.
+  - Selecting a card opens that part's detail.
+  - Hidden when the drama has no other parts.
+- **Detail, primary action:** "观看下一部" when the current part is 已看完 and a next part exists.
+- **Finding the parts:** when Detail isn't handed the series by Search, it runs one background
+  `catalog(source:, query: base)` (the core completes missing parts). Results are cached in memory per group
+  key for the app session.
+- **继续观看:** one card per series, for the most recently watched part. Its caption is prefixed with the
+  part, e.g. "第二部 · 看到第 5 集 / 共 80 集".
+- **Out of scope:** auto-continuing into the next part at the end of the last episode (phase 2, with the
+  shared player logic), and grouping in 剧场 rankings, which stay one entry per part.
+
 ### 剧场 (phase 2). redfruit: `Features/Theater/`
 - Today's 首页 becomes 剧场, restyled the redfruit way.
   - **Chip row(s):** the source chips (all-sources builds) and the board / category chips, as today.
