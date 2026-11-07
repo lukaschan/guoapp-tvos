@@ -1,13 +1,16 @@
 import SwiftUI
 
-/// 设置页：适合电视的分组卡片布局，取代密集的表单。
+/// 「我的」（redfruit 样式）：左栏应用图标与名称，右栏分组设置。
 ///
 /// - 站源：分组行内直接选择，当前站源打勾；
 /// - 播放：开关行点按即切换；清晰度 / 倍速弹出居中选项卡（默认聚焦当前值）；
+/// - 观看记录：清除全部观看记录（追剧不受影响）；
 /// - 关于：版本与说明信息。
 /// 配置项与存储键（AppStorage）与原版完全一致。
 struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var store: Store
+    @State private var confirmClearHistory = false
     @AppStorage("danmakuEnabled") private var danmakuEnabled = true
     @AppStorage("autoAdvance") private var autoAdvance = true
     @AppStorage("playbackDiagnostics") private var diagnosticsEnabled = false
@@ -33,18 +36,64 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: TVTheme.sectionSpacing) {
-                    sourceGroup
-                    playbackGroup
-                    aboutGroup
+            HStack(alignment: .top, spacing: 80) {
+                identityColumn
+                ScrollView {
+                    VStack(alignment: .leading, spacing: TVTheme.sectionSpacing) {
+                        sourceGroup
+                        playbackGroup
+                        historyGroup
+                        aboutGroup
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 56)
                 }
-                .padding(.horizontal, TVTheme.pageInset)
-                .padding(.top, 20)
-                .padding(.bottom, 56)
             }
+            .padding(.horizontal, 80)
             .sheet(item: $activePicker) { picker in
                 pickerSheet(picker)
+            }
+            .confirmationDialog("清除全部观看记录？", isPresented: $confirmClearHistory, titleVisibility: .visible) {
+                Button("清除", role: .destructive) { store.clearHistory() }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("「继续观看」会被清空，追剧列表不受影响。")
+            }
+        }
+    }
+
+    // MARK: - 左栏
+
+    private var identityColumn: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            RoundedRectangle(cornerRadius: 48, style: .continuous)
+                .fill(TVTheme.accentGradient)
+                .frame(width: 320, height: 320)
+                .overlay {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 140, weight: .bold))
+                        .foregroundColor(TVTheme.textPrimary)
+                }
+                .shadow(color: TVTheme.accent.opacity(0.35), radius: 40, y: 16)
+            VStack(alignment: .leading, spacing: 10) {
+                Text(tvAppDisplayName)
+                    .font(.system(size: TVTheme.TextSize.title2, weight: .heavy))
+                    .foregroundColor(TVTheme.textPrimary)
+                Text("在电视上追短剧")
+                    .font(.system(size: TVTheme.TextSize.body))
+                    .foregroundColor(TVTheme.textSecondary)
+            }
+        }
+        .frame(width: 560, alignment: .leading)
+        .padding(.top, 120)
+    }
+
+    // MARK: - 观看记录
+
+    private var historyGroup: some View {
+        TVSettingGroup(title: "观看记录") {
+            TVValueRow(title: "清除观看记录", value: store.recentHistory.isEmpty ? "暂无记录" : "") {
+                confirmClearHistory = true
             }
         }
     }
@@ -99,7 +148,7 @@ struct SettingsView: View {
                 activePicker = .speed
             }
             TVSettingDivider()
-            Text("清晰度与倍速在下一次打开剧集时生效。")
+            Text("清晰度在下一次打开剧集时生效；倍速也可在播放时从控件里实时调整。")
                 .font(.system(size: TVTheme.TextSize.caption2))
                 .foregroundColor(TVTheme.textTertiary)
                 .padding(.horizontal, 28)
@@ -122,9 +171,9 @@ struct SettingsView: View {
             .padding(.horizontal, 28)
             .padding(.vertical, 22)
             aboutNote("原生 tvOS 应用 · Go 核心 · MPV 播放")
-            aboutNote("播放时按遥控器 ↑ 放慢、↓ 加快，可实时调整倍速。")
-            aboutNote("“最近观看”中按遥控器“播放/暂停”键，可删除该观看记录。")
-            aboutNote("“首页”按遥控器“播放/暂停”键，可手动刷新。")
+            aboutNote("在海报上按播放键直接播放")
+            aboutNote("继续观看卡片长按可查看详情或移除")
+            aboutNote("播放时点按或按 ↑↓ 调出控件：倍速、画面、选集；← → 快退 / 快进 10 秒")
             aboutNote("追剧与观看进度存在 Caches，系统空间不足时可能被清理。")
         }
     }

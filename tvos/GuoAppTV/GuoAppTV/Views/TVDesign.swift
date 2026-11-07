@@ -66,6 +66,9 @@ enum TVTheme {
     }
 }
 
+/// 应用显示名（红果鉴 / 真果鉴，构建时由 GUOAPP_DISPLAY_NAME 写入 Info.plist）。
+let tvAppDisplayName: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "红果鉴"
+
 /// 秒 → "mm:ss" / "h:mm:ss"，货架、详情、历史共用。
 func tvTimecode(_ seconds: Double) -> String {
     let total = max(0, Int(seconds))
