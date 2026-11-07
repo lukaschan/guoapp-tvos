@@ -165,10 +165,18 @@ final class PlayerController: NSObject, ObservableObject {
     }
 
     /// 播放中实时改倍速（mpv 的 speed 属性可热改，不用重建播放器）。
+    ///
+    /// 改完原地精确跳转一次，丢掉已排队的旧倍速音频：Apple TV 的 HDMI 输出上 mpv 的 audiounit
+    /// 初始化失败（取声道布局报 -10879），回退到 avfoundation 音频输出，而它固定预读 2 秒
+    /// （mpv ao_avfoundation.m：device_buffer = samplerate * 2）。只改 speed 时这 2 秒旧倍速音频
+    /// 要先播完，画面停顿或音画不同步 2～4 秒；跳转会清空缓冲、重新对齐音画，新倍速立即生效。
     func setSpeed(_ speed: Double) {
         guard let handle = mpv else { return }
+        let previous = getDouble("speed")
         var value = speed
-        _ = mpv_set_property(handle, "speed", MPV_FORMAT_DOUBLE, &value)
+        let status = mpv_set_property(handle, "speed", MPV_FORMAT_DOUBLE, &value)
+        guard status >= 0, abs(previous - speed) > 0.001 else { return }
+        command(["seek", "0", "relative+exact"])
     }
 
     // MARK: - 播放启动
