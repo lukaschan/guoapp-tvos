@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1000000000000000000005F /* PlaybackLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000060 /* PlaybackLauncher.swift */; };
+		A1000000000000000000005D /* ResumeTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005E /* ResumeTarget.swift */; };
 		A1000000000000000000005B /* WatchStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005C /* WatchStatus.swift */; };
 		A10000000000000000000059 /* EpisodeRanges.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005A /* EpisodeRanges.swift */; };
 		A10000000000000000000040 /* GuoAppTVApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000020 /* GuoAppTVApp.swift */; };
@@ -31,6 +33,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A10000000000000000000060 /* PlaybackLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackLauncher.swift; sourceTree = "<group>"; };
+		A1000000000000000000005E /* ResumeTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/ResumeTarget.swift; sourceTree = "<group>"; };
 		A1000000000000000000005C /* WatchStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/WatchStatus.swift; sourceTree = "<group>"; };
 		A1000000000000000000005A /* EpisodeRanges.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/EpisodeRanges.swift; sourceTree = "<group>"; };
 		A10000000000000000000009 /* GuoAppTV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GuoAppTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -102,6 +106,7 @@
 				A10000000000000000000024 /* Store.swift */,
 				A1000000000000000000005A /* EpisodeRanges.swift */,
 				A1000000000000000000005C /* WatchStatus.swift */,
+				A1000000000000000000005E /* ResumeTarget.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -121,6 +126,7 @@
 				A10000000000000000000054 /* TVDesign.swift */,
 				A10000000000000000000056 /* PlayerControlsView.swift */,
 				A10000000000000000000058 /* PlayerController.swift */,
+				A10000000000000000000060 /* PlaybackLauncher.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -225,6 +231,8 @@
 				A10000000000000000000057 /* PlayerController.swift in Sources */,
 				A10000000000000000000059 /* EpisodeRanges.swift in Sources */,
 				A1000000000000000000005B /* WatchStatus.swift in Sources */,
+				A1000000000000000000005D /* ResumeTarget.swift in Sources */,
+				A1000000000000000000005F /* PlaybackLauncher.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
