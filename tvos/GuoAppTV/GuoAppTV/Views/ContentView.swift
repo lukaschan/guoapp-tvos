@@ -67,8 +67,7 @@ struct KeepAliveTabView: UIViewControllerRepresentable {
         tabBarController.viewControllers = [
             hosting(HomeView().environmentObject(appState), title: "首页", image: "house", tag: 0),
             hosting(SearchView().environmentObject(appState), title: "搜索", image: "magnifyingglass", tag: 1),
-            hosting(FollowingView().environmentObject(appState), title: "追剧", image: "bookmark", tag: 2),
-            hosting(HistoryView().environmentObject(appState), title: "最近观看", image: "clock", tag: 3),
+            hosting(MyListView().environmentObject(appState), title: "追剧", image: "heart", tag: 2),
             hosting(SettingsView().environmentObject(appState), title: "设置", image: "gearshape", tag: 4),
         ]
         return tabBarController

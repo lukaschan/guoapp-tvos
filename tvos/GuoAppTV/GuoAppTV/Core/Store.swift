@@ -128,6 +128,12 @@ final class Store: ObservableObject {
         persist()
     }
 
+    /// 清除全部观看记录：「继续观看」清空，追剧列表不受影响。
+    func clearHistory() {
+        progress.removeAll()
+        persist()
+    }
+
     /// 删除某部剧的全部观看记录（最近观看里该剧的整条记录）。
     func deleteHistory(for drama: Drama) {
         progress.removeAll { $0.drama.id == drama.id }
