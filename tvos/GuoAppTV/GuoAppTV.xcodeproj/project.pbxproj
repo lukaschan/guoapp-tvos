@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000061 /* EpisodeNumberGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000062 /* EpisodeNumberGrid.swift */; };
 		A1000000000000000000005F /* PlaybackLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000060 /* PlaybackLauncher.swift */; };
 		A1000000000000000000005D /* ResumeTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005E /* ResumeTarget.swift */; };
 		A1000000000000000000005B /* WatchStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005C /* WatchStatus.swift */; };
@@ -33,6 +34,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A10000000000000000000062 /* EpisodeNumberGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeNumberGrid.swift; sourceTree = "<group>"; };
 		A10000000000000000000060 /* PlaybackLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackLauncher.swift; sourceTree = "<group>"; };
 		A1000000000000000000005E /* ResumeTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/ResumeTarget.swift; sourceTree = "<group>"; };
 		A1000000000000000000005C /* WatchStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/WatchStatus.swift; sourceTree = "<group>"; };
@@ -127,6 +129,7 @@
 				A10000000000000000000056 /* PlayerControlsView.swift */,
 				A10000000000000000000058 /* PlayerController.swift */,
 				A10000000000000000000060 /* PlaybackLauncher.swift */,
+				A10000000000000000000062 /* EpisodeNumberGrid.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -233,6 +236,7 @@
 				A1000000000000000000005B /* WatchStatus.swift in Sources */,
 				A1000000000000000000005D /* ResumeTarget.swift in Sources */,
 				A1000000000000000000005F /* PlaybackLauncher.swift in Sources */,
+				A10000000000000000000061 /* EpisodeNumberGrid.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

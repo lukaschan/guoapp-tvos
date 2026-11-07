@@ -216,7 +216,7 @@ private struct PlayerControlButton: View {
 
 // MARK: - 选集弹窗
 
-/// 播放中选集：网格列出全部分集，默认聚焦正在看的一集；选中后由调用方换集。
+/// 播放中选集：与详情页同一套分段集数网格，默认停在正在看的那集所在分段并聚焦它；选中后由调用方换集。
 struct PlayerEpisodeSheet: View {
     let episodes: [Episode]
     let currentIndex: Int
@@ -224,60 +224,23 @@ struct PlayerEpisodeSheet: View {
     let onSelect: (Int) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Namespace private var scope
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 28) {
-            Text("选集")
-                .font(.system(size: TVTheme.TextSize.headline, weight: .semibold))
-            ScrollViewReader { proxy in
-                ScrollView {
-                    // 非惰性网格（分集一般不过百）：正在看的那集格子从一开始就存在，
-                    // 默认焦点才能可靠落在它上面；LazyVGrid 里靠后的格子此时可能还没创建。
-                    VStack(alignment: .leading, spacing: 18) {
-                        ForEach(rows, id: \.self) { row in
-                            HStack(spacing: 16) {
-                                ForEach(row, id: \.self) { index in
-                                    cell(index)
-                                }
-                                ForEach(row.count..<Self.columns, id: \.self) { _ in
-                                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
-                                }
-                            }
-                        }
-                    }
-                    // 给焦点放大留出空间
-                    .padding(24)
-                }
-                .onAppear { proxy.scrollTo(currentIndex, anchor: .center) }
+        ScrollView {
+            EpisodeNumberGrid(
+                episodes: episodes,
+                currentEpisode: episodes.indices.contains(currentIndex) ? episodes[currentIndex].number : nil,
+                progress: progress,
+                columns: 10,
+                trailing: "共 \(episodes.count) 集"
+            ) { index in
+                dismiss()
+                onSelect(index)
             }
-            .focusScope(scope)
+            // 给焦点放大留出空间
+            .padding(24)
         }
         .padding(48)
         .frame(width: 1500, height: 820)
-    }
-
-    private static let columns = 5
-
-    private var rows: [[Int]] {
-        stride(from: 0, to: episodes.count, by: Self.columns).map { start in
-            Array(start..<min(start + Self.columns, episodes.count))
-        }
-    }
-
-    private func cell(_ index: Int) -> some View {
-        let episode = episodes[index]
-        return TVEpisodeButton(
-            title: episode.title,
-            vip: episode.vip,
-            progress: progress(episode),
-            isCurrent: index == currentIndex
-        ) {
-            dismiss()
-            onSelect(index)
-        }
-        .frame(maxWidth: .infinity)
-        .prefersDefaultFocus(index == currentIndex, in: scope)
-        .id(index)
     }
 }

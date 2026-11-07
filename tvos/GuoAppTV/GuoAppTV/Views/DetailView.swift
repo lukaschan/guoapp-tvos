@@ -163,27 +163,18 @@ struct DetailView: View {
 
     private func episodeSection(_ detail: DramaDetail) -> some View {
         VStack(alignment: .leading, spacing: 24) {
-            TVSectionHeader(
-                title: "选集",
-                icon: "play.rectangle.on.rectangle",
-                trailing: "共 \(detail.episodes.count) 集"
-            )
             if !detail.warning.isEmpty {
                 Text(detail.warning)
                     .font(.system(size: TVTheme.TextSize.caption2))
                     .foregroundColor(TVTheme.textTertiary)
             }
-            LazyVGrid(columns: TVTheme.episodeColumns(), spacing: 16) {
-                ForEach(detail.episodes) { episode in
-                    TVEpisodeButton(
-                        title: episode.title,
-                        vip: episode.vip,
-                        progress: episodeProgress(episode),
-                        isCurrent: store.latestProgress(for: drama.id)?.episode == episode.number
-                    ) {
-                        playTarget = PlayTarget(episode: episode, position: 0)
-                    }
-                }
+            EpisodeNumberGrid(
+                episodes: detail.episodes,
+                currentEpisode: store.latestProgress(for: drama.id)?.episode,
+                progress: episodeProgress,
+                trailing: "共 \(detail.episodes.count) 集"
+            ) { index in
+                playTarget = PlayTarget(episode: detail.episodes[index], position: 0)
             }
         }
         .padding(.horizontal, TVTheme.pageInset)
