@@ -98,10 +98,10 @@ struct PlayerControlsOverlay: View {
             HStack(alignment: .bottom, spacing: 40) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(title)
-                        .font(.system(size: 38, weight: .semibold))
+                        .font(.system(size: TVTheme.TextSize.headline, weight: .semibold))
                         .lineLimit(1)
                     Text(subtitle)
-                        .font(.system(size: 29))
+                        .font(.system(size: TVTheme.TextSize.body))
                         .foregroundColor(TVTheme.textSecondary)
                 }
                 Spacer(minLength: 0)
@@ -140,7 +140,7 @@ struct PlayerControlsOverlay: View {
                 Spacer()
                 Text("-" + tvTimecode(max(0, progress.duration - progress.position)))
             }
-            .font(.system(size: 26, weight: .medium).monospacedDigit())
+            .font(.system(size: TVTheme.TextSize.caption, weight: .medium).monospacedDigit())
             .foregroundColor(TVTheme.textSecondary)
         }
         // 安全区：左右 80、上下 60（tvOS HIG）
@@ -170,12 +170,12 @@ private struct PlayerScrubber: View {
             let barHeight: CGFloat = focused ? 12 : 7
             let knob: CGFloat = 26
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.28))
+                Capsule().fill(TVTheme.textPrimary.opacity(0.28))
                 Capsule()
-                    .fill(Color.white)
+                    .fill(TVTheme.textPrimary)
                     .frame(width: geometry.size.width * fraction)
                 Circle()
-                    .fill(Color.white)
+                    .fill(TVTheme.textPrimary)
                     .frame(width: knob, height: knob)
                     .shadow(color: .black.opacity(0.5), radius: 6)
                     .offset(x: geometry.size.width * fraction - knob / 2)
@@ -200,15 +200,16 @@ private struct PlayerControlButton: View {
     var body: some View {
         Button(action: action) {
             Label(title, systemImage: icon)
-                .font(.system(size: 26, weight: .medium))
+                .font(.system(size: TVTheme.TextSize.body, weight: .medium))
                 .padding(.horizontal, 26)
                 .padding(.vertical, 14)
-                .foregroundColor(focused ? .black : .white)
-                .background(Capsule().fill(focused ? Color.white : TVTheme.surfaceBright))
+                .foregroundColor(focused ? TVTheme.ink : TVTheme.textPrimary)
+                .background(Capsule().fill(focused ? TVTheme.textPrimary : TVTheme.surfaceBright))
         }
         .buttonStyle(TVPressButtonStyle())
         .focused($focused)
-        .scaleEffect(focused ? TVTheme.chipScale : 1)
+        .scaleEffect(focused ? TVTheme.buttonScale : 1)
+        .shadow(color: .black.opacity(focused ? 0.5 : 0), radius: focused ? 20 : 0, y: focused ? 16 : 0)
         .animation(TVTheme.focusAnimation, value: focused)
     }
 }
@@ -228,7 +229,7 @@ struct PlayerEpisodeSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 28) {
             Text("选集")
-                .font(.system(size: 38, weight: .semibold))
+                .font(.system(size: TVTheme.TextSize.headline, weight: .semibold))
             ScrollViewReader { proxy in
                 ScrollView {
                     // 非惰性网格（分集一般不过百）：正在看的那集格子从一开始就存在，

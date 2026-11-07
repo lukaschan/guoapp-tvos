@@ -48,11 +48,11 @@ struct SearchView: View {
         // 焦点层在所有 App 视图之上，任何遮罩都盖不住。
         HStack(spacing: 14) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 25, weight: .medium))
+                .font(.system(size: TVTheme.TextSize.caption, weight: .medium))
                 .foregroundColor(searchBarFocused ? TVTheme.textPrimary : TVTheme.textTertiary)
             Text(query.isEmpty ? "输入剧名、演员或关键词" : query)
-                .font(.system(size: 26))
-                .foregroundColor(.white)
+                .font(.system(size: TVTheme.TextSize.body))
+                .foregroundColor(TVTheme.textPrimary)
                 .lineLimit(1)
             Spacer(minLength: 0)
             if !query.isEmpty {
@@ -60,7 +60,7 @@ struct SearchView: View {
                     query = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
+                        .font(.system(size: TVTheme.TextSize.caption))
                         .foregroundColor(TVTheme.textTertiary)
                 }
                 .buttonStyle(TVPressButtonStyle())
@@ -187,10 +187,10 @@ private struct TVSuggestionRow: View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 20))
+                    .font(.system(size: TVTheme.TextSize.caption2))
                     .foregroundColor(TVTheme.textTertiary)
                 Text(title)
-                    .font(.system(size: 23))
+                    .font(.system(size: TVTheme.TextSize.caption))
                     .foregroundColor(TVTheme.textPrimary)
                     .lineLimit(1)
                 Spacer()

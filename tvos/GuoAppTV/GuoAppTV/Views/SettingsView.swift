@@ -64,15 +64,15 @@ struct SettingsView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 5) {
                             Text(site.name)
-                                .font(.system(size: 24, weight: .medium))
+                                .font(.system(size: TVTheme.TextSize.body, weight: .medium))
                             Text(site.description)
-                                .font(.system(size: 18))
+                                .font(.system(size: TVTheme.TextSize.caption2))
                                 .foregroundColor(TVTheme.textSecondary)
                         }
                         Spacer()
                         if site.id == appState.selectedSource {
                             Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 27))
+                                .font(.system(size: TVTheme.TextSize.body))
                                 .foregroundColor(TVTheme.accent)
                         }
                     }
@@ -100,7 +100,7 @@ struct SettingsView: View {
             }
             TVSettingDivider()
             Text("清晰度与倍速在下一次打开剧集时生效。")
-                .font(.system(size: 18))
+                .font(.system(size: TVTheme.TextSize.caption2))
                 .foregroundColor(TVTheme.textTertiary)
                 .padding(.horizontal, 28)
                 .padding(.vertical, 18)
@@ -113,10 +113,10 @@ struct SettingsView: View {
         TVSettingGroup(title: "关于") {
             HStack {
                 Text("版本")
-                    .font(.system(size: 24, weight: .medium))
+                    .font(.system(size: TVTheme.TextSize.body, weight: .medium))
                 Spacer()
                 Text(appVersion)
-                    .font(.system(size: 22))
+                    .font(.system(size: TVTheme.TextSize.caption))
                     .foregroundColor(TVTheme.textSecondary)
             }
             .padding(.horizontal, 28)
@@ -131,7 +131,7 @@ struct SettingsView: View {
 
     private func aboutNote(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 18))
+            .font(.system(size: TVTheme.TextSize.caption2))
             .foregroundColor(TVTheme.textTertiary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 28)

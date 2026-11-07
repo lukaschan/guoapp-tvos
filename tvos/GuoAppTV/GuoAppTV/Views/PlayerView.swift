@@ -248,7 +248,7 @@ struct PlayerView: View {
                 }
                 if diagnosticsEnabled && !controller.debugInfo.isEmpty {
                     Text(controller.debugInfo)
-                        .font(.system(size: 22))
+                        .font(.system(size: TVTheme.TextSize.caption2))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.leading)
                         .padding(16)
@@ -279,7 +279,7 @@ struct PlayerView: View {
                 }
                 .padding(60)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black.ignoresSafeArea())
+                .background(TVTheme.background.ignoresSafeArea())
             } else if plan == nil {
                 TVLoadingView("正在解析播放地址…")
             }

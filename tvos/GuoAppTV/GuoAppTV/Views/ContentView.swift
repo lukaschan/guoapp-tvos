@@ -5,7 +5,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            TVTheme.background.ignoresSafeArea()
             if !appState.initialized {
                 launchScreen
             } else {
@@ -31,7 +31,7 @@ struct ContentView: View {
                     .shadow(color: TVTheme.accent.opacity(0.35), radius: 30, y: 12)
                 Image(systemName: "play.fill")
                     .font(.system(size: 46, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(TVTheme.textPrimary)
             }
             Text("红果鉴")
                 .font(.system(size: 48, weight: .bold))
@@ -39,7 +39,7 @@ struct ContentView: View {
                 if let error = appState.initializeError {
                     VStack(spacing: 22) {
                         Text(error)
-                            .font(.system(size: 22))
+                            .font(.system(size: TVTheme.TextSize.body))
                             .foregroundColor(TVTheme.textSecondary)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: 640)
@@ -80,7 +80,7 @@ struct KeepAliveTabView: UIViewControllerRepresentable {
 
     private func hosting<V: View>(_ content: V, title: String, image: String, tag: Int) -> UIViewController {
         let controller = UIHostingController(rootView: content)
-        controller.view.backgroundColor = .black
+        controller.view.backgroundColor = UIColor(TVTheme.background)
         controller.tabBarItem = UITabBarItem(title: title, image: UIImage(systemName: image), tag: tag)
         return controller
     }

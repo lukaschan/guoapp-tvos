@@ -4,6 +4,11 @@
 
 ## 未发布
 
+- 界面风格对齐 redfruit：暖近黑背景 #0E0B0C、暖白文字 #F5F1EE、绯红强调色 #E8364A；字号统一到
+  tvOS HIG 阶梯（`TVTheme.TextSize`，正文不小于 29，胶囊 29、海报标题 25 粗体、副标题 23）；
+  焦点：海报放大 10% 并加外侧白环与抬升投影，胶囊 10%、按钮 6%（白底深色字），0.18 秒缓出。
+  布局与功能不变；播放页视频底色保持纯黑。
+
 - Go 核心改走 git submodule：删 vendored 快照 `native/`，上游仓库以 submodule
   形式放在 `upstream/`，核心在 `upstream/native/`，指针指向 commit `283cd16`
   （`feat: 红果分集带出横竖屏标记`，相对旧快照 `d7e69fb` 仅新增 `Chapter.vertical`

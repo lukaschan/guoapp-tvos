@@ -78,7 +78,7 @@ struct HomeView: View {
             categoryRow
             if !warning.isEmpty {
                 Text(warning)
-                    .font(.system(size: 19))
+                    .font(.system(size: TVTheme.TextSize.caption2))
                     .foregroundColor(TVTheme.textTertiary)
             }
             // 海报区往下挪：单独给海报加顶部间距，只动海报、不动上面那行。

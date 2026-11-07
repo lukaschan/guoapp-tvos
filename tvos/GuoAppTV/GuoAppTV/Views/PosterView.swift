@@ -47,7 +47,7 @@ struct TVPosterImage: View {
                         .font(.system(size: 34, weight: .medium))
                         .foregroundColor(TVTheme.textTertiary)
                     Text(drama.title)
-                        .font(.system(size: 19))
+                        .font(.system(size: TVTheme.TextSize.caption2))
                         .foregroundColor(TVTheme.textSecondary)
                         .multilineTextAlignment(.center)
                         .lineLimit(3)
@@ -99,13 +99,13 @@ struct TVPosterCard: View {
                 poster
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title ?? drama.title)
-                        .font(.system(size: 22, weight: .medium))
+                        .font(.system(size: TVTheme.TextSize.caption, weight: .bold))
                         .foregroundColor(TVTheme.textPrimary)
                         .lineLimit(2)
                         .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
                     if let subtitle, !subtitle.isEmpty {
                         Text(subtitle)
-                            .font(.system(size: 18))
+                            .font(.system(size: TVTheme.TextSize.caption2))
                             .foregroundColor(TVTheme.textSecondary)
                             .lineLimit(1)
                     }
@@ -137,7 +137,7 @@ struct TVPosterCard: View {
         if let rank {
             Text(rank <= 3 ? "\(rank)" : String(format: "%02d", rank))
                 .font(.system(size: rank <= 3 ? 30 : 22, weight: .heavy))
-                .foregroundColor(rank <= 3 ? .white : TVTheme.textSecondary)
+                .foregroundColor(rank <= 3 ? TVTheme.textPrimary : TVTheme.textSecondary)
                 .frame(width: rank <= 3 ? 52 : 44, height: 44)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)

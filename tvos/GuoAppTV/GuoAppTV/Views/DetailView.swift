@@ -31,7 +31,7 @@ struct DetailView: View {
             }
             .padding(.bottom, 56)
         }
-        .background(Color.black.ignoresSafeArea())
+        .background(TVTheme.background.ignoresSafeArea())
         .task { await load() }
         .fullScreenCover(item: $playTarget) { target in
             PlayerView(
@@ -61,7 +61,7 @@ struct DetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                    .strokeBorder(TVTheme.textPrimary.opacity(0.12), lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.55), radius: 26, y: 14)
     }
@@ -74,7 +74,7 @@ struct DetailView: View {
             metaPills
             if !displayDrama.description.isEmpty {
                 Text(displayDrama.description)
-                    .font(.system(size: 26))
+                    .font(.system(size: TVTheme.TextSize.body))
                     .foregroundColor(TVTheme.textSecondary)
                     .lineSpacing(8)
                     .lineLimit(4)
@@ -93,10 +93,10 @@ struct DetailView: View {
             if let progress = store.latestProgress(for: drama.id) {
                 HStack(spacing: 10) {
                     Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 19))
+                        .font(.system(size: TVTheme.TextSize.caption2))
                         .foregroundColor(TVTheme.textTertiary)
                     Text("上次看到 第\(progress.episode)集 \(tvTimecode(progress.position))")
-                        .font(.system(size: 20))
+                        .font(.system(size: TVTheme.TextSize.caption))
                         .foregroundColor(TVTheme.textTertiary)
                 }
             }
@@ -111,7 +111,7 @@ struct DetailView: View {
                 HStack(spacing: 10) {
                     ForEach(parts, id: \.self) { part in
                         Text(part)
-                            .font(.system(size: 18))
+                            .font(.system(size: TVTheme.TextSize.caption2))
                             .foregroundColor(TVTheme.textSecondary)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 6)
@@ -170,7 +170,7 @@ struct DetailView: View {
             )
             if !detail.warning.isEmpty {
                 Text(detail.warning)
-                    .font(.system(size: 19))
+                    .font(.system(size: TVTheme.TextSize.caption2))
                     .foregroundColor(TVTheme.textTertiary)
             }
             LazyVGrid(columns: TVTheme.episodeColumns(), spacing: 16) {
