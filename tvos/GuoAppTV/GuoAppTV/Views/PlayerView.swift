@@ -147,11 +147,33 @@ final class PlayerHostContainerView: UIView {
 
 // MARK: - mpv 事件
 
+/// libmpv 句柄的 Sendable 包装，用于把句柄交给事件队列。
+/// libmpv 客户端 API 自身线程安全（mpv client.h："the client API is generally
+/// fully thread-safe"）；唯一要求单线程调用的 mpv_wait_event 只在串行的
+/// eventQueue 上调用，因此这里的 @unchecked Sendable 有库的线程安全保证兜底。
+private struct MpvHandle: @unchecked Sendable {
+    let raw: OpaquePointer
+}
+
 /// wakeup 回调的上下文：只在创建时写入、此后只读，随句柄一起释放。
 /// 回调在任意线程触发，只能通过它拿到控制器与句柄，不能碰 @MainActor 状态。
-private struct MpvWakeupContext {
-    var controller: Unmanaged<PlayerController>
-    var handle: OpaquePointer
+private struct MpvWakeupContext: Sendable {
+    let controller: Unmanaged<PlayerController>
+    let handle: MpvHandle
+}
+
+/// mpv 的 wakeup 回调。mpv 在自己的 core 线程上调用它，所以必须是非隔离的顶层函数：
+/// 若写成 @MainActor 方法里的闭包，Swift 6 会把闭包推断为主线程隔离并在入口插入
+/// 运行时检查，mpv 一调就崩（EXC_BREAKPOINT，dispatch_assert_queue 失败）。
+/// 这里只把排空事件的工作转交给串行的 eventQueue，不碰任何 @MainActor 状态。
+private func mpvWakeup(_ rawContext: UnsafeMutableRawPointer?) {
+    guard let rawContext else { return }
+    let context = rawContext.assumingMemoryBound(to: MpvWakeupContext.self).pointee
+    let controller = context.controller.takeUnretainedValue()
+    let handle = context.handle
+    controller.eventQueue.async {
+        controller.drainEvents(handle: handle.raw)
+    }
 }
 
 // MARK: - 播放控制器
@@ -193,6 +215,10 @@ final class PlayerController: NSObject, ObservableObject {
     func attach(to container: PlayerHostContainerView) {
         let newLayer = container.metalLayer
         let layerChanged = metalLayer.map { $0 !== newLayer } ?? false
+        if layerChanged {
+            // 先销毁仍指向旧图层的 mpv 句柄、再换图层：保证旧句柄销毁前旧图层仍被强引用。
+            destroyMpv()
+        }
         metalLayer = newLayer
         if !overlayAttached {
             overlay.frame = container.bounds
@@ -288,8 +314,10 @@ final class PlayerController: NSObject, ObservableObject {
             return
         }
         mpv = handle
-        var layerRef = layer
-        _ = mpv_set_option(handle, "wid", MPV_FORMAT_INT64, &layerRef)
+        // wid 是 int64，内容为 CAMetalLayer 的对象地址（mpv 不持有引用；
+        // 本控制器的 metalLayer 强引用该图层，句柄销毁前图层一直有效）。
+        var wid = Int64(Int(bitPattern: Unmanaged.passUnretained(layer).toOpaque()))
+        _ = mpv_set_option(handle, "wid", MPV_FORMAT_INT64, &wid)
         _ = mpv_set_option_string(handle, "vo", "gpu-next")
         _ = mpv_set_option_string(handle, "gpu-api", "vulkan")
         _ = mpv_set_option_string(handle, "gpu-context", "moltenvk")
@@ -338,17 +366,10 @@ final class PlayerController: NSObject, ObservableObject {
         }
         let contextPointer = UnsafeMutablePointer<MpvWakeupContext>.allocate(capacity: 1)
         contextPointer.initialize(to: MpvWakeupContext(
-            controller: Unmanaged.passUnretained(self), handle: handle
+            controller: Unmanaged.passUnretained(self), handle: MpvHandle(raw: handle)
         ))
         wakeupContext = contextPointer
-        mpv_set_wakeup_callback(handle, { rawContext in
-            guard let rawContext else { return }
-            let context = rawContext.assumingMemoryBound(to: MpvWakeupContext.self).pointee
-            let controller = context.controller.takeUnretainedValue()
-            controller.eventQueue.async {
-                controller.drainEvents(handle: context.handle)
-            }
-        }, contextPointer)
+        mpv_set_wakeup_callback(handle, mpvWakeup, contextPointer)
         command(["loadfile", url.absoluteString, "replace"])
         startProgressTimer()
         updateIdleTimer()

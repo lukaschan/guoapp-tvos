@@ -26,6 +26,29 @@
 - 修复播放一会后 tvOS 屏保自动弹出：mpv 不是 AVPlayer，系统不知道在播视频；
   播放时禁止系统空闲计时器，暂停 / 停止 / 切后台时恢复。
 
+## 2.41
+
+- 同步上游核心到 Xanerix/guoapp `d9ab863`（feat: Windows 启动时把旧数据目录整个移入新目录；全站源版兜底包名恢复为 com.guoapp.all）。
+  相对 `5d88b4c` 的 12 个提交里，核心只改了设置页代理状态文案、检查更新的发布页前缀改由构建变量注入
+  （tvOS 不调用检查更新，不受影响）和 Windows 代理；C 桥接接口（`DuanjuRequest` / `DuanjuFree`）不变。
+- 适配 Xcode 27：
+  - Swift 6 语言模式（严格并发检查）：`Episode` 改为纯值类型（原始分集 JSON 以 `Data` 保存），
+    可安全跨 `CoreClient` actor 传递；mpv 句柄经线程安全的 Sendable 包装交给事件队列；
+    mpv 的 wakeup 回调改为非隔离的顶层函数（写在 @MainActor 方法里的闭包在 Swift 6 下
+    会被插入主线程运行时检查，mpv 从自己的 core 线程回调时直接崩溃）；
+    `wid` 改为显式传 `CAMetalLayer` 对象地址，消除指针警告。编译零错误、零警告。
+  - 修复 MPVKit 被静默降级：SwiftPM 只在范围边界带预发布标记时才接受预发布版本，
+    `1.0.0` 起的范围不含锁定的 `1.1.0-n9.0.2`，Xcode 27 因此改装 `1.0.0`。工程要求改为 `upToNextMajor` 从 `1.1.0-n9.0.2` 起，
+    `Package.resolved` 换成 Xcode 27 格式，构建一律加 `-onlyUsePackageVersionsFromResolvedFile`，
+    以后版本被改动会直接报错而不是静默换版本。
+  - 工程 / scheme 升级标记到 Xcode 27.2。
+- 显示名（红果鉴 / 真果鉴）改由构建设置 `GUOAPP_DISPLAY_NAME` 在签名前写入 Info.plist；
+  此前签名导出（`--export-options`）的真果鉴包会显示成红果鉴。
+- 新增 `scripts/deploy_tvos.py`：Xcode 自动签名并用 `devicectl` 安装、启动到已配对的 Apple TV，
+  免费账号描述文件 7 天过期后重跑即可续签（见 README「安装到 Apple TV」）。
+- CI：actions/checkout v7、setup-go v7、setup-python v7（Python 3.14）、upload-artifact v7、
+  download-artifact v8（Node 24 运行时）。
+
 ## 2.40
 
 - 同步上游核心到 Xanerix/guoapp `5d88b4c`（fix: 黄豆站点自制剧详情页不再显示「播放 0」，播放量为 0 时各站源均不显示，旧缓存里的 0 也不再显示（1.0.5+105））。本次仅更新 Go 核心（submodule 指针），tvOS 应用代码无改动。

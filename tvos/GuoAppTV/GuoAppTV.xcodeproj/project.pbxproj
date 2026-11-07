@@ -150,7 +150,7 @@
 		A10000000000000000000001 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 2720;
 				TargetAttributes = {
 					A10000000000000000000008 /* GuoAppTV */ = {
 						CreatedOnToolsVersion = 16.0;
@@ -246,12 +246,13 @@
 				);
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GENERATE_INFOPLIST_FILE = NO;
+				GUOAPP_DISPLAY_NAME = "红果鉴";
 				INFOPLIST_FILE = GuoAppTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.40;
+				MARKETING_VERSION = 2.41;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -265,7 +266,7 @@
 				SWIFT_EMBED_LIBRARIES_WITH_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = GuoAppTV/GuoAppTV-Bridging-Header.h;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 3;
 				TVOS_DEPLOYMENT_TARGET = 16.0;
 			};
@@ -285,12 +286,13 @@
 				);
 				GCC_OPTIMIZATION_LEVEL = s;
 				GENERATE_INFOPLIST_FILE = NO;
+				GUOAPP_DISPLAY_NAME = "红果鉴";
 				INFOPLIST_FILE = GuoAppTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.40;
+				MARKETING_VERSION = 2.41;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-Wl,-u,_DuanjuRequest",
@@ -304,7 +306,7 @@
 				SWIFT_EMBED_LIBRARIES_WITH_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = GuoAppTV/GuoAppTV-Bridging-Header.h;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 3;
 				TVOS_DEPLOYMENT_TARGET = 16.0;
 			};
@@ -339,7 +341,7 @@
 			repositoryURL = "https://github.com/mpvkit/MPVKit.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
+				minimumVersion = "1.1.0-n9.0.2";
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

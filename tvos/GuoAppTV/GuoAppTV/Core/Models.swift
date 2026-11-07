@@ -84,19 +84,16 @@ struct Drama: Identifiable, Hashable, Codable {
 
 // MARK: - 分集
 
-struct Episode: Identifiable {
-    let raw: [String: Any]
-
-    var id: String { stringValue(raw, "id").isEmpty ? "ep-\(number)" : stringValue(raw, "id") }
-    var title: String {
-        let value = stringValue(raw, "title")
-        return value.isEmpty ? "第\(number)集" : value
-    }
-    var number: Int {
-        let value = intValue(raw, "currentEpisode")
-        return value > 0 ? value : 0
-    }
-    var vip: Bool { raw["vip"] as? Bool == true }
+/// 分集。核心返回的原始分集对象要在解析播放地址时原样回传（`resolve` 的
+/// `chapter`），这里存成序列化后的 JSON `Data`：Episode 因此是纯值类型、
+/// Sendable，可以安全地跨 `CoreClient` actor 传递（Swift 6 严格并发）。
+struct Episode: Identifiable, Sendable {
+    let id: String
+    let title: String
+    let number: Int
+    let vip: Bool
+    /// 原始分集 JSON（已补全 currentEpisode）。
+    private let rawJSON: Data
 
     /// 分集序号（从 1 开始）；核心返回的 currentEpisode 为空时用列表位置兜底。
     init(raw: [String: Any], fallback: Int) {
@@ -104,7 +101,24 @@ struct Episode: Identifiable {
         if intValue(copy, "currentEpisode") <= 0 {
             copy["currentEpisode"] = fallback
         }
-        self.raw = copy
+        let number = max(intValue(copy, "currentEpisode"), 0)
+        let rawId = stringValue(copy, "id")
+        let rawTitle = stringValue(copy, "title")
+        self.number = number
+        id = rawId.isEmpty ? "ep-\(number)" : rawId
+        title = rawTitle.isEmpty ? "第\(number)集" : rawTitle
+        vip = copy["vip"] as? Bool == true
+        // copy 来自核心 JSON 解析结果（只多了一个整数字段），正常总能重新序列化。
+        // 先用 isValidJSONObject 把关：非法对象时 data(withJSONObject:) 抛的是
+        // Objective-C 异常，try? 接不住，会直接崩溃。
+        rawJSON = JSONSerialization.isValidJSONObject(copy)
+            ? (try? JSONSerialization.data(withJSONObject: copy)) ?? Data("{}".utf8)
+            : Data("{}".utf8)
+    }
+
+    /// 回传给核心的原始分集对象。
+    func requestJSON() -> [String: Any] {
+        (try? JSONSerialization.jsonObject(with: rawJSON)) as? [String: Any] ?? [:]
     }
 }
 

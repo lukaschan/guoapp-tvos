@@ -27,9 +27,9 @@
 ## 与上游共享的部分
 
 - **Go 核心**：`upstream/` 是上游仓库 [Xanerix/guoapp](https://github.com/Xanerix/guoapp)
-  的 **git submodule**，Go 核心在 `upstream/native/`，当前指向 commit
-  `283cd16`（`feat: 红果分集带出横竖屏标记`）。本仓与上游共享 Go 核心与
-  `DuanjuRequest` JSON 协议。
+  的 **git submodule**，Go 核心在 `upstream/native/`，当前指向的 commit 以
+  `git submodule status` 为准（`CHANGELOG.md` 每次同步都会记一笔）。本仓与上游共享
+  Go 核心与 `DuanjuRequest` JSON 协议。
 - **播放协议**：播放地址、解密密钥等由 Go 核心通过 JSON 协议提供。
 
 ### 同步上游核心
@@ -54,9 +54,12 @@ git commit -m "同步上游核心到 <commit>"
 因此播放改用 [MPVKit](https://github.com/mpvkit/MPVKit)（libmpv），密钥经
 FFmpeg demuxer 选项直传 libavformat。
 
-- MPVKit 在工程中要求 `upToNextMajorVersion`（最低 1.0.0），实际版本由提交进仓库的
+- MPVKit 在工程中要求 `upToNextMajorVersion`（最低 1.1.0-n9.0.2），实际版本由提交进仓库的
   `Package.resolved` 锁定为 **1.1.0-n9.0.2**（SPM 锁版本标准做法），不随上游自动升级；
-  升级时需更新 `Package.resolved` 并跑 CI 验证。
+  构建脚本带 `-onlyUsePackageVersionsFromResolvedFile`，版本与锁文件不一致时直接报错。
+  升级时需同时改工程里的最低版本与 `Package.resolved`，并跑 CI 验证。
+  注意：SwiftPM 只在范围的下限（或上限）带预发布标记时才接受预发布版本，所以下限要写
+  预发布号；写 `1.0.0` 时锁定的 `1.1.0-n9.0.2` 不在范围内，Xcode 27 会静默改装 `1.0.0`。
 - MPVKit 1.1.0-n9.0.2 内置：mpv v0.41.0、FFmpeg n9.0.2、libplacebo v7.360.1、MoltenVK v1.4.2。
 - 许可证：MPVKit 本身为 **LGPL-3.0**（见其仓库 LICENSE）；其内置的 libmpv 来自
   mpv（GPL-2.0-or-later），FFmpeg 的许可取决于 MPVKit 的构建配置（1.0.0 起已移除
@@ -80,11 +83,28 @@ python3 scripts/build_tvos.py [--all-sources]
 
 - 默认构建红果鉴；`--all-sources` 构建真果鉴。
 - 产物在 `dist/tvos/`，为**未签名** IPA，需在 Mac 上用 Xcode 签名后安装到 Apple TV。
-- CI（GitHub Actions，手动触发）构建两个版本并发布 Release，tag 形如 `tvos-v0.2.74-84`。
+- CI（GitHub Actions，手动触发）构建两个版本并发布 Release，tag 形如 `tvos-v2.41`。
 
-版本号：根目录 `VERSION`（如 `0.2.74+84`）须与 Xcode 工程的
-`MARKETING_VERSION`（`0.2.74`）+ `CURRENT_PROJECT_VERSION`（`84`）保持一致；
-构建脚本从 `VERSION` 取版本号命名 IPA。
+版本号：根目录 `VERSION`（如 `2.41`）是唯一来源：构建脚本把 Xcode 工程的
+`MARKETING_VERSION` 覆盖为它，并用它命名 IPA；同步工作流升版本时会一并改工程里的值。
+
+### 安装到 Apple TV
+
+需要在 Xcode › Settings › Accounts 登录 Apple ID（免费账号即可），并把 Apple TV 与本机配对
+（电视上打开 设置 › 遥控器与设备 › 遥控器 App 与设备，再在 Xcode › Window › Devices and
+Simulators 里配对）。然后：
+
+```sh
+python3 scripts/deploy_tvos.py --team <Team ID> --bundle-id <自己的唯一包名> --device <Apple TV 名称> --save
+# 之后（包括免费账号描述文件 7 天过期后续签）只需：
+python3 scripts/deploy_tvos.py [--all-sources]
+```
+
+- 脚本编译 Go 核心 → Xcode 自动签名构建 → `devicectl` 安装并启动。
+- 工程默认包名 `com.duanju.guoapp.tv` 已被其他开发者注册，必须用自己的唯一包名；
+  `--save` 把参数存到 `tvos-deploy.local.json`（已 gitignore），也可用环境变量
+  `GUOAPP_TEAM_ID` / `GUOAPP_BUNDLE_ID` / `GUOAPP_TV_DEVICE`。
+- 真果鉴（`--all-sources`）包名自动加 `.all`，两个版本可同时安装。
 
 ## 目录结构
 
@@ -93,6 +113,7 @@ python3 scripts/build_tvos.py [--all-sources]
 | `tvos/` | Apple TV 原生应用（SwiftUI + Go 核心 + MPVKit） |
 | `upstream/` | 上游仓库 git submodule，Go 核心在 `upstream/native/`（见上文「与上游共享的部分」） |
 | `scripts/build_tvos.py` | 构建脚本：先编 Go 核心为 xcframework，再用 xcodebuild 出包 |
+| `scripts/deploy_tvos.py` | 签名构建并安装、启动到已配对的 Apple TV |
 | `.github/workflows/build.yml` | CI：构建两个版本并发布 Release |
 | `VERSION` | 版本号 |
 | `CHANGELOG.md` | 更新日志 |

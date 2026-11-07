@@ -10,6 +10,11 @@ class BuildVariant:
         return 'zhenguojian' if self.all_sources else 'hongguojian'
 
     @property
+    def display_name(self):
+        # 主屏显示名，经 Xcode 构建设置 GUOAPP_DISPLAY_NAME 写入 Info.plist（签名前生效）。
+        return '真果鉴' if self.all_sources else '红果鉴'
+
+    @property
     def arguments(self):
         return ['--all-sources'] if self.all_sources else []
 

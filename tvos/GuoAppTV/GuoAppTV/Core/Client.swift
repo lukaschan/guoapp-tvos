@@ -192,7 +192,7 @@ actor CoreClient {
         let data = try await call([
             "action": "resolve",
             "drama": drama.requestJSON(),
-            "chapter": episode.raw,
+            "chapter": episode.requestJSON(),
             "index": episode.number,
             "quality": quality,
             "sequence": nextSequence(),
