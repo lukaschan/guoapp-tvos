@@ -1,0 +1,259 @@
+import SwiftUI
+
+// 播放控件（Apple TV 系统播放器风格）：标题、按钮行（倍速 / 画面 / 选集）、进度条与时间。
+// 只是画在 mpv 画面上的一层界面：播放、解析、预取、缓存逻辑都在 PlayerController / PlayerView，
+// 这里不碰。遥控器：控件隐藏时点按 = 暂停 / 播放，← → = 快退 / 快进 10 秒，↑ ↓ = 调出控件；
+// 控件显示时 ↑ 到按钮行、↓ 回进度条，Menu 先收起控件、再按退出播放。
+
+// MARK: - 画面模式
+
+/// 画面模式：只改 mpv 的显示属性（keepaspect / panscan），不影响解码与播放。
+enum PlayerScreenMode: String, CaseIterable, Identifiable {
+    case fit, fill, stretch
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .fit: return "适应"
+        case .fill: return "填充"
+        case .stretch: return "拉伸"
+        }
+    }
+
+    /// 选项弹窗里的完整说明。
+    var optionLabel: String {
+        switch self {
+        case .fit: return "适应（完整画面，留黑边）"
+        case .fill: return "填充（铺满屏幕，裁掉边缘）"
+        case .stretch: return "拉伸（铺满屏幕，画面变形）"
+        }
+    }
+
+    /// keepaspect = no 时画面拉伸铺满。
+    var keepAspect: Bool { self != .stretch }
+    /// panscan = 1 时等比放大裁边铺满。
+    var panscan: Double { self == .fill ? 1 : 0 }
+}
+
+// MARK: - 焦点与弹窗
+
+enum PlayerFocus: Hashable {
+    case surface, scrubber, speed, screenMode, episodes
+}
+
+enum PlayerSheet: String, Identifiable {
+    case speed, screenMode, episodes
+
+    var id: String { rawValue }
+}
+
+// MARK: - 显示 / 自动隐藏
+
+/// 控件显示状态：有操作时显示并重新计时，播放中 5 秒无操作自动隐藏；暂停或开着弹窗时不隐藏。
+@MainActor
+final class PlayerControlsState: ObservableObject {
+    @Published private(set) var visible = false
+
+    private static let autoHideDelay: Duration = .seconds(5)
+    private var hideTask: Task<Void, Never>?
+
+    func show(autoHide: Bool) {
+        visible = true
+        hideTask?.cancel()
+        hideTask = nil
+        guard autoHide else { return }
+        hideTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.autoHideDelay)
+            guard !Task.isCancelled else { return }
+            self?.hide()
+        }
+    }
+
+    func hide() {
+        hideTask?.cancel()
+        hideTask = nil
+        visible = false
+    }
+}
+
+// MARK: - 控件浮层
+
+struct PlayerControlsOverlay: View {
+    let title: String
+    let subtitle: String
+    let progress: PlaybackProgress
+    let isPaused: Bool
+    let speed: Double
+    let screenMode: PlayerScreenMode
+    let showsEpisodes: Bool
+    let focus: FocusState<PlayerFocus?>.Binding
+    let onSeek: (Double) -> Void
+    let onTogglePause: () -> Void
+    let onOpen: (PlayerSheet) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            Spacer(minLength: 0)
+            HStack(alignment: .bottom, spacing: 40) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 38, weight: .semibold))
+                        .lineLimit(1)
+                    Text(subtitle)
+                        .font(.system(size: 29))
+                        .foregroundColor(TVTheme.textSecondary)
+                }
+                Spacer(minLength: 0)
+                HStack(spacing: 18) {
+                    PlayerControlButton(icon: "speedometer", title: "倍速 " + String(format: "%.2fx", speed)) {
+                        onOpen(.speed)
+                    }
+                    .focused(focus, equals: .speed)
+                    PlayerControlButton(icon: "aspectratio", title: "画面 " + screenMode.label) {
+                        onOpen(.screenMode)
+                    }
+                    .focused(focus, equals: .screenMode)
+                    if showsEpisodes {
+                        PlayerControlButton(icon: "list.number", title: "选集") {
+                            onOpen(.episodes)
+                        }
+                        .focused(focus, equals: .episodes)
+                    }
+                }
+                .focusSection()
+            }
+            PlayerScrubber(fraction: fraction, focused: focus.wrappedValue == .scrubber)
+                .focusable()
+                .focused(focus, equals: .scrubber)
+                .onMoveCommand { direction in
+                    switch direction {
+                    case .left: onSeek(-10)
+                    case .right: onSeek(10)
+                    default: break // ↑ ↓ 交给焦点引擎在按钮行与进度条间移动
+                    }
+                }
+                .onTapGesture { onTogglePause() }
+            HStack(spacing: 14) {
+                Image(systemName: isPaused ? "pause.fill" : "play.fill")
+                Text(tvTimecode(progress.position))
+                Spacer()
+                Text("-" + tvTimecode(max(0, progress.duration - progress.position)))
+            }
+            .font(.system(size: 26, weight: .medium).monospacedDigit())
+            .foregroundColor(TVTheme.textSecondary)
+        }
+        // 安全区：左右 80、上下 60（tvOS HIG）
+        .padding(.horizontal, 80)
+        .padding(.bottom, 60)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .background(alignment: .bottom) {
+            LinearGradient(colors: [.black.opacity(0.88), .black.opacity(0)], startPoint: .bottom, endPoint: .top)
+                .frame(height: 460)
+                .allowsHitTesting(false)
+        }
+        .ignoresSafeArea()
+    }
+
+    private var fraction: Double {
+        progress.duration > 0 ? min(max(progress.position / progress.duration, 0), 1) : 0
+    }
+}
+
+/// 进度条：获得焦点时变粗并显示拖动点（← → 每次跳 10 秒）。
+private struct PlayerScrubber: View {
+    let fraction: Double
+    let focused: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            let barHeight: CGFloat = focused ? 12 : 7
+            let knob: CGFloat = 26
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.28))
+                Capsule()
+                    .fill(Color.white)
+                    .frame(width: geometry.size.width * fraction)
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: knob, height: knob)
+                    .shadow(color: .black.opacity(0.5), radius: 6)
+                    .offset(x: geometry.size.width * fraction - knob / 2)
+                    .opacity(focused ? 1 : 0)
+            }
+            .frame(height: barHeight)
+            .frame(maxHeight: .infinity)
+            .animation(TVTheme.focusAnimation, value: focused)
+        }
+        .frame(height: 30)
+    }
+}
+
+/// 按钮行里的胶囊按钮：焦点态白底黑字（与应用内 TVChip 一致）。
+private struct PlayerControlButton: View {
+    let icon: String
+    let title: String
+    let action: () -> Void
+
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 26, weight: .medium))
+                .padding(.horizontal, 26)
+                .padding(.vertical, 14)
+                .foregroundColor(focused ? .black : .white)
+                .background(Capsule().fill(focused ? Color.white : TVTheme.surfaceBright))
+        }
+        .buttonStyle(TVPressButtonStyle())
+        .focused($focused)
+        .scaleEffect(focused ? TVTheme.chipScale : 1)
+        .animation(TVTheme.focusAnimation, value: focused)
+    }
+}
+
+// MARK: - 选集弹窗
+
+/// 播放中选集：网格列出全部分集，默认聚焦正在看的一集；选中后由调用方换集。
+struct PlayerEpisodeSheet: View {
+    let episodes: [Episode]
+    let currentIndex: Int
+    let progress: (Episode) -> Double?
+    let onSelect: (Int) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @Namespace private var scope
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            Text("选集")
+                .font(.system(size: 38, weight: .semibold))
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVGrid(columns: TVTheme.episodeColumns(), spacing: 18) {
+                        ForEach(Array(episodes.enumerated()), id: \.element.id) { index, episode in
+                            TVEpisodeButton(
+                                title: episode.title,
+                                vip: episode.vip,
+                                progress: progress(episode),
+                                isCurrent: index == currentIndex
+                            ) {
+                                dismiss()
+                                onSelect(index)
+                            }
+                            .prefersDefaultFocus(index == currentIndex, in: scope)
+                            .id(index)
+                        }
+                    }
+                    // 给焦点放大留出空间
+                    .padding(24)
+                }
+                .onAppear { proxy.scrollTo(currentIndex, anchor: .center) }
+            }
+            .focusScope(scope)
+        }
+        .padding(48)
+        .frame(width: 1500, height: 820)
+    }
+}
