@@ -92,6 +92,7 @@ struct TVPosterCard: View {
     var rank: Int? = nil
     /// 右上角角标（系列卡片的「共 N 部」）。
     var badge: String? = nil
+    var badgeColor: Color = TVTheme.accent
     /// 点按进入哪部剧的详情；默认就是海报这部（系列卡片进入最近看的那一部）。
     var linkValue: Drama? = nil
 
@@ -145,7 +146,7 @@ struct TVPosterCard: View {
                 .foregroundColor(TVTheme.textPrimary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 3)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(TVTheme.accent))
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(badgeColor))
                 .padding(10)
         }
     }

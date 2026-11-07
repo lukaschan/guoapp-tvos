@@ -12,6 +12,10 @@ struct DetailView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var playTarget: PlayTarget?
+    /// 同名剧的各部（第 N 部 / 季），后台查询；单部剧为 nil。
+    @State private var series: SeriesGroup<Drama>?
+    /// 「观看下一部」走统一的直接播放（取下一部的详情后续播）。
+    @StateObject private var launcher = PlaybackLauncher()
 
     private struct PlayTarget: Identifiable {
         let episode: Episode
@@ -30,9 +34,11 @@ struct DetailView: View {
                 episodesSection
             }
             .padding(.bottom, 56)
+            .playbackLauncher(launcher)
         }
         .background(TVTheme.background.ignoresSafeArea())
         .task { await load() }
+        .task { series = await SeriesLookup.shared.parts(of: drama) }
         .fullScreenCover(item: $playTarget) { target in
             PlayerView(
                 drama: detail?.drama ?? drama,
@@ -124,6 +130,7 @@ struct DetailView: View {
 
     /// 主操作文案：记录里的那集在分集列表中时「继续观看 第 N 集」，否则「立即观看」。
     private var resumeLabel: String {
+        if nextPartToWatch != nil { return "观看下一部" }
         guard let target = resumeTarget, target.position > 0 || target.index > 0,
               let episodes = detail?.episodes, episodes.indices.contains(target.index)
         else { return "立即观看" }
@@ -180,6 +187,9 @@ struct DetailView: View {
             ) { index in
                 playTarget = PlayTarget(episode: detail.episodes[index], position: 0)
             }
+            if let series {
+                SeriesShelf(group: series, currentID: drama.id)
+            }
         }
         .padding(.horizontal, TVTheme.pageInset)
     }
@@ -195,7 +205,27 @@ struct DetailView: View {
 
     // MARK: - 播放与加载（业务逻辑与原版一致）
 
+    /// 这一部已看完且本系列还有下一部时，主操作改为观看下一部。
+    private var nextPartToWatch: Drama? {
+        guard let series, let detail,
+              let current = series.parts.first(where: { $0.item.id == drama.id }),
+              let next = series.parts.first(where: { $0.part > current.part }),
+              let latest = store.latestProgress(for: drama.id)
+        else { return nil }
+        let finished = WatchStatus(
+            latestEpisode: latest.episode,
+            position: latest.position,
+            duration: latest.duration,
+            totalEpisodes: detail.episodes.count
+        ).isFinished
+        return finished ? next.item : nil
+    }
+
     private func playResume() {
+        if let next = nextPartToWatch {
+            launcher.play(next, store: store)
+            return
+        }
         guard let target = resumeTarget, let episodes = detail?.episodes else { return }
         playTarget = PlayTarget(episode: episodes[target.index], position: target.position)
     }
