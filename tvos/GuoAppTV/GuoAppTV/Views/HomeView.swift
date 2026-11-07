@@ -6,6 +6,8 @@ import SwiftUI
 /// 无限滚动与榜单能力，切换分类时自动回到目录顶部）。
 struct HomeView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var store: Store
+    @StateObject private var launcher = PlaybackLauncher()
     @State private var categories: [Category] = [.all]
     @State private var selectedCategory = ""
     @State private var items: [Drama] = []
@@ -14,7 +16,6 @@ struct HomeView: View {
     @State private var warning = ""
     @State private var loading = false
     @State private var error: String?
-    @State private var refreshing = false // 按播放/暂停键手动刷新时为 true
     @State private var categoriesSource = ""
     @State private var rankingBoards: [RankingBoard] = []
     @State private var selectedBoard = ""
@@ -40,11 +41,6 @@ struct HomeView: View {
                     .padding(.top, 0)
                     .padding(.bottom, 56)
                 }
-                // 首页按播放/暂停键：手动刷新（清空缓存、强制重拉）。
-                // 挂在首页内容上（不是 NavigationStack），进详情页后不触发。
-                .onPlayPauseCommand {
-                    Task { await refresh() }
-                }
                 .onChange(of: loadKey) { _ in
                     // 切换站源 / 分类 / 榜单后回到目录区。
                     DispatchQueue.main.async {
@@ -55,6 +51,7 @@ struct HomeView: View {
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
             }
+            .playbackLauncher(launcher)
             .onAppear {
                 // 首次进入首页且为红果站源时，默认展开榜单，不用每次手动点。
                 if !didApplyDefaultRanking, appState.selectedSource == "hongguo" {
@@ -118,9 +115,9 @@ struct HomeView: View {
             VStack(spacing: 20) {
                 TVPosterGrid(items: items, showRank: isRankingMode, onReachEnd: {
                     Task { await loadMore() }
-                })
+                }, onPlay: { launcher.play($0, store: store) })
                 if loading && !items.isEmpty {
-                    TVLoadingView(refreshing ? "正在刷新…" : "正在加载更多…")
+                    TVLoadingView("正在加载更多…")
                         .padding(.vertical, 24)
                 }
             }
@@ -173,17 +170,6 @@ struct HomeView: View {
     }
 
     // MARK: - 数据加载（业务逻辑与原版一致）
-
-    /// 手动刷新（首页按播放/暂停键）：清空首页缓存、强制重新拉取第一页。
-    private func refresh() async {
-        guard !loading, !refreshing else { return }
-        refreshing = true
-        loading = true // 先占位，避免刷新期间触发加载更多导致数据错乱
-        await CoreClient.shared.invalidateHomeCache()
-        await reload(firstPage: true)
-        refreshing = false
-        // reload 内部已把 loading 置 false，这里不再重复设置
-    }
 
     private func reload(firstPage: Bool) async {
         if firstPage { page = 1 }

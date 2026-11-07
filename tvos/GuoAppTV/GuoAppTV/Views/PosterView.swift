@@ -159,6 +159,8 @@ struct TVPosterGrid: View {
     var subtitle: ((Drama) -> String?)? = nil
     var progress: ((Drama) -> Double?)? = nil
     var onReachEnd: (() -> Void)? = nil
+    /// 海报上按播放键：直接播放（继续观看或从第 1 集开始）。
+    var onPlay: ((Drama) -> Void)? = nil
 
     var body: some View {
         LazyVGrid(columns: TVTheme.posterColumns(), spacing: 32) {
@@ -174,6 +176,7 @@ struct TVPosterGrid: View {
                         onReachEnd?()
                     }
                 }
+                .onPlayPauseCommand(perform: onPlay.map { play in { play(drama) } })
             }
         }
     }

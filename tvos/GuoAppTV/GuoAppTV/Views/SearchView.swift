@@ -8,6 +8,8 @@ import UIKit
 /// 加载中 / 失败 / 无结果均有清晰状态。
 struct SearchView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var store: Store
+    @StateObject private var launcher = PlaybackLauncher()
     @State private var query = ""
     @State private var suggestions: [String] = []
     @State private var results: [Drama] = []
@@ -36,6 +38,7 @@ struct SearchView: View {
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
             }
+            .playbackLauncher(launcher)
         }
     }
 
@@ -150,7 +153,7 @@ struct SearchView: View {
             .padding(.vertical, 100)
         } else if !results.isEmpty {
             // 搜索海报往下挪：单独给海报加顶部间距，只动海报、不动搜索框。
-            TVPosterGrid(items: results)
+            TVPosterGrid(items: results, onPlay: { launcher.play($0, store: store) })
                 .padding(.top, 12)
         }
     }

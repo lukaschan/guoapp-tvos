@@ -34,7 +34,7 @@ struct ContentView: View {
                     .font(.system(size: 46, weight: .bold))
                     .foregroundColor(TVTheme.textPrimary)
             }
-            Text("红果鉴")
+            Text(tvAppDisplayName)
                 .font(.system(size: 48, weight: .bold))
             Group {
                 if let error = appState.initializeError {
@@ -67,10 +67,11 @@ struct KeepAliveTabView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UITabBarController {
         let tabBarController = UITabBarController()
         tabBarController.viewControllers = [
-            hosting(HomeView().environmentObject(appState), title: "首页", image: "house", tag: 0),
-            hosting(SearchView().environmentObject(appState), title: "搜索", image: "magnifyingglass", tag: 1),
-            hosting(MyListView().environmentObject(appState), title: "追剧", image: "heart", tag: 2),
-            hosting(SettingsView().environmentObject(appState), title: "设置", image: "gearshape", tag: 4),
+            // redfruit 标签结构；推荐（首页大图）在第二阶段加入并成为默认页。
+            hosting(HomeView(), title: "剧场", image: "film.stack", tag: 0),
+            hosting(MyListView(), title: "追剧", image: "heart", tag: 1),
+            hosting(SearchView(), title: "搜索", image: "magnifyingglass", tag: 2),
+            hosting(SettingsView(), title: "我的", image: "person.crop.circle", tag: 3),
         ]
         return tabBarController
     }
