@@ -3,8 +3,8 @@ import UIKit
 
 /// 详情页：沉浸式影视详情。
 ///
-/// 上半部分：左侧海报、右侧标题 / 信息胶囊 / 简介 / 主次操作（标题与海报顶端齐平）；
-/// 下半部分为选集网格，已看分集带进度条，「上次看到」的分集用强调色标出。
+/// 上半部分（redfruit 样式）：左侧海报，右侧标题 / 信息胶囊 / 简介 / 主操作「继续观看 第 N 集」或「立即观看」与追剧；
+/// 下半部分为分段集数选集网格，已看的格子变暗，上次看到的那集为强调色。
 struct DetailView: View {
     let drama: Drama
     @EnvironmentObject private var store: Store
@@ -69,15 +69,16 @@ struct DetailView: View {
     private var infoColumn: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text(displayDrama.title)
-                .font(.system(size: 46, weight: .bold))
-                .lineLimit(3)
+                .font(.system(size: TVTheme.TextSize.title2, weight: .heavy))
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
             metaPills
             if !displayDrama.description.isEmpty {
                 Text(displayDrama.description)
                     .font(.system(size: TVTheme.TextSize.body))
                     .foregroundColor(TVTheme.textSecondary)
                     .lineSpacing(8)
-                    .lineLimit(4)
+                    .lineLimit(3)
             }
             HStack(spacing: 20) {
                 TVPrimaryButton(title: resumeLabel, icon: "play.fill") {
@@ -88,16 +89,6 @@ struct DetailView: View {
                     icon: store.isFollowing(drama) ? "bookmark.fill" : "bookmark"
                 ) {
                     store.toggleFollow(drama)
-                }
-            }
-            if let progress = store.latestProgress(for: drama.id) {
-                HStack(spacing: 10) {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: TVTheme.TextSize.caption2))
-                        .foregroundColor(TVTheme.textTertiary)
-                    Text("上次看到 第\(progress.episode)集 \(tvTimecode(progress.position))")
-                        .font(.system(size: TVTheme.TextSize.caption))
-                        .foregroundColor(TVTheme.textTertiary)
                 }
             }
         }
@@ -131,8 +122,21 @@ struct DetailView: View {
         return parts
     }
 
+    /// 主操作文案：记录里的那集在分集列表中时「继续观看 第 N 集」，否则「立即观看」。
     private var resumeLabel: String {
-        store.latestProgress(for: drama.id) == nil ? "播放" : "继续播放"
+        guard let target = resumeTarget, target.position > 0 || target.index > 0,
+              let episodes = detail?.episodes, episodes.indices.contains(target.index)
+        else { return "立即观看" }
+        return "继续观看 第 \(episodes[target.index].number) 集"
+    }
+
+    private var resumeTarget: ResumeTarget? {
+        let latest = store.latestProgress(for: drama.id)
+        return ResumeTarget.resolve(
+            episodeNumbers: detail?.episodes.map(\.number) ?? [],
+            latestEpisode: latest?.episode,
+            position: latest?.position ?? 0
+        )
     }
 
     // MARK: - 选集
@@ -192,12 +196,8 @@ struct DetailView: View {
     // MARK: - 播放与加载（业务逻辑与原版一致）
 
     private func playResume() {
-        if let progress = store.latestProgress(for: drama.id),
-           let episode = detail?.episodes.first(where: { $0.number == progress.episode }) {
-            playTarget = PlayTarget(episode: episode, position: progress.position)
-        } else if let first = detail?.episodes.first {
-            playTarget = PlayTarget(episode: first, position: 0)
-        }
+        guard let target = resumeTarget, let episodes = detail?.episodes else { return }
+        playTarget = PlayTarget(episode: episodes[target.index], position: target.position)
     }
 
     private func load() async {
