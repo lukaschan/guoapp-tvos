@@ -34,7 +34,9 @@
   点按或 ↑ ↓ 调出，显示剧名与集数、进度条、已播 / 剩余时间，按钮行可改倍速（实时生效）、
   画面模式（适应 / 填充 / 拉伸，经 mpv keepaspect / panscan）和播放中选集；播放中 5 秒无操作自动隐藏，
   暂停时常驻；Menu 先收起控件再退出。↑ ↓ 不再直接调倍速。播放中换集或换线路失败时显示错误并可重试
-  （之前只是黑屏）。`PlayerController` 原样拆到 `PlayerController.swift`。
+  （之前只是黑屏），出错时停掉播放器、恢复屏保。离开播放页或连续换集时取消仍在解析的加载，
+  不再出现退出后后台起播、或播 A 集却记成 B 集进度。`PlayerController` 拆到 `PlayerController.swift`
+  （原样搬移，另加 isPaused、halt()、画面模式与停止后不再起播）。
 - 同步上游核心到 Xanerix/guoapp `d9ab863`（feat: Windows 启动时把旧数据目录整个移入新目录；全站源版兜底包名恢复为 com.guoapp.all）。
   相对 `5d88b4c` 的 12 个提交里，核心只改了设置页代理状态文案、检查更新的发布页前缀改由构建变量注入
   （tvOS 不调用检查更新，不受影响）和 Windows 代理；C 桥接接口（`DuanjuRequest` / `DuanjuFree`）不变。

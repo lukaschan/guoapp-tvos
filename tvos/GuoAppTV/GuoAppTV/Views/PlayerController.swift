@@ -3,8 +3,8 @@ import QuartzCore
 import SwiftUI
 import UIKit
 
-// mpv 播放控制器（从 PlayerView.swift 原样拆出，逻辑未改）：句柄生命周期、事件泵、
-// 进度、倍速、画面模式、后台 / 前台处理。
+// mpv 播放控制器（从 PlayerView.swift 原样拆出，另加 isPaused、halt()、画面模式与停止后不再起播）：
+// 句柄生命周期、事件泵、进度、倍速、画面模式、后台 / 前台处理。
 
 // MARK: - mpv 事件
 
@@ -74,6 +74,9 @@ final class PlayerController: NSObject, ObservableObject {
     private var backgroundObserversInstalled = false
     private var wasPlayingBeforeBackground = false
     private var screenMode: PlayerScreenMode = .fit
+    /// stop()（退出播放页）之后不再起播：仍在解析中的异步加载晚回来时直接忽略，
+    /// 避免已离开的页面在后台起一个没人管、也没人销毁的 mpv 句柄。
+    private var stopped = false
 
     /// 容器视图建好后由 PlayerHostView 调用；play() 若先到则在此补启动。
     func attach(to container: PlayerHostContainerView) {
@@ -104,6 +107,7 @@ final class PlayerController: NSObject, ObservableObject {
     }
 
     func play(plan: PlaybackPlan, start: Double, danmakuEnabled: Bool, speed: Double = 1.0) {
+        guard !stopped else { return }
         guard metalLayer != nil else {
             pendingPlay = (plan, start, danmakuEnabled, speed)
             debugInfo = "正在加载…"
@@ -113,6 +117,7 @@ final class PlayerController: NSObject, ObservableObject {
     }
 
     func stop() {
+        stopped = true
         destroyMpv()
         pendingPlay = nil
         activePlan = nil
@@ -139,6 +144,9 @@ final class PlayerController: NSObject, ObservableObject {
         activePlan = nil
         pendingPlay = nil
         progress = PlaybackProgress(position: 0, duration: 0)
+        isPaused = false
+        danmaku.reset()
+        overlay.clear()
     }
 
     /// 画面模式（适应 / 填充 / 拉伸）：记下来，每次新建句柄都套用；正在播放时立即生效。

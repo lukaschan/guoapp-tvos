@@ -231,19 +231,18 @@ struct PlayerEpisodeSheet: View {
                 .font(.system(size: 38, weight: .semibold))
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVGrid(columns: TVTheme.episodeColumns(), spacing: 18) {
-                        ForEach(Array(episodes.enumerated()), id: \.element.id) { index, episode in
-                            TVEpisodeButton(
-                                title: episode.title,
-                                vip: episode.vip,
-                                progress: progress(episode),
-                                isCurrent: index == currentIndex
-                            ) {
-                                dismiss()
-                                onSelect(index)
+                    // 非惰性网格（分集一般不过百）：正在看的那集格子从一开始就存在，
+                    // 默认焦点才能可靠落在它上面；LazyVGrid 里靠后的格子此时可能还没创建。
+                    VStack(alignment: .leading, spacing: 18) {
+                        ForEach(rows, id: \.self) { row in
+                            HStack(spacing: 16) {
+                                ForEach(row, id: \.self) { index in
+                                    cell(index)
+                                }
+                                ForEach(row.count..<Self.columns, id: \.self) { _ in
+                                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                                }
                             }
-                            .prefersDefaultFocus(index == currentIndex, in: scope)
-                            .id(index)
                         }
                     }
                     // 给焦点放大留出空间
@@ -255,5 +254,29 @@ struct PlayerEpisodeSheet: View {
         }
         .padding(48)
         .frame(width: 1500, height: 820)
+    }
+
+    private static let columns = 5
+
+    private var rows: [[Int]] {
+        stride(from: 0, to: episodes.count, by: Self.columns).map { start in
+            Array(start..<min(start + Self.columns, episodes.count))
+        }
+    }
+
+    private func cell(_ index: Int) -> some View {
+        let episode = episodes[index]
+        return TVEpisodeButton(
+            title: episode.title,
+            vip: episode.vip,
+            progress: progress(episode),
+            isCurrent: index == currentIndex
+        ) {
+            dismiss()
+            onSelect(index)
+        }
+        .frame(maxWidth: .infinity)
+        .prefersDefaultFocus(index == currentIndex, in: scope)
+        .id(index)
     }
 }

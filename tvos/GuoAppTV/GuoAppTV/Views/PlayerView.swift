@@ -193,6 +193,9 @@ struct PlayerView: View {
     /// 预取针对的分集下标（成功或失败都记录，避免失败后反复重试刷接口）。
     @State private var prefetchedIndex: Int?
     @State private var prefetchTask: Task<Void, Never>?
+    /// 当前这次换集 / 重试的加载：新的加载开始或离开页面时取消旧的，
+    /// 只让最后一次加载起播（load() 在解析返回后检查取消）。
+    @State private var loadTask: Task<Void, Never>?
 
     init(drama: Drama, episodes: [Episode], startIndex: Int, startPosition: Double) {
         self.drama = drama
@@ -267,7 +270,7 @@ struct PlayerView: View {
                     )
                     HStack(spacing: 20) {
                         TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
-                            Task { await load() }
+                            startLoad()
                         }
                         TVSecondaryButton(title: "返回", icon: "chevron.left") {
                             dismiss()
@@ -287,7 +290,7 @@ struct PlayerView: View {
         .onPlayPauseCommand { togglePause() }
         .onExitCommand {
             // Menu：先收起控件，再按一次才退出播放。
-            if controls.visible {
+            if controls.visible && error == nil {
                 controls.hide()
             } else {
                 dismiss()
@@ -312,7 +315,10 @@ struct PlayerView: View {
             if controls.visible { revealControls() }
         }
         .onChange(of: error) { value in
-            if value != nil { controls.hide() }
+            // 出错时收起控件并停掉句柄：恢复屏保（避免错误页常亮），重试时照常 load() → play()。
+            guard value != nil else { return }
+            controls.hide()
+            controller.halt()
         }
         .onChange(of: playbackSpeed) { speed in
             controller.setSpeed(speed)
@@ -336,6 +342,8 @@ struct PlayerView: View {
             controller.stop()
             prefetchTask?.cancel()
             prefetchTask = nil
+            loadTask?.cancel()
+            loadTask = nil
             Task {
                 if let plan {
                     try? await CoreClient.shared.release(session: plan.session)
@@ -360,6 +368,7 @@ struct PlayerView: View {
 
     /// 显示控件并重新计时；暂停或开着弹窗时不自动隐藏。
     private func revealControls() {
+        guard error == nil else { return }
         controls.show(autoHide: !controller.isPaused && activeSheet == nil)
     }
 
@@ -427,7 +436,12 @@ struct PlayerView: View {
         currentIndex = index
         start = 0
         lastSavedPosition = -1
-        Task { await load() }
+        startLoad()
+    }
+
+    private func startLoad() {
+        loadTask?.cancel()
+        loadTask = Task { await load() }
     }
 
     private func load() async {
@@ -468,7 +482,7 @@ struct PlayerView: View {
             currentIndex += 1
             start = 0
             lastSavedPosition = -1
-            Task { await load() }
+            startLoad()
         } else {
             dismiss()
         }
