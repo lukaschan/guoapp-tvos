@@ -24,6 +24,8 @@ final class FeedModel: ObservableObject {
     /// 连续几批没有新剧（见 FeedPaging.afterBatch）。
     private var emptyBatches = 0
     private var source = ""
+    /// 显示缓存之后在后台取新推荐的任务（不随页面消失而取消，取回来接到 hero 后面）。
+    private var refreshTask: Task<Void, Never>?
     /// 非红果站源往后取片库的下一页页码。
     private var nextCatalogPage = 2
 
@@ -36,24 +38,50 @@ final class FeedModel: ObservableObject {
         UpNext.window(count: dramas.count, current: currentIndex).map { dramas[$0] }
     }
 
-    /// force：让核心从头取一份新的推荐（每次启动 App 第一次加载时），避免每次都是上次那一批。
+    /// 先显示核心存着的推荐（立刻有内容，hero 马上开始），再在后台取一份新的（force 时让核心从头取），
+    /// 取回来后接到 hero 后面（FeedSplice）：正在播的不打断，「接下来」换成新的。
+    /// 没有缓存（第一次启动）时照旧等新推荐回来，期间显示骨架。
     func load(source: String, force: Bool = false) async {
-        if dramas.isEmpty { state = .loading }
+        if self.source != source {
+            refreshTask?.cancel()
+            dramas = []
+            currentIndex = 0
+        }
         self.source = source
+        if dramas.isEmpty {
+            let cached = await FeedLoader.cached(source: source)
+            if !cached.isEmpty { apply(cached) }
+        }
+        if dramas.isEmpty {
+            state = .loading
+            await refresh(force: force)
+        } else {
+            refreshTask?.cancel()
+            refreshTask = Task { await refresh(force: force) }
+        }
+    }
+
+    private func refresh(force: Bool) async {
+        let source = source
         do {
             let batch = try await FeedLoader.dramas(source: source, target: Self.targetCount, force: force)
-            guard !Task.isCancelled else { return }
-            apply(batch.dramas)
+            guard !Task.isCancelled, source == self.source else { return }
+            if dramas.isEmpty {
+                apply(batch.dramas)
+            } else {
+                dramas = FeedSplice.splice(existing: dramas, currentIndex: currentIndex, fresh: batch.dramas, id: \.id)
+                state = dramas.isEmpty ? .empty : .loaded
+            }
             hasMore = batch.hasMore
             emptyBatches = 0
             nextCatalogPage = 2
             loadMoreIfNeeded()
         } catch is CancellationError {
-            // 被取消（离开页面或被更新的请求取代）：不是失败，不改状态。
+            // 被取消（换站源或被更新的请求取代）：不是失败，不改状态。
             return
         } catch {
             guard !Task.isCancelled else { return }
-            // 已有剧单时保留（重新加载失败不打断正在看的）；否则显示错误与重试。
+            // 已有剧单（缓存或之前的）时保留，不打断正在看的；否则显示错误与重试。
             if dramas.isEmpty { state = .failed(UserFacingError.message(for: error)) }
         }
     }

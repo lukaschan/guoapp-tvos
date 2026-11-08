@@ -182,9 +182,9 @@ struct FeedHeroView: View {
         let source = appState.selectedSource
         // 切回本页时 .task 会再跑一次：同一站源已加载过就不再请求。
         guard force || loadedSource != source || feed.dramas.isEmpty else { return }
-        // 启动时用核心存着的推荐（立刻有内容）；往后由 FeedPaging 接着取新的。每次启动都强制刷新要等
-        // 约 11 秒才凑够一屏（实测），留到第四阶段：先显示缓存、后台刷新接在后面。重试时才强制刷新。
-        await feed.load(source: source, force: force)
+        // 先显示核心存着的推荐（立刻有内容），这次启动第一次加载这个站源（或点了重试）时在后台
+        // 让核心取一份新的，接到 hero 后面（FeedModel.load）。
+        await feed.load(source: source, force: force || loadedSource != source)
         loadedSource = source
     }
 

@@ -40,6 +40,14 @@ enum FeedLoader {
         return FeedBatch(dramas: unique(page.items), hasMore: page.hasMore)
     }
 
+    /// 核心存着的推荐（不联网、立刻返回）：红果才有；取不到或其它站源时为空。
+    static func cached(source: String) async -> [Drama] {
+        guard source == hongguoSource,
+              let page = try? await CoreClient.shared.cachedRecommendations(feed: feedKey)
+        else { return [] }
+        return unique(page.items)
+    }
+
     /// 往后再取一批：红果用 more（核心返回累积的整份列表，由 FeedPaging.merge 接上新的部分）；
     /// 其它站源取片库的第 page 页。
     static func more(source: String, page: Int) async throws -> FeedBatch {

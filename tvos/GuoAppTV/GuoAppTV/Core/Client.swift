@@ -182,6 +182,12 @@ actor CoreClient {
         return result
     }
 
+    /// 核心存在本地的推荐（上次取到的那份，不联网、立刻返回）：推荐页与「大家都在看」启动时先显示它。
+    func cachedRecommendations(feed: String = "home_feed") async throws -> CatalogPage {
+        let data = try await call(["action": "cachedRecommendations", "category": feed])
+        return CatalogPage(dict: data)
+    }
+
     /// 红果推荐流（推荐页 hero）：核心自己缓存，返回累积的整份列表；more 时再往后取一页。
     func recommendations(feed: String = "home_feed", more: Bool = false, force: Bool = false) async throws -> CatalogPage {
         let data = try await call([

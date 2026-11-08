@@ -39,6 +39,14 @@ final class SearchModel: ObservableObject {
         popularLoading = true
         popularError = nil
         popularTask = Task {
+            // 核心存着推荐时直接用（立刻显示，不联网；推荐页会在后台刷新这份推荐）。
+            let cached = await FeedLoader.cached(source: source)
+            if !cached.isEmpty {
+                guard !Task.isCancelled else { return }
+                popular = Array(cached.prefix(SearchCopy.popularCount))
+                popularLoading = false
+                return
+            }
             do {
                 let batch = try await FeedLoader.dramas(source: source, target: SearchCopy.popularCount)
                 guard !Task.isCancelled else { return }
