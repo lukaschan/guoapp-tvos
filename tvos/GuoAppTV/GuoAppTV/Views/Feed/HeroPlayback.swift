@@ -25,6 +25,10 @@ final class HeroPlayback: ObservableObject {
     var onReachedEnd: (() -> Void)?
 
     private var gate = WatchGate()
+    /// 「接下来」预览期间这部原地暂停、预览结束原样回来（PreviewHold）。
+    private var hold = PreviewHold()
+    /// 这部已经出过画面（用来分辨「预览期间才出画面」）。
+    private var videoShown = false
     private var loadError: String?
     private var subscriptions: Set<AnyCancellable> = []
 
@@ -78,10 +82,30 @@ final class HeroPlayback: ObservableObject {
     /// 离开推荐页 / 转全屏 / 换剧：存进度（过了 30 秒门槛才存）、销毁句柄、释放会话。
     func stop() {
         subscriptions.removeAll()
+        // 先暂停再销毁：mpv 在 Apple TV 上的音频输出缓冲约 2 秒，直接销毁时这段声音会接着响完。
+        session?.controller.pause()
         session?.stop()
+        hold.reset()
+        videoShown = false
         session = nil
         loadError = nil
         refreshStatus()
+    }
+
+    /// 焦点停在「接下来」某张海报上（预览）：只换封面和介绍，这部原地暂停（正在播的才暂停，之后接着播）。
+    func beginPreview() {
+        guard let controller else { return }
+        if hold.begin(playing: videoShown && !controller.isPaused) { controller.pause() }
+    }
+
+    /// 按下海报换剧：这部马上要被换掉，预览结束时不要再让它接着播（否则会响一下再停）。
+    func dropPreviewHold() {
+        hold.reset()
+    }
+
+    /// 焦点离开「接下来」：这部原样回来——原本在播的接着播，用户自己暂停的仍暂停。
+    func endPreview() {
+        if hold.end() { controller?.resume() }
     }
 
     func togglePause() {
@@ -144,6 +168,11 @@ final class HeroPlayback: ObservableObject {
     private func progressed(_ progress: PlaybackProgress) {
         guard let session else { return }
         // 先计入门槛，再交给会话（会话这一拍若要存进度，看到的是最新的门槛）。
+        if progress.duration > 0, !videoShown {
+            videoShown = true
+            // 预览期间才出画面：先停住，预览结束再接着播。
+            if hold.videoStarted() { session.controller.pause() }
+        }
         gate.observe(position: progress.position, paused: session.controller.isPaused)
         session.handleProgress(position: progress.position, duration: progress.duration)
     }

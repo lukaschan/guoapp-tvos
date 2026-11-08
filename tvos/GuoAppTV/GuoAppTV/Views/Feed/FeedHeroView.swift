@@ -92,9 +92,26 @@ struct FeedHeroView: View {
         .onChange(of: feed.current?.id) { id in
             if let id { selection.commit(id) }
         }
-        .onChange(of: selection.heroID) { _ in
+        // 只有选定的剧变了（按下海报、播完换下一部）才换会话；预览只换封面和介绍，不重新加载。
+        .onChange(of: selection.committedID) { _ in
             pendingFullScreen = false
             startHero()
+        }
+        .onChange(of: selection.previewID) { previewID in
+            if previewID == nil {
+                hero.endPreview()
+            } else {
+                hero.beginPreview()
+            }
+        }
+        // 切到别的标签时立刻停（不等页面消失的回调，免得推荐的声音再响一两秒）；切回来再起播。
+        .onReceive(NotificationCenter.default.publisher(for: .tabSelectionChanged)) { note in
+            guard let index = note.object as? Int else { return }
+            if index == KeepAliveTabBarController.feedTabIndex {
+                startHero()
+            } else {
+                stopHero()
+            }
         }
         .onPlayPauseCommand {
             togglePlayback()
@@ -120,7 +137,11 @@ struct FeedHeroView: View {
         let shown = hero.session?.drama.id == drama.id ? hero.session?.drama ?? drama : drama
         let layout = HeroLayout.panel(videoSize: hero.status.videoSize)
         return ZStack(alignment: .topLeading) {
-            HeroVideoPanel(drama: drama, videoSize: hero.status.videoSize, showsVideo: hero.status.showsVideo) {
+            // 预览时画面换成预览那部的封面（正在播的这部在下面原地暂停）。
+            HeroVideoPanel(
+                drama: drama, videoSize: hero.status.videoSize,
+                showsVideo: hero.status.showsVideo && selection.previewID == nil
+            ) {
                 if let controller = hero.controller {
                     PlayerHostView(controller: controller)
                         .id(ObjectIdentifier(controller))
@@ -211,10 +232,15 @@ struct FeedHeroView: View {
         }
     }
 
+    /// 会话播的剧：选定的那部（预览不换会话）。
+    private var committedDrama: Drama? {
+        feed.dramas.first { $0.id == selection.committedID } ?? feed.current
+    }
+
     private func startHero() {
         heroTask?.cancel()
         heroTask = nil
-        guard isVisible, fullScreen == nil, !isIdle, let drama = heroDrama else { return }
+        guard isVisible, fullScreen == nil, !isIdle, let drama = committedDrama else { return }
         heroTask = Task { await hero.play(drama, store: store) }
     }
 
@@ -256,6 +282,7 @@ struct FeedHeroView: View {
 
     private func commit(_ drama: Drama) {
         dwellTask?.cancel()
+        if drama.id != selection.committedID { hero.dropPreviewHold() }
         selection.commit(drama.id)
         feed.select(drama)
         // 像以前一样刷新这一行（换成新 hero 之后的那一组）；按下后 1.5 秒内不自动预览（PreviewSelection）。
@@ -266,6 +293,8 @@ struct FeedHeroView: View {
 extension Notification.Name {
     /// 焦点在标签栏、选中推荐页时按了播放/暂停键。
     static let feedHeroTogglePlayback = Notification.Name("guoapp.feedHeroTogglePlayback")
+    /// 标签切换了（object 为新选中的下标，见 KeepAliveTabBarController）。
+    static let tabSelectionChanged = Notification.Name("guoapp.tabSelectionChanged")
 }
 
 /// 推荐页骨架：左侧信息栏各行 + 右侧竖屏面板，整体扫光（见 Skeleton.swift）。

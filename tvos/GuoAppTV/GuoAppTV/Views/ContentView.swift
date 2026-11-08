@@ -97,8 +97,18 @@ struct KeepAliveTabView: UIViewControllerRepresentable {
 /// 标签栏容器。焦点在顶部标签栏时，遥控器的播放/暂停键走 UIKit 响应链、到不了 SwiftUI 页面
 ///（App 启动时焦点就在标签栏）；选中的是推荐页时把这个键转给推荐页，hero 照样能暂停 / 继续。
 /// 焦点在页面里时不转发，由页面自己的 onPlayPauseCommand 处理，避免同一次按键切换两次。
-final class KeepAliveTabBarController: UITabBarController {
+final class KeepAliveTabBarController: UITabBarController, UITabBarControllerDelegate {
     static let feedTabIndex = 0
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        delegate = self
+    }
+
+    /// 标签一切换就通知（推荐页据此立刻停掉 hero，不等页面消失的回调）。
+    func tabBarController(_ tabBarController: UITabBarController, didSelect viewController: UIViewController) {
+        NotificationCenter.default.post(name: .tabSelectionChanged, object: selectedIndex)
+    }
 
     /// 已转发、不再交给系统的按键（began / ended 成对处理）。
     private var forwardedPresses = Set<UIPress>()

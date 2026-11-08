@@ -40,7 +40,8 @@ struct HeroInfoPanel: View {
                     .lineLimit(2)
                     .frame(maxWidth: 900, alignment: .leading)
             }
-            progressRow
+            // 预览时介绍是预览那部的，进度属于正在暂停的那部：不显示进度行。
+            if !isPreview { progressRow }
             buttons
                 .padding(.top, 8)
         }
@@ -100,7 +101,7 @@ struct HeroInfoPanel: View {
             TVPrimaryButton(
                 title: status.error == nil ? "全屏观看" : "重试",
                 icon: status.error == nil ? "play.fill" : "arrow.clockwise",
-                isLoading: !isIdle && !status.showsVideo && status.error == nil
+                isLoading: !isPreview && !isIdle && !status.showsVideo && status.error == nil
             ) {
                 if status.error == nil { onWatch() } else { onRetry() }
             }
