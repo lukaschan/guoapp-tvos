@@ -30,6 +30,8 @@ struct DetailView: View {
         }
         .background(TVTheme.background.ignoresSafeArea())
         .task {
+            // 用户自己打开了这部剧：追剧更新的角标消失。
+            store.acknowledgeUpdate(dramaID: drama.id)
             await load()
             // 详情到了再查本系列：搜索排在详情之后，不挡第一屏。
             series = await SeriesLookup.shared.parts(of: drama)
@@ -86,7 +88,8 @@ struct DetailView: View {
                     title: store.isFollowing(drama) ? "已追剧" : "追剧",
                     icon: store.isFollowing(drama) ? "bookmark.fill" : "bookmark"
                 ) {
-                    store.toggleFollow(drama)
+                    // 详情里的分集数作为追剧更新的基准（与 followCheck 同一种计数）。
+                    store.toggleFollow(drama, knownEpisodes: detail?.episodes.count)
                 }
             }
         }

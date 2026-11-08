@@ -20,6 +20,8 @@ final class PlaybackLauncher: ObservableObject {
 
     func play(_ drama: Drama, store: Store) {
         guard LaunchGate.canStart(loadingDramaID: loadingDramaID, presenting: presentation != nil) else { return }
+        // 用户自己选了这部剧来播：追剧更新的角标消失。
+        store.acknowledgeUpdate(dramaID: drama.id)
         loadingDramaID = drama.id
         Task {
             defer { loadingDramaID = nil }

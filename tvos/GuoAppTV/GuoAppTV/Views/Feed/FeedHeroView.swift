@@ -80,6 +80,10 @@ struct FeedHeroView: View {
             // 等这一轮发布结束、hero.session 已经赋值后再转全屏。
             DispatchQueue.main.async { watchFullScreen() }
         }
+        .onChange(of: feed.state) { state in
+            // 推荐页第一屏出来了（缓存或新取的）：后台检查追剧更新（6 小时内查过的跳过）。
+            if state == .loaded { FollowUpdateChecker.shared.checkIfDue(store: store) }
+        }
         .onChange(of: feed.current?.id) { id in
             if let id { selection.commit(id) }
         }
@@ -208,6 +212,8 @@ struct FeedHeroView: View {
             return
         }
         pendingFullScreen = false
+        // 用户主动转全屏看这部：追剧更新的角标消失（自动播放和预览不算）。
+        store.acknowledgeUpdate(dramaID: presentation.drama.id)
         stopHero()
         fullScreen = presentation
     }

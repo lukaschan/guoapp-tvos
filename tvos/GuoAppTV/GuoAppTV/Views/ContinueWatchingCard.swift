@@ -8,6 +8,8 @@ struct ContinueWatchingCard: View {
     /// 系列里的某一部：标题用系列名，进度文案前加「第 N 部 · 」。
     var seriesTitle: String? = nil
     var partLabel: String? = nil
+    /// 追的剧有更新时的角标（「更新至 N 集」）。
+    var updateBadge: String? = nil
 
     var body: some View {
         let status = WatchStatus(
@@ -20,6 +22,19 @@ struct ContinueWatchingCard: View {
             PosterView(drama: progress.drama)
                 .frame(width: 140, height: 210)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(alignment: .topTrailing) {
+                    if let updateBadge {
+                        Text(updateBadge)
+                            .font(.system(size: TVTheme.TextSize.caption2, weight: .bold))
+                            .foregroundColor(TVTheme.textPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(TVTheme.accent))
+                            .padding(6)
+                    }
+                }
                 .overlay {
                     if isLoading {
                         ZStack {

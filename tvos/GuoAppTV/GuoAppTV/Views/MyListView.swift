@@ -61,7 +61,8 @@ struct MyListView: View {
                                     progress: entry,
                                     isLoading: launcher.loadingDramaID == entry.drama.id,
                                     seriesTitle: collapsed.seriesTitle,
-                                    partLabel: collapsed.partLabel
+                                    partLabel: collapsed.partLabel,
+                                    updateBadge: store.updateBadge(for: entry.drama.id)
                                 )
                             }
                             .buttonStyle(ContinueCardButtonStyle())
@@ -101,6 +102,7 @@ struct MyListView: View {
                             TVPosterCard(
                                 drama: follow.drama,
                                 subtitle: followCaption(follow.drama),
+                                badge: store.updateBadge(for: follow.drama.id),
                                 isLoading: launcher.loadingDramaID == follow.drama.id
                             )
                                 .frame(width: 200)

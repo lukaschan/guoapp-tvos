@@ -182,6 +182,12 @@ actor CoreClient {
         return result
     }
 
+    /// 追剧检查（后台取一次详情）：返回这部剧现在的信息，episodes 是现有分集数。
+    func followCheck(drama: Drama) async throws -> Drama {
+        let data = try await call(["action": "followCheck", "drama": drama.requestJSON()])
+        return Drama(dict: data["drama"] as? [String: Any] ?? [:])
+    }
+
     /// 核心存着的片库（某站源某分类上次取到的整份，不联网、立刻返回）：剧场分类模式启动时先显示它。
     func cached(source: String, category: String) async throws -> CatalogPage {
         let data = try await call(["action": "cached", "source": source, "category": category])

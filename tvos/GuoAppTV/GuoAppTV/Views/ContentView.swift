@@ -20,6 +20,10 @@ struct ContentView: View {
         .task {
             await appState.bootstrap()
         }
+        // App 回到前台（tvOS 常常把 App 挂起好几天而不是重新启动）：再检查一次追剧更新。
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            if appState.initialized { FollowUpdateChecker.shared.checkIfDue(store: store) }
+        }
     }
 
     /// 启动页：品牌标识 + 核心启动状态；失败时给出重试入口。

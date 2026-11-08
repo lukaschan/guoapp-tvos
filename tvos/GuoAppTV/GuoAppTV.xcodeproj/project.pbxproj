@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A100000000000000000000B3 /* FollowUpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B4 /* FollowUpdateChecker.swift */; };
+		A100000000000000000000B1 /* FollowUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B2 /* FollowUpdate.swift */; };
 		A100000000000000000000AF /* RankingSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B0 /* RankingSnapshotStore.swift */; };
 		A100000000000000000000AD /* RankingSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000AE /* RankingSnapshot.swift */; };
 		A100000000000000000000AB /* FeedSplice.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000AC /* FeedSplice.swift */; };
@@ -71,6 +73,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A100000000000000000000B4 /* FollowUpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowUpdateChecker.swift; sourceTree = "<group>"; };
+		A100000000000000000000B2 /* FollowUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/FollowUpdate.swift; sourceTree = "<group>"; };
 		A100000000000000000000B0 /* RankingSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RankingSnapshotStore.swift; sourceTree = "<group>"; };
 		A100000000000000000000AE /* RankingSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/RankingSnapshot.swift; sourceTree = "<group>"; };
 		A100000000000000000000AC /* FeedSplice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/FeedSplice.swift; sourceTree = "<group>"; };
@@ -206,6 +210,8 @@
 				A100000000000000000000AC /* FeedSplice.swift */,
 				A100000000000000000000AE /* RankingSnapshot.swift */,
 				A100000000000000000000B0 /* RankingSnapshotStore.swift */,
+				A100000000000000000000B2 /* FollowUpdate.swift */,
+				A100000000000000000000B4 /* FollowUpdateChecker.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -385,6 +391,8 @@
 				A100000000000000000000AB /* FeedSplice.swift in Sources */,
 				A100000000000000000000AD /* RankingSnapshot.swift in Sources */,
 				A100000000000000000000AF /* RankingSnapshotStore.swift in Sources */,
+				A100000000000000000000B1 /* FollowUpdate.swift in Sources */,
+				A100000000000000000000B3 /* FollowUpdateChecker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

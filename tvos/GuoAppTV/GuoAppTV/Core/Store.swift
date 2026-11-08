@@ -42,6 +42,12 @@ struct WatchProgress: Codable, Equatable {
 struct FollowedDrama: Codable, Equatable {
     var drama: Drama
     var followedAt: Date
+    /// 追剧更新（FollowUpdate）：用户已知的集数；nil 表示还没有基准（第一次检查时设）。
+    /// 以下三个字段都是可选的：第四阶段之前存下的追剧照样能读出来。
+    var knownEpisodes: Int?
+    /// 最近一次检查（核心 followCheck）看到的集数。
+    var latestEpisodes: Int?
+    var checkedAt: Date?
 }
 
 private struct PersistedState: Codable {
@@ -79,15 +85,55 @@ final class Store: ObservableObject {
         try? data.write(to: file, options: .atomic)
     }
 
+    // MARK: - 追剧更新
+
+    /// 记下一次检查的结果（基准规则见 FollowUpdate.afterCheck）。
+    /// releaseStatus：检查带回的完结状态（有就记下，已完结的剧以后不再自动检查）。
+    func recordCheck(dramaID: String, latestEpisodes: Int, releaseStatus: String = "", at date: Date) {
+        guard let index = follows.firstIndex(where: { $0.drama.id == dramaID }) else { return }
+        if !releaseStatus.isEmpty { follows[index].drama.releaseStatus = releaseStatus }
+        let counts = FollowUpdate.afterCheck(known: follows[index].knownEpisodes, latest: latestEpisodes)
+        follows[index].knownEpisodes = counts.known
+        follows[index].latestEpisodes = counts.latest
+        follows[index].checkedAt = date
+        persist()
+    }
+
+    /// 用户自己打开或播放了这部剧：已知集数追平，角标消失。
+    func acknowledgeUpdate(dramaID: String) {
+        guard let index = follows.firstIndex(where: { $0.drama.id == dramaID }),
+              let latest = follows[index].latestEpisodes,
+              FollowUpdate.hasUpdate(known: follows[index].knownEpisodes, latest: latest)
+        else { return }
+        follows[index].knownEpisodes = latest
+        persist()
+    }
+
+    /// 这部剧有更新时的角标（「更新至 N 集」），否则 nil。
+    func updateBadge(for dramaID: String) -> String? {
+        guard let follow = follows.first(where: { $0.drama.id == dramaID }),
+              FollowUpdate.hasUpdate(known: follow.knownEpisodes, latest: follow.latestEpisodes),
+              let latest = follow.latestEpisodes
+        else { return nil }
+        return FollowUpdate.badge(latest: latest)
+    }
+
+    var updatedFollowCount: Int {
+        follows.filter { FollowUpdate.hasUpdate(known: $0.knownEpisodes, latest: $0.latestEpisodes) }.count
+    }
+
     func isFollowing(_ drama: Drama) -> Bool {
         follows.contains { $0.drama.id == drama.id }
     }
 
-    func toggleFollow(_ drama: Drama) {
+    /// knownEpisodes：在详情页追剧时传详情里的分集数（与 followCheck 返回的是同一种计数），
+    /// 作为追剧更新的基准；其它地方追剧不传，由第一次检查设基准。
+    func toggleFollow(_ drama: Drama, knownEpisodes: Int? = nil) {
         if let index = follows.firstIndex(where: { $0.drama.id == drama.id }) {
             follows.remove(at: index)
         } else {
-            follows.insert(FollowedDrama(drama: drama, followedAt: Date()), at: 0)
+            let known = knownEpisodes.flatMap { $0 > 0 ? $0 : nil }
+            follows.insert(FollowedDrama(drama: drama, followedAt: Date(), knownEpisodes: known), at: 0)
         }
         persist()
     }
