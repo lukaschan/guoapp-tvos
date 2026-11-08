@@ -206,6 +206,12 @@ there.
 
 - 2026-11-08: a fully watched drama with no next part shows **重新观看** and starts again from episode 1
   (instead of resuming the last second).
+- 2026-11-08: 搜索 uses the **native tvOS search screen** (UIKit `UISearchController` in a
+  `UISearchContainerViewController`: keyboard on top, live results below). The owner tested it on the TV and
+  approved it, including Chinese input from the iPhone keyboard. This replaces "Keep guoapp's custom field
+  and suggestions". SwiftUI `.searchable` was rejected because writing its text back broke pinyin input.
+- 2026-11-08: the Top Shelf "继续观看" feature was **dropped** (sharing history with the extension needs App
+  Groups, which the free signing account can't use).
 
 ## Builder's calls already made
 
