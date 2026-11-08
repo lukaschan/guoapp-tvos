@@ -15,6 +15,8 @@ struct HomeView: View {
     @State private var hasMore = false
     @State private var warning = ""
     @State private var loading = false
+    /// 正在加载第一页的次数（换分类 / 榜单 / 站源）：大于 0 时网格变暗、分类行下转圈，不清空网格。
+    @State private var firstPageLoads = 0
     @State private var error: String?
     @State private var categoriesSource = ""
     @State private var rankingBoards: [RankingBoard] = []
@@ -73,6 +75,13 @@ struct HomeView: View {
                 sourceRow
             }
             categoryRow
+                .overlay(alignment: .bottomLeading) {
+                    if isSwitching {
+                        ProgressView()
+                            .padding(.leading, 12)
+                            .offset(y: 56)
+                    }
+                }
             if !warning.isEmpty {
                 Text(warning)
                     .font(.system(size: TVTheme.TextSize.caption2))
@@ -112,17 +121,37 @@ struct HomeView: View {
             )
             .padding(.vertical, 90)
         } else {
-            VStack(spacing: 20) {
-                TVPosterGrid(items: items, showRank: isRankingMode, onReachEnd: {
-                    Task { await loadMore() }
-                }, onPlay: { launcher.play($0, store: store) }, loadingID: launcher.loadingDramaID)
-                if loading && !items.isEmpty {
+            VStack(spacing: 32) {
+                // 当前列表的第一部做「今日主推」，网格从第二部开始。
+                if let featured = items.first {
+                    FeaturedBanner(drama: featured) {
+                        launcher.play(featured, store: store)
+                    }
+                    .padding(.horizontal, Self.bannerInset - TVTheme.posterPageInset)
+                }
+                TVPosterGrid(
+                    items: Array(items.dropFirst()),
+                    showRank: isRankingMode,
+                    onReachEnd: { Task { await loadMore() } },
+                    onPlay: { launcher.play($0, store: store) },
+                    loadingID: launcher.loadingDramaID,
+                    firstRank: 2
+                )
+                if loading && !isSwitching {
                     TVLoadingView("正在加载更多…")
                         .padding(.vertical, 24)
                 }
             }
+            .opacity(isSwitching ? 0.5 : 1)
+            .animation(.easeInOut(duration: 0.2), value: isSwitching)
         }
     }
+
+    /// 「今日主推」离屏幕边缘 80 pt（tvOS 安全区），网格仍用海报页边距。
+    private static let bannerInset: CGFloat = 80
+
+    /// 换分类后第一页还没回来、且网格里还有旧内容：变暗 + 转圈（首屏仍用整块加载视图）。
+    private var isSwitching: Bool { firstPageLoads > 0 && !items.isEmpty }
 
     private var sourceRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -172,7 +201,13 @@ struct HomeView: View {
     // MARK: - 数据加载（业务逻辑与原版一致）
 
     private func reload(firstPage: Bool) async {
-        if firstPage { page = 1 }
+        if firstPage {
+            page = 1
+            firstPageLoads += 1
+        }
+        defer {
+            if firstPage { firstPageLoads -= 1 }
+        }
         loading = true
         error = nil
         do {

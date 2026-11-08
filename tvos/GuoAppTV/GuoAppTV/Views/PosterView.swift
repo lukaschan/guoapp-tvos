@@ -148,18 +148,24 @@ struct TVPosterCard: View {
             }
     }
 
-    /// 右上角角标：系列卡片显示「共 N 部」。
+    /// 右上角角标：系列卡片显示「共 N 部」等；没有别的角标时显示总集数「80集」（redfruit 样式）。
     @ViewBuilder
     private var cornerBadge: some View {
         if let badge {
-            Text(badge)
-                .font(.system(size: TVTheme.TextSize.caption2, weight: .bold))
-                .foregroundColor(TVTheme.textPrimary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 3)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(badgeColor))
-                .padding(10)
+            cornerLabel(badge, fill: badgeColor)
+        } else if drama.episodes > 0 {
+            cornerLabel("\(drama.episodes)集", fill: Color.black.opacity(0.62))
         }
+    }
+
+    private func cornerLabel(_ text: String, fill: Color) -> some View {
+        Text(text)
+            .font(.system(size: TVTheme.TextSize.caption2, weight: .bold))
+            .foregroundColor(TVTheme.textPrimary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 3)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(fill))
+            .padding(10)
     }
 
     /// 榜单排名角标：前三名用品牌强调色，其余低调呈现。
@@ -194,6 +200,8 @@ struct TVPosterGrid: View {
     var onPlay: ((Drama) -> Void)? = nil
     /// 正在取详情准备播放的剧（海报上显示加载圈）。
     var loadingID: String? = nil
+    /// 第一张海报的名次（剧场把榜首放进「今日主推」后，网格从第 2 名排起）。
+    var firstRank = 1
 
     var body: some View {
         LazyVGrid(columns: TVTheme.posterColumns(), spacing: 32) {
@@ -202,7 +210,7 @@ struct TVPosterGrid: View {
                     drama: drama,
                     subtitle: subtitle.map { $0(drama) } ?? nil,
                     progress: progress.map { $0(drama) } ?? nil,
-                    rank: showRank ? index + 1 : nil,
+                    rank: showRank ? index + firstRank : nil,
                     isLoading: drama.id == loadingID
                 )
                 .onAppear {
