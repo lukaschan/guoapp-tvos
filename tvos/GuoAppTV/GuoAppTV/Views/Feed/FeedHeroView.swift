@@ -3,7 +3,7 @@ import SwiftUI
 /// 推荐页（redfruit 的 FeedHeroScreen）：整屏 hero 播放推荐流里的剧，左侧信息栏，底部「接下来」。
 /// - 进页面 / 换剧时从观看记录续播；离开页面（切标签、进详情、转全屏）就停掉，回来再按观看记录重新起播，
 ///   全屏播放里看的进度不会被 hero 回退；
-/// - hero 只有真正看满 30 秒才存进度（HeroPlayback）；
+/// - hero 不记观看进度：「看过的剧」「继续观看」只算全屏播放真正看过的（owner 2026-11-08）；
 /// - 播放键在本页任何位置都是 hero 的暂停 / 继续。
 struct FeedHeroView: View {
     @EnvironmentObject private var appState: AppState

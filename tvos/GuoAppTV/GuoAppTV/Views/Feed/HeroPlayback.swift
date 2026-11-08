@@ -66,7 +66,7 @@ final class HeroPlayback: ObservableObject {
         publish()
     }
 
-    /// 离开推荐页 / 转全屏 / 换剧：两个槽都停（先暂停再销毁，过了 30 秒门槛才存进度）。
+    /// 离开推荐页 / 转全屏 / 换剧：两个槽都停（先暂停再销毁）。
     func stop() {
         closePreview()
         main.stop()
@@ -164,7 +164,7 @@ final class HeroPlayback: ObservableObject {
     }
 }
 
-/// hero 的一个播放槽：一部剧的会话、30 秒存进度门槛、汇总给界面的状态。
+/// hero 的一个播放槽：一部剧的会话、汇总给界面的状态。不记观看进度（只有全屏播放记，owner 2026-11-08）。
 /// 每换一部剧新建 PlayerController 与 PlaybackSession（会话 stop() 会让控制器不再起播，所以不复用）。
 @MainActor
 final class HeroSlot {
@@ -178,7 +178,6 @@ final class HeroSlot {
     var onChange: (() -> Void)?
     var onReachedEnd: (() -> Void)?
 
-    private var gate = WatchGate()
     private var loadError: String?
     private var subscriptions: Set<AnyCancellable> = []
 
@@ -251,8 +250,8 @@ final class HeroSlot {
                 store: store,
                 controller: controller
             )
-            gate.reset()
-            session.saveGate = { [weak self] _ in self?.gate.isOpen ?? false }
+            // 推荐页的播放不算看过：观看记录、「看过的剧」、继续观看只来自全屏播放（owner 2026-11-08）。
+            session.saveGate = { _ in false }
             session.allowsDanmaku = false
             session.onReachedEnd = { [weak self] in self?.onReachedEnd?() }
             self.session = session
@@ -266,7 +265,7 @@ final class HeroSlot {
     }
 
     /// 停掉：先暂停再销毁（mpv 在 Apple TV 上的音频输出缓冲约 2 秒，直接销毁时这段声音会接着响完），
-    /// 存进度（过了 30 秒门槛才存）、释放会话。
+    /// 释放会话（不存进度）。
     func stop() {
         subscriptions.removeAll()
         session?.controller.pause()
@@ -317,8 +316,7 @@ final class HeroSlot {
 
     private func progressed(_ progress: PlaybackProgress) {
         guard let session else { return }
-        // 先计入门槛，再交给会话（会话这一拍若要存进度，看到的是最新的门槛）。
-        gate.observe(position: progress.position, paused: session.controller.isPaused)
+        // 交给会话：预取下一集等照常（存进度被 saveGate 挡掉）。
         session.handleProgress(position: progress.position, duration: progress.duration)
     }
 
