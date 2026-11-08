@@ -145,18 +145,6 @@ final class PlayerHostContainerView: UIView {
     }
 }
 
-private struct PlayerHostView: UIViewRepresentable {
-    let controller: PlayerController
-
-    func makeUIView(context: Context) -> PlayerHostContainerView {
-        let view = PlayerHostContainerView()
-        controller.attach(to: view)
-        return view
-    }
-
-    func updateUIView(_ uiView: PlayerHostContainerView, context: Context) {}
-}
-
 // MARK: - 播放页
 
 /// 全屏播放页：持有这次播放的 PlaybackSession（分集逻辑）与其 PlayerController（mpv）。

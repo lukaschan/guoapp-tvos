@@ -3,7 +3,8 @@ import QuartzCore
 import SwiftUI
 import UIKit
 
-// mpv 播放控制器（从 PlayerView.swift 原样拆出，另加 isPaused、halt()、画面模式与停止后不再起播）：
+// mpv 播放控制器（从 PlayerView.swift 原样拆出，另加 isPaused、halt()、画面模式、停止后不再起播，
+// 以及推荐页 hero 用的 pause() / resume() / videoSize）：
 // 句柄生命周期、事件泵、进度、倍速、画面模式、后台 / 前台处理。
 
 // MARK: - mpv 事件
@@ -53,6 +54,9 @@ final class PlayerController: NSObject, ObservableObject {
     @Published var debugInfo = ""
     /// 是否已暂停（播放控件显示暂停 / 播放图标、暂停时不自动隐藏控件）。
     @Published private(set) var isPaused = false
+    /// 视频画面的像素尺寸（video-params/w、h）；推荐页 hero 按它选竖屏 / 横屏版式。
+    /// 只在变化时发布，起播与停止时清空。
+    @Published private(set) var videoSize: CGSize?
 
     /// 事件队列：mpv 事件泵跑在这里；销毁时同步等它排空，避免句柄悬空。
     nonisolated let eventQueue = DispatchQueue(label: "com.duanju.guoapp.tv.mpv-events")
@@ -137,6 +141,22 @@ final class PlayerController: NSObject, ObservableObject {
         updateIdleTimer()
     }
 
+    /// 明确暂停 / 继续（推荐页 hero 切走或回来时用；不像 togglePause 依赖当前状态）。
+    func pause() {
+        setPaused(true)
+    }
+
+    func resume() {
+        setPaused(false)
+    }
+
+    private func setPaused(_ paused: Bool) {
+        guard mpv != nil else { return }
+        setFlag("pause", paused)
+        isPaused = getFlag("pause")
+        updateIdleTimer()
+    }
+
     /// 手动选集时先停掉当前句柄：旧集不再上报进度（否则会记到新集名下），
     /// 新集地址解析好后照常 play()。不动后台观察者与弹幕浮层。
     func halt() {
@@ -145,6 +165,7 @@ final class PlayerController: NSObject, ObservableObject {
         pendingPlay = nil
         progress = PlaybackProgress(position: 0, duration: 0)
         isPaused = false
+        videoSize = nil
         danmaku.reset()
         overlay.clear()
     }
@@ -208,6 +229,7 @@ final class PlayerController: NSObject, ObservableObject {
         activePlan = plan
         activeDanmakuEnabled = danmakuEnabled
         progress = PlaybackProgress(position: 0, duration: 0)
+        videoSize = nil
         debugInfo = "正在加载…"
 
         guard let handle = mpv_create() else {
@@ -338,6 +360,12 @@ final class PlayerController: NSObject, ObservableObject {
         let duration = getDouble("duration")
         let paused = getFlag("pause")
         if paused != isPaused { isPaused = paused }
+        let width = getInt64("video-params/w")
+        let height = getInt64("video-params/h")
+        if width > 0, height > 0 {
+            let size = CGSize(width: Double(width), height: Double(height))
+            if size != videoSize { videoSize = size }
+        }
         progress = PlaybackProgress(
             position: position.isFinite ? position : 0,
             duration: duration.isFinite ? duration : 0
@@ -435,6 +463,13 @@ final class PlayerController: NSObject, ObservableObject {
         guard let handle = mpv else { return 0 }
         var value = Double(0)
         let status = mpv_get_property(handle, name, MPV_FORMAT_DOUBLE, &value)
+        return status >= 0 ? value : 0
+    }
+
+    private func getInt64(_ name: String) -> Int64 {
+        guard let handle = mpv else { return 0 }
+        var value = Int64(0)
+        let status = mpv_get_property(handle, name, MPV_FORMAT_INT64, &value)
         return status >= 0 ? value : 0
     }
 
