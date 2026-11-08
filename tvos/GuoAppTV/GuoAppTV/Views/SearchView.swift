@@ -27,14 +27,18 @@ struct SearchView: View {
             }
             .playbackLauncher(launcher)
         }
-        .onAppear { model.source = appState.selectedSource }
+        .onAppear {
+            model.source = appState.selectedSource
+            model.loadPopular()
+        }
         .onChange(of: appState.selectedSource) { source in
             model.source = source
+            model.loadPopular()
         }
     }
 }
 
-/// 搜索结果与状态（加载中 / 失败重试 / 无结果 / 海报网格）。
+/// 搜索结果与状态：没输入时「大家都在看」；输入后「找到 N 部短剧」+ 网格 / 加载骨架 / 没有找到 / 失败重试。
 private struct SearchResultsView: View {
     @ObservedObject var model: SearchModel
     @ObservedObject var launcher: PlaybackLauncher
@@ -60,25 +64,62 @@ private struct SearchResultsView: View {
                 model.retry()
             }
             .padding(.vertical, 100)
-        } else if model.loading && model.results.isEmpty {
-            TVLoadingView("正在搜索…")
-                .padding(.vertical, 160)
-        } else if model.searchedQuery != nil, !model.loading, model.results.isEmpty {
+        } else if LiveSearch.query(from: model.query) == nil {
+            popularSection
+        } else if model.results.isEmpty, model.isAwaitingResults {
+            PosterGridSkeleton(showsTitle: false)
+                .padding(.top, 12)
+        } else if model.results.isEmpty {
             TVStatusView(
                 icon: "magnifyingglass",
-                title: "没有找到相关内容",
-                message: "换个关键词试试。",
+                title: SearchCopy.notFound(model.searchedQuery ?? model.query),
+                message: SearchCopy.notFoundHint,
                 expands: false
             )
             .frame(maxWidth: .infinity)
             .padding(.vertical, 100)
-        } else if !model.results.isEmpty {
+        } else {
             // 换关键词时旧结果先变暗，新结果回来再替换，不闪成整块加载。
-            resultGrid
-                .padding(.top, 12)
-                .opacity(model.loading ? 0.5 : 1)
-                .animation(.easeInOut(duration: 0.2), value: model.loading)
+            VStack(alignment: .leading, spacing: 24) {
+                sectionTitle(SearchCopy.found(model.results.count))
+                resultGrid
+            }
+            .padding(.top, 12)
+            .opacity(model.isAwaitingResults ? 0.5 : 1)
+            .animation(.easeInOut(duration: 0.2), value: model.isAwaitingResults)
         }
+    }
+
+    /// 还没输入：「大家都在看」（推荐流前 14 部）；加载中是骨架，失败可重试。
+    @ViewBuilder
+    private var popularSection: some View {
+        if !model.popular.isEmpty {
+            VStack(alignment: .leading, spacing: 24) {
+                sectionTitle(SearchCopy.popularTitle)
+                LazyVGrid(columns: TVTheme.posterColumns(), spacing: 32) {
+                    ForEach(model.popular) { drama in
+                        TVPosterCard(drama: drama, isLoading: launcher.loadingDramaID == drama.id, onSelect: { onOpen(drama) })
+                            .onPlayPauseCommand { launcher.play(drama, store: store) }
+                    }
+                }
+                .prefetchesOnPosterFocus(model.popular)
+            }
+            .padding(.top, 12)
+        } else if model.popularLoading {
+            PosterGridSkeleton()
+                .padding(.top, 12)
+        } else if let error = model.popularError {
+            TVFailureView(message: error) {
+                model.loadPopular(force: true)
+            }
+            .padding(.vertical, 100)
+        }
+    }
+
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: TVTheme.TextSize.callout, weight: .bold))
+            .foregroundColor(TVTheme.textPrimary)
     }
 
     /// 搜索结果：同一系列的各部合成一张卡片（「共 N 部」），其余单部剧原样显示。

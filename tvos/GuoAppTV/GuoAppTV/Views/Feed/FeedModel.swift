@@ -11,12 +11,8 @@ final class FeedModel: ObservableObject {
         case failed(String)
     }
 
-    static let hongguoSource = "hongguo"
-    /// 红果首页推荐流（键见 upstream/native/core/provider_hongguo_recommendations.go）。
-    static let feedKey = "home_feed"
-    /// 首次加载至少凑够 hero 一部 + 接下来 10 部；推荐流每页只有几部，最多请求 4 次。
+    /// 首次加载至少凑够 hero 一部 + 接下来 10 部（加载规则见 FeedLoader）。
     static let targetCount = 11
-    static let maximumRequests = 4
 
     @Published private(set) var dramas: [Drama] = []
     @Published private(set) var currentIndex = 0
@@ -34,12 +30,7 @@ final class FeedModel: ObservableObject {
     func load(source: String) async {
         if dramas.isEmpty { state = .loading }
         do {
-            let items: [Drama]
-            if source == Self.hongguoSource {
-                items = try await loadRecommendations()
-            } else {
-                items = try await CoreClient.shared.catalog(source: source).items
-            }
+            let items = try await FeedLoader.dramas(source: source, target: Self.targetCount)
             guard !Task.isCancelled else { return }
             apply(items)
         } catch {
@@ -61,25 +52,8 @@ final class FeedModel: ObservableObject {
         currentIndex = index
     }
 
-    /// 核心返回的是累积的整份列表：先取第一页，不够再「more」，直到够数、没有更多或请求满 4 次。
-    private func loadRecommendations() async throws -> [Drama] {
-        var page = try await CoreClient.shared.recommendations(feed: Self.feedKey)
-        var requests = 1
-        while page.hasMore, page.items.count < Self.targetCount, requests < Self.maximumRequests, !Task.isCancelled {
-            requests += 1
-            // 「more」失败（如核心说暂时没有新的推荐）或没变多时，用已有的，不算整体失败。
-            guard let next = try? await CoreClient.shared.recommendations(feed: Self.feedKey, more: true),
-                  next.items.count > page.items.count
-            else { break }
-            page = next
-        }
-        return page.items
-    }
-
-    /// 按 id 去重；重新加载时若正在播的那部还在，hero 不跳。
-    private func apply(_ items: [Drama]) {
-        var seen = Set<String>()
-        let unique = items.filter { !$0.id.isEmpty && seen.insert($0.id).inserted }
+    /// 换上新剧单（FeedLoader 已去重）；重新加载时若正在播的那部还在，hero 不跳。
+    private func apply(_ unique: [Drama]) {
         let currentID = current?.id
         dramas = unique
         currentIndex = currentID.flatMap { id in unique.firstIndex { $0.id == id } } ?? 0

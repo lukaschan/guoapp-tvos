@@ -12,10 +12,45 @@ final class SearchModel: ObservableObject {
     @Published private(set) var loading = false
     @Published private(set) var error: String?
     @Published private(set) var suggestions: [String] = []
+    /// 还没输入时的「大家都在看」：推荐流的前 14 部（FeedLoader，与推荐页同一份）。
+    @Published private(set) var popular: [Drama] = []
+    @Published private(set) var popularLoading = false
+    @Published private(set) var popularError: String?
     /// 在哪个站源里搜（跟随剧场里选的站源）。
     var source = "hongguo"
 
     private var task: Task<Void, Never>?
+    private var popularTask: Task<Void, Never>?
+    /// 已加载（或正在加载）「大家都在看」的站源；失败后清空，下次进页面自动再试。
+    private var popularSource: String?
+
+    /// 输入了关键词、但显示的还不是它的结果（等停止输入或正在搜）。
+    var isAwaitingResults: Bool {
+        guard let key = LiveSearch.query(from: query) else { return false }
+        return loading || searchedQuery != key
+    }
+
+    /// 加载「大家都在看」：同一站源只加载一次，force（重试）时重新加载。
+    func loadPopular(force: Bool = false) {
+        guard force || popularSource != source else { return }
+        let source = source
+        popularSource = source
+        popularTask?.cancel()
+        popularLoading = true
+        popularError = nil
+        popularTask = Task {
+            do {
+                let dramas = try await FeedLoader.dramas(source: source, target: SearchCopy.popularCount)
+                guard !Task.isCancelled else { return }
+                popular = Array(dramas.prefix(SearchCopy.popularCount))
+            } catch {
+                guard !Task.isCancelled else { return }
+                popularError = UserFacingError.message(for: error)
+                popularSource = nil
+            }
+            popularLoading = false
+        }
+    }
 
     /// 搜索框里的文字变了。
     func update(text: String) {

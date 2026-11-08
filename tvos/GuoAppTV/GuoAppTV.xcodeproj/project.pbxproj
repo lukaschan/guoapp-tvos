@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A100000000000000000000A3 /* FeedLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A4 /* FeedLoader.swift */; };
+		A100000000000000000000A1 /* SearchCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A2 /* SearchCopy.swift */; };
 		A1000000000000000000009F /* DetailPrefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A0 /* DetailPrefetch.swift */; };
 		A1000000000000000000009D /* Prefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000009E /* Prefetch.swift */; };
 		A1000000000000000000009B /* TimedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000009C /* TimedCache.swift */; };
@@ -63,6 +65,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A100000000000000000000A4 /* FeedLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/FeedLoader.swift; sourceTree = "<group>"; };
+		A100000000000000000000A2 /* SearchCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/SearchCopy.swift; sourceTree = "<group>"; };
 		A100000000000000000000A0 /* DetailPrefetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailPrefetch.swift; sourceTree = "<group>"; };
 		A1000000000000000000009E /* Prefetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/Prefetch.swift; sourceTree = "<group>"; };
 		A1000000000000000000009C /* TimedCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/TimedCache.swift; sourceTree = "<group>"; };
@@ -183,6 +187,7 @@
 				A1000000000000000000009C /* TimedCache.swift */,
 				A1000000000000000000009E /* Prefetch.swift */,
 				A100000000000000000000A0 /* DetailPrefetch.swift */,
+				A100000000000000000000A2 /* SearchCopy.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -217,6 +222,7 @@
 				A10000000000000000000090 /* SearchModel.swift */,
 				A10000000000000000000092 /* NativeSearchContainer.swift */,
 				A10000000000000000000098 /* Skeleton.swift */,
+				A100000000000000000000A4 /* FeedLoader.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -353,6 +359,8 @@
 				A1000000000000000000009B /* TimedCache.swift in Sources */,
 				A1000000000000000000009D /* Prefetch.swift in Sources */,
 				A1000000000000000000009F /* DetailPrefetch.swift in Sources */,
+				A100000000000000000000A1 /* SearchCopy.swift in Sources */,
+				A100000000000000000000A3 /* FeedLoader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
