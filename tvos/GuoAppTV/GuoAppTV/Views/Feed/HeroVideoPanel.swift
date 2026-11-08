@@ -18,7 +18,7 @@ struct HeroVideoPanel<Video: View>: View {
     var body: some View {
         let layout = HeroLayout.panel(videoSize: videoSize)
         ZStack(alignment: .topLeading) {
-            HeroCoverImage(drama: drama)
+            HeroCoverImage(drama: drama, maxPointSize: 540)
                 .frame(width: Self.canvas.width, height: Self.canvas.height)
                 .scaleEffect(1.25)
                 .blur(radius: 60)
@@ -98,7 +98,10 @@ private struct EdgeFade: View {
 /// 铺满给定区域的封面（裁切、不留边）；与海报共用 PosterCache。
 struct HeroCoverImage: View {
     let drama: Drama
+    /// 显示时的最长边（pt）：hero 面板 1080；模糊的氛围底用 540 就够。
+    var maxPointSize: CGFloat = 1080
     @State private var image: UIImage?
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         TVTheme.surfaceDim
@@ -112,8 +115,12 @@ struct HeroCoverImage: View {
             }
             .clipped()
             .animation(.easeIn(duration: 0.25), value: image != nil)
-            .task(id: "\(drama.id)\0\(drama.cover)") {
-                image = await PosterCache.shared.image(for: drama)
+            .task(id: "\(drama.id)\0\(drama.cover)\0\(pixelSize)") {
+                image = await PosterCache.shared.image(for: drama, maxPixelSize: pixelSize)
             }
+    }
+
+    private var pixelSize: Int {
+        ImageDownsampler.maxPixelSize(forPoints: maxPointSize, scale: displayScale)
     }
 }

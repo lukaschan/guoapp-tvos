@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000093 /* ImageDownsampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000094 /* ImageDownsampler.swift */; };
 		A10000000000000000000091 /* NativeSearchContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000092 /* NativeSearchContainer.swift */; };
 		A1000000000000000000008F /* SearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000090 /* SearchModel.swift */; };
 		A1000000000000000000008D /* LiveSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008E /* LiveSearch.swift */; };
@@ -56,6 +57,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A10000000000000000000094 /* ImageDownsampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/ImageDownsampler.swift; sourceTree = "<group>"; };
 		A10000000000000000000092 /* NativeSearchContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSearchContainer.swift; sourceTree = "<group>"; };
 		A10000000000000000000090 /* SearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModel.swift; sourceTree = "<group>"; };
 		A1000000000000000000008E /* LiveSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/LiveSearch.swift; sourceTree = "<group>"; };
@@ -163,6 +165,7 @@
 				A1000000000000000000007E /* PreviewSelection.swift */,
 				A1000000000000000000008C /* ResumeAction.swift */,
 				A1000000000000000000008E /* LiveSearch.swift */,
+				A10000000000000000000094 /* ImageDownsampler.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -325,6 +328,7 @@
 				A1000000000000000000008D /* LiveSearch.swift in Sources */,
 				A1000000000000000000008F /* SearchModel.swift in Sources */,
 				A10000000000000000000091 /* NativeSearchContainer.swift in Sources */,
+				A10000000000000000000093 /* ImageDownsampler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -55,7 +55,7 @@ struct FeaturedBanner: View {
 
     private var artwork: some View {
         ZStack {
-            HeroCoverImage(drama: drama)
+            HeroCoverImage(drama: drama, maxPointSize: 540)
                 .frame(width: 760, height: 340)
                 .scaleEffect(1.6)
                 .blur(radius: 40)

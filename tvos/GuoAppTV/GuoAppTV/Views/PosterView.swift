@@ -3,30 +3,51 @@ import UIKit
 
 // MARK: - 海报缓存
 
-/// 海报内存缓存：同一张海报只向核心请求一次本地文件。
+/// 海报内存缓存：封面文件由核心下载到本地，这里按显示尺寸缩小解码（ImageDownsampler），
+/// 解码后的位图放进按像素占用计费的 NSCache（上限 96 MB，超出自动淘汰）；
+/// 同一张图同一尺寸只解码一次，并发请求共用一次。
 actor PosterCache {
     static let shared = PosterCache()
+    private static let memoryLimit = 96 * 1024 * 1024
 
-    private var images: [String: UIImage] = [:]
+    private let memory: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.totalCostLimit = PosterCache.memoryLimit
+        return cache
+    }()
     private var inFlight: [String: Task<UIImage?, Never>] = [:]
 
-    func image(for drama: Drama) async -> UIImage? {
-        let key = "\(drama.id)\0\(drama.cover)"
-        if let cached = images[key] { return cached }
+    func image(for drama: Drama, maxPixelSize: Int) async -> UIImage? {
+        let key = Self.key(drama, maxPixelSize)
+        if let cached = memory.object(forKey: key as NSString) { return cached }
         if let task = inFlight[key] { return await task.value }
-        let task = Task.detached {
-            do {
-                let path = try await CoreClient.shared.coverPath(for: drama)
-                return UIImage(contentsOfFile: path)
-            } catch {
-                return nil
-            }
+        let task = Task.detached { () -> UIImage? in
+            guard let path = try? await CoreClient.shared.coverPath(for: drama),
+                  let image = ImageDownsampler.downsample(fileURL: URL(fileURLWithPath: path), maxPixelSize: maxPixelSize)
+            else { return nil }
+            return UIImage(cgImage: image)
         }
         inFlight[key] = task
         let result = await task.value
         inFlight[key] = nil
-        if let result { images[key] = result }
+        if let result, let bitmap = result.cgImage {
+            memory.setObject(result, forKey: key as NSString, cost: bitmap.bytesPerRow * bitmap.height)
+        }
         return result
+    }
+
+    /// 预先加载即将出现的封面（低优先级、依次加载、失败忽略）；已在内存或正在加载的跳过。
+    nonisolated func prefetch(_ dramas: [Drama], maxPixelSize: Int) {
+        guard !dramas.isEmpty else { return }
+        Task(priority: .utility) {
+            for drama in dramas {
+                _ = await image(for: drama, maxPixelSize: maxPixelSize)
+            }
+        }
+    }
+
+    private static func key(_ drama: Drama, _ maxPixelSize: Int) -> String {
+        "\(drama.id)\0\(drama.cover)\0\(maxPixelSize)"
     }
 }
 
@@ -36,7 +57,10 @@ actor PosterCache {
 /// 固定 2:3 宽高比，占位态显示剧名；加载完成后淡入，不拉伸不裁切比例。
 struct TVPosterImage: View {
     let drama: Drama
+    /// 显示时的最长边（pt）：默认按海报 420 高 × 焦点放大 1.10；详情页海报 300×450 也在此内。
+    var maxPointSize: CGFloat = 462
     @State private var image: UIImage?
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         ZStack {
@@ -63,9 +87,13 @@ struct TVPosterImage: View {
         .aspectRatio(2 / 3, contentMode: .fit)
         .clipped()
         .animation(.easeIn(duration: 0.25), value: image != nil)
-        .task(id: "\(drama.id)\0\(drama.cover)") {
-            image = await PosterCache.shared.image(for: drama)
+        .task(id: "\(drama.id)\0\(drama.cover)\0\(pixelSize)") {
+            image = await PosterCache.shared.image(for: drama, maxPixelSize: pixelSize)
         }
+    }
+
+    private var pixelSize: Int {
+        ImageDownsampler.maxPixelSize(forPoints: maxPointSize, scale: displayScale)
     }
 }
 
