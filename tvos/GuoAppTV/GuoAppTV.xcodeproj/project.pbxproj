@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1000000000000000000007B /* HeroLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007C /* HeroLayout.swift */; };
 		A10000000000000000000079 /* FeedModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007A /* FeedModel.swift */; };
 		A10000000000000000000077 /* UpNext.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000078 /* UpNext.swift */; };
 		A10000000000000000000075 /* WatchGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000076 /* WatchGate.swift */; };
@@ -44,6 +45,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A1000000000000000000007C /* HeroLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/HeroLayout.swift; sourceTree = "<group>"; };
 		A1000000000000000000007A /* FeedModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/FeedModel.swift; sourceTree = "<group>"; };
 		A10000000000000000000078 /* UpNext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/UpNext.swift; sourceTree = "<group>"; };
 		A10000000000000000000076 /* WatchGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/WatchGate.swift; sourceTree = "<group>"; };
@@ -135,6 +137,7 @@
 				A10000000000000000000070 /* PlaybackRules.swift */,
 				A10000000000000000000076 /* WatchGate.swift */,
 				A10000000000000000000078 /* UpNext.swift */,
+				A1000000000000000000007C /* HeroLayout.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -277,6 +280,7 @@
 				A10000000000000000000075 /* WatchGate.swift in Sources */,
 				A10000000000000000000077 /* UpNext.swift in Sources */,
 				A10000000000000000000079 /* FeedModel.swift in Sources */,
+				A1000000000000000000007B /* HeroLayout.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
