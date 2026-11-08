@@ -20,6 +20,11 @@ enum SearchCopy {
     /// 还没输入时显示的推荐：推荐流的前 14 部。
     static let popularTitle = "大家都在看"
     static let popularCount = 14
+
+    /// 核心存着的推荐够 14 部才直接用；刚开始刷新时可能只有一两部，那就照常去取。
+    static func cachedIsEnough(_ count: Int) -> Bool {
+        count >= popularCount
+    }
     static let notFoundHint = "换个关键词试试，比如剧名里的几个字或「都市」「古装」"
     static let popularEmptyTitle = "暂时没有可播放的短剧"
     static let popularEmptyHint = "稍后再来看看吧"

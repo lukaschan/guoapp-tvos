@@ -26,6 +26,9 @@ final class FeedModel: ObservableObject {
     private var source = ""
     /// 显示缓存之后在后台取新推荐的任务（不随页面消失而取消，取回来接到 hero 后面）。
     private var refreshTask: Task<Void, Never>?
+    /// 「接下来」有焦点时新推荐先存着（DeferredFresh），焦点离开再接上。
+    private var deferred = DeferredFresh<Drama>()
+    private var rowFocused = false
     /// 非红果站源往后取片库的下一页页码。
     private var nextCatalogPage = 2
 
@@ -68,9 +71,8 @@ final class FeedModel: ObservableObject {
             guard !Task.isCancelled, source == self.source else { return }
             if dramas.isEmpty {
                 apply(batch.dramas)
-            } else {
-                dramas = FeedSplice.splice(existing: dramas, currentIndex: currentIndex, fresh: batch.dramas, id: \.id)
-                state = dramas.isEmpty ? .empty : .loaded
+            } else if let fresh = deferred.offer(batch.dramas, rowFocused: rowFocused) {
+                splice(fresh)
             }
             hasMore = batch.hasMore
             emptyBatches = 0
@@ -84,6 +86,19 @@ final class FeedModel: ObservableObject {
             // 已有剧单（缓存或之前的）时保留，不打断正在看的；否则显示错误与重试。
             if dramas.isEmpty { state = .failed(UserFacingError.message(for: error)) }
         }
+    }
+
+    /// 「接下来」这一行有没有焦点（FeedHeroView 告知）：焦点离开时把存着的新推荐接上。
+    func setRowFocused(_ focused: Bool) {
+        rowFocused = focused
+        guard !focused, let fresh = deferred.rowFocusEnded() else { return }
+        splice(fresh)
+    }
+
+    /// 新推荐接到 hero 后面（hero 和它之前的不动）。
+    private func splice(_ fresh: [Drama]) {
+        dramas = FeedSplice.splice(existing: dramas, currentIndex: currentIndex, fresh: fresh, id: \.id)
+        state = dramas.isEmpty ? .empty : .loaded
     }
 
     /// 当前这部的最后一集播完：换到下一部，到底后回到第一部。

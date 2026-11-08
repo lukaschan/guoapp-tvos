@@ -39,9 +39,10 @@ final class SearchModel: ObservableObject {
         popularLoading = true
         popularError = nil
         popularTask = Task {
-            // 核心存着推荐时直接用（立刻显示，不联网；推荐页会在后台刷新这份推荐）。
+            // 核心存着的推荐够 14 部就直接用（立刻显示，不联网）；推荐页刚开始刷新时存着的可能只有一两部，
+            // 那就照常去取。
             let cached = await FeedLoader.cached(source: source)
-            if !cached.isEmpty {
+            if SearchCopy.cachedIsEnough(cached.count) {
                 guard !Task.isCancelled else { return }
                 popular = Array(cached.prefix(SearchCopy.popularCount))
                 popularLoading = false
@@ -51,8 +52,8 @@ final class SearchModel: ObservableObject {
                 let batch = try await FeedLoader.dramas(source: source, target: SearchCopy.popularCount)
                 guard !Task.isCancelled else { return }
                 popular = Array(batch.dramas.prefix(SearchCopy.popularCount))
-                // 一部都没取到：下次进页面再试（页面上有提示和重试）。
-                if popular.isEmpty { popularSource = nil }
+                // 没凑够 14 部（或一部都没有）：下次进页面再试（一部都没有时页面上有提示和重试）。
+                if !SearchCopy.cachedIsEnough(popular.count) { popularSource = nil }
             } catch is CancellationError {
                 popularSource = nil
             } catch {

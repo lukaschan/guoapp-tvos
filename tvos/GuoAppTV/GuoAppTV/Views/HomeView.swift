@@ -19,6 +19,8 @@ struct HomeView: View {
     @State private var firstPageLoads = 0
     /// 正在显示上次存下的内容（榜单快照或核心缓存的片库），新的在后台加载：不变暗、不转圈。
     @State private var showingSaved = false
+    /// 加载领号（LoadGeneration）：只有最新一次加载的结果能改界面。
+    @State private var loads = LoadGeneration()
     @State private var error: String?
     @State private var categoriesSource = ""
     @State private var rankingBoards: [RankingBoard] = []
@@ -215,17 +217,44 @@ struct HomeView: View {
         defer {
             if firstPage { firstPageLoads -= 1 }
         }
+        // 请求并行后，换了榜单 / 分类时慢的那次可能晚回来：每次加载领一个号，只有最新的能改界面。
+        let generation = loads.begin()
         loading = true
         error = nil
         do {
+            // 榜单列表（红果站源）先拿：它是核心里的固定列表，立刻返回（实测 0 秒），
+            // 拿到就能选中榜单、先放上次存下的那一页；分类列表冷启动要联网（实测约 4 秒），放在后面。
+            // 只在站源变化时拿一次；分类模式下拉取失败不报错（不影响看分类），榜单模式下拉取失败则报错。
+            if firstPage, appState.selectedSource == "hongguo",
+               rankingBoardsSource != appState.selectedSource {
+                do {
+                    let boards = try await CoreClient.shared.rankingBoards()
+                    guard loads.isCurrent(generation) else { return }
+                    rankingBoards = boards.filter { $0.source == "hongguo" }
+                    rankingBoardsSource = appState.selectedSource
+                } catch {
+                    if isRankingMode { throw error }
+                    // 分类模式：榜单拉取失败不阻塞，只展示分类。
+                }
+            }
+            if isRankingMode,
+               selectedBoard.isEmpty || !rankingBoards.contains(where: { $0.id == selectedBoard }) {
+                // 榜单模式：默认选中第一个榜。
+                selectedBoard = rankingBoards.first?.id ?? ""
+            }
+            // 首屏还空着：先放上次存下的内容（榜单快照或核心缓存的片库），再联网取新的。
+            if firstPage, items.isEmpty, !isRankingMode || !selectedBoard.isEmpty {
+                await showSavedContent()
+                guard loads.isCurrent(generation) else { return }
+            }
             // 分类列表：与模式无关，始终拉取，保证行里始终有子分类。
-            // 只在站源变化时拿一次（首屏/切站源/刷新时）；榜单模式下拉取失败不报错
-            //（不影响看榜单），分类模式下拉取失败则报错（看不到分类内容）。
+            // 只在站源变化时拿一次；榜单模式下拉取失败不报错（不影响看榜单），分类模式下拉取失败则报错。
             if firstPage, categoriesSource != appState.selectedSource {
                 do {
                     let fetched = try await CoreClient.shared.categories(
                         source: appState.selectedSource
                     )
+                    guard loads.isCurrent(generation) else { return }
                     // 核心返回的分类里可能自带「全部」，与本地的 .all 重复；
                     // 按名称去重，保留第一个（即本地的 .all）。
                     var seenNames = Set<String>()
@@ -236,38 +265,18 @@ struct HomeView: View {
                     // 榜单模式：分类拉取失败不阻塞，只展示榜单。
                 }
             }
-            // 榜单列表（红果站源）：与模式无关，始终拉取，保证行里始终有子榜单。
-            // 只在站源变化时拿一次（首屏/切站源/刷新时）；分类模式下拉取失败不报错
-            //（不影响看分类），榜单模式下拉取失败则报错（看不到榜单内容）。
-            if firstPage, appState.selectedSource == "hongguo",
-               rankingBoardsSource != appState.selectedSource {
-                do {
-                    let boards = try await CoreClient.shared.rankingBoards()
-                    rankingBoards = boards.filter { $0.source == "hongguo" }
-                    rankingBoardsSource = appState.selectedSource
-                } catch {
-                    if isRankingMode { throw error }
-                    // 分类模式：榜单拉取失败不阻塞，只展示分类。
-                }
-            }
             if isRankingMode {
-                // 榜单模式：默认选中第一个榜。
-                if selectedBoard.isEmpty
-                    || !rankingBoards.contains(where: { $0.id == selectedBoard }) {
-                    selectedBoard = rankingBoards.first?.id ?? ""
-                }
                 if selectedBoard.isEmpty {
                     items = []
                     hasMore = false
                     warning = ""
                 } else {
-                    if firstPage, items.isEmpty { await showSavedContent() }
-                    let result = try await CoreClient.shared.rankings(
-                        board: selectedBoard, page: page
-                    )
+                    let board = selectedBoard
+                    let result = try await CoreClient.shared.rankings(board: board, page: page)
+                    guard loads.isCurrent(generation) else { return }
                     if firstPage {
                         items = result.items
-                        RankingSnapshotStore.shared.save(board: selectedBoard, items: result.items)
+                        RankingSnapshotStore.shared.save(board: board, items: result.items)
                     } else {
                         items += result.items
                     }
@@ -275,10 +284,10 @@ struct HomeView: View {
                     warning = result.warning
                 }
             } else {
-                if firstPage, items.isEmpty { await showSavedContent() }
                 let result = try await CoreClient.shared.catalog(
                     source: appState.selectedSource, page: page, category: selectedCategory
                 )
+                guard loads.isCurrent(generation) else { return }
                 if firstPage {
                     items = result.items
                 } else {
@@ -288,6 +297,7 @@ struct HomeView: View {
                 warning = result.warning
             }
         } catch {
+            guard loads.isCurrent(generation) else { return }
             self.error = error.localizedDescription
         }
         showingSaved = false

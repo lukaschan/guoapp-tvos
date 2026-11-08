@@ -81,11 +81,11 @@ actor CoreClient {
         let responseText: String
         switch CoreRoute.lane(for: payload["action"] as? String ?? "") {
         case .playback:
-            responseText = try await Self.perform(text, on: queue)
+            responseText = try await perform(text, on: queue)
         case .read:
             await readLimiter.acquire()
             do {
-                responseText = try await Self.perform(text, on: readQueue)
+                responseText = try await perform(text, on: readQueue)
             } catch {
                 await readLimiter.release()
                 throw error
@@ -107,8 +107,9 @@ actor CoreClient {
         return envelope["data"] as? [String: Any] ?? [:]
     }
 
-    /// 在给定队列上阻塞调用核心（不占用 Swift 协作线程池）。
-    private static func perform(_ text: String, on queue: DispatchQueue) async throws -> String {
+    /// 在给定队列上阻塞调用核心（不占用 Swift 协作线程池）。是 actor 内的方法：入队发生在 actor 上、
+    /// 中间没有切换执行者，所以播放通道的请求严格按发出的顺序进串行队列（核心靠序号判断谁最新）。
+    private func perform(_ text: String, on queue: DispatchQueue) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             queue.async {
                 do {

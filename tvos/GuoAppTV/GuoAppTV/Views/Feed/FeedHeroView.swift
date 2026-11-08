@@ -269,6 +269,7 @@ struct FeedHeroView: View {
 
     private func focusUpNext(_ id: String?) {
         rowFocused = id != nil
+        feed.setRowFocused(id != nil)
         upNextFreeze.rowFocusChanged(isFocused: id != nil, currentIDs: feed.upNext.map(\.id))
         selection.focus(id)
         dwellTask?.cancel()
