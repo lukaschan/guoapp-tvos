@@ -60,6 +60,9 @@ final class PlayerController: NSObject, ObservableObject {
     /// 播放中是否不让屏保出现。全屏播放页保持默认 true；推荐页 hero 设为 false，
     /// 屏保按电视的设置出现（App 失去活跃时 enterBackground 会暂停，醒来再续播）。
     var keepsScreenAwake = true
+    /// 起播时（含换集、出错重试、画面重建后的重启）先停在第一帧、不出声。推荐页 hero 用：用户暂停后
+    /// 预览别的剧，或在加载途中按了暂停，加载完也停着。由调用方维护（hero 暂停 / 继续时一起改）；全屏播放不用。
+    var startsPaused = false
 
     /// 事件队列：mpv 事件泵跑在这里；销毁时同步等它排空，避免句柄悬空。
     nonisolated let eventQueue = DispatchQueue(label: "com.duanju.guoapp.tv.mpv-events")
@@ -272,6 +275,9 @@ final class PlayerController: NSObject, ObservableObject {
             let fields = plan.headers.map { "\($0.key): \($0.value)" }.joined(separator: ",")
             _ = mpv_set_option_string(handle, "http-header-fields", fields)
         }
+        if startsPaused {
+            _ = mpv_set_option_string(handle, "pause", "yes")
+        }
         _ = mpv_request_log_messages(handle, "no")
         let initStatus = mpv_initialize(handle)
         guard initStatus >= 0 else {
@@ -287,6 +293,7 @@ final class PlayerController: NSObject, ObservableObject {
         wakeupContext = contextPointer
         mpv_set_wakeup_callback(handle, mpvWakeup, contextPointer)
         command(["loadfile", url.absoluteString, "replace"])
+        isPaused = getFlag("pause")
         startProgressTimer()
         updateIdleTimer()
     }

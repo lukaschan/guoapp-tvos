@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A100000000000000000000BB /* LoadGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BC /* LoadGeneration.swift */; };
-		A100000000000000000000B9 /* PreviewHold.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BA /* PreviewHold.swift */; };
+		A100000000000000000000B9 /* HeroPauseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BA /* HeroPauseIntent.swift */; };
 		A100000000000000000000B7 /* ViewingStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B8 /* ViewingStats.swift */; };
 		A100000000000000000000B5 /* DramaMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B6 /* DramaMetadata.swift */; };
 		A100000000000000000000B3 /* FollowUpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B4 /* FollowUpdateChecker.swift */; };
@@ -78,7 +78,7 @@
 
 /* Begin PBXFileReference section */
 		A100000000000000000000BC /* LoadGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/LoadGeneration.swift; sourceTree = "<group>"; };
-		A100000000000000000000BA /* PreviewHold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/PreviewHold.swift; sourceTree = "<group>"; };
+		A100000000000000000000BA /* HeroPauseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/HeroPauseIntent.swift; sourceTree = "<group>"; };
 		A100000000000000000000B8 /* ViewingStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/ViewingStats.swift; sourceTree = "<group>"; };
 		A100000000000000000000B6 /* DramaMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/DramaMetadata.swift; sourceTree = "<group>"; };
 		A100000000000000000000B4 /* FollowUpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowUpdateChecker.swift; sourceTree = "<group>"; };
@@ -222,7 +222,7 @@
 				A100000000000000000000B4 /* FollowUpdateChecker.swift */,
 				A100000000000000000000B6 /* DramaMetadata.swift */,
 				A100000000000000000000B8 /* ViewingStats.swift */,
-				A100000000000000000000BA /* PreviewHold.swift */,
+				A100000000000000000000BA /* HeroPauseIntent.swift */,
 				A100000000000000000000BC /* LoadGeneration.swift */,
 			);
 			path = Core;
@@ -407,7 +407,7 @@
 				A100000000000000000000B3 /* FollowUpdateChecker.swift in Sources */,
 				A100000000000000000000B5 /* DramaMetadata.swift in Sources */,
 				A100000000000000000000B7 /* ViewingStats.swift in Sources */,
-				A100000000000000000000B9 /* PreviewHold.swift in Sources */,
+				A100000000000000000000B9 /* HeroPauseIntent.swift in Sources */,
 				A100000000000000000000BB /* LoadGeneration.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

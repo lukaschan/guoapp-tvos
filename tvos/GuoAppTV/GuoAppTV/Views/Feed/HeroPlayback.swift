@@ -4,8 +4,9 @@ import Foundation
 /// 推荐页 hero 的播放，两个「槽」：
 /// - main：选定的这部（选集、播完换下一部、全屏观看都看它）；
 /// - preview：焦点停在「接下来」某张海报上时，这一部的实时预览（有画面有声音）。
-/// 预览期间 main 原地暂停、不重新加载（PreviewHold）；焦点离开这一行时预览关掉、main 原样回来——
-/// 原本在播的接着播，用户自己暂停的仍暂停；按下正在预览的那张海报时，预览直接转正成 main，也不重新加载。
+/// 预览期间 main 原地暂停、不重新加载；焦点离开这一行时预览关掉、main 回来。暂停只看用户按了什么
+/// （HeroPauseIntent）：按了暂停，预览也停在第一帧，换海报、回到 main 都仍停着，直到再按继续。
+/// 按下正在预览的那张海报时，预览直接转正成 main（不重新加载）并播放。
 /// 两个槽的画面都一直挂着（hosts，按控制器区分，不重建），只是显示可见的那个；界面只观察这一个对象。
 @MainActor
 final class HeroPlayback: ObservableObject {
@@ -44,7 +45,7 @@ final class HeroPlayback: ObservableObject {
 
     private var main = HeroSlot()
     private var preview = HeroSlot()
-    private var hold = PreviewHold()
+    private var intent = HeroPauseIntent()
     private var previewTask: Task<Void, Never>?
 
     init() {
@@ -55,10 +56,11 @@ final class HeroPlayback: ObservableObject {
     /// main 槽正在播（或正在加载）的剧。
     var mainDramaID: String? { main.dramaID }
 
-    /// 换到这部剧（main）：先关掉预览，停掉旧的，按观看记录定起点新建会话起播。
+    /// 换到这部剧（main）：先关掉预览，停掉旧的，按观看记录定起点新建会话起播（选定就是要播，不沿用暂停）。
     func play(_ drama: Drama, store: Store) async {
         closePreview()
-        await main.play(drama, store: store)
+        intent.choose()
+        await main.play(drama, store: store, paused: false)
         publish()
     }
 
@@ -66,35 +68,38 @@ final class HeroPlayback: ObservableObject {
     func stop() {
         closePreview()
         main.stop()
-        hold.reset()
+        intent.choose()
         publish()
     }
 
-    /// 焦点停在「接下来」某张海报上：main 原地暂停（在播的才暂停，之后接着播），预览那部开始实时播放。
+    /// 焦点停在「接下来」某张海报上：main 原地暂停（还在加载的，加载完也停着），预览那部开始实时播放；
+    /// 用户按过暂停时预览停在第一帧、不出声。
     func startPreview(_ drama: Drama, store: Store) {
         if !isPreviewing {
             isPreviewing = true
-            if hold.begin(playing: main.videoShown && !main.isPaused) { main.pause() }
+            intent.beginPreview()
+            main.pause()
         }
         previewTask?.cancel()
         preview.stop()
         publish()
         let slot = preview
+        let paused = intent.previewPaused
         previewTask = Task { [weak self] in
-            await slot.play(drama, store: store)
+            await slot.play(drama, store: store, paused: paused)
             self?.publish()
         }
     }
 
-    /// 焦点离开「接下来」：关掉预览，main 原样回来。
+    /// 焦点离开「接下来」：关掉预览，main 回来——用户没按暂停才接着播。
     func endPreview() {
         guard isPreviewing else { return }
         closePreview()
-        if hold.end() { main.resume() }
+        if !intent.mainPaused { main.resume() }
         publish()
     }
 
-    /// 按下正在预览的那部：预览直接转正成 main（不重新加载）。返回是否转正了。
+    /// 按下正在预览的那部：预览直接转正成 main（不重新加载）并播放。返回是否转正了。
     func promotePreview(dramaID: String) -> Bool {
         guard isPreviewing, preview.dramaID == dramaID else { return false }
         previewTask = nil
@@ -103,19 +108,26 @@ final class HeroPlayback: ObservableObject {
         preview = main
         main = promoted
         isPreviewing = false
-        hold.reset()
+        intent.choose()
+        main.resume()
         publish()
         return true
     }
 
-    /// 按下另一张（不是正在预览的）海报换剧：main 马上要被换掉，关预览时不要再让它接着播。
-    func dropPreviewHold() {
-        hold.reset()
+    /// 按下另一张（不是正在预览的）海报换剧：关掉预览，main 马上要被换掉，停着不再接着播。
+    func abandonPreview() {
+        closePreview()
+        publish()
     }
 
-    /// 播放键 / 暂停按钮：控制看得见的那个。
+    /// 播放键 / 暂停按钮：控制看得见的那个，并记下用户的选择（之后换海报、回到 main 都照这个来）。
     func togglePause() {
-        (isPreviewing ? preview : main).togglePause()
+        let slot = isPreviewing ? preview : main
+        if intent.toggle(visiblePaused: slot.isPaused) {
+            slot.pause()
+        } else {
+            slot.resume()
+        }
     }
 
     /// 转到全屏播放：从 main 当前这集、当前位置接着播。
@@ -128,15 +140,11 @@ final class HeroPlayback: ObservableObject {
         previewTask = nil
         preview.stop()
         isPreviewing = false
+        intent.endPreview()
     }
 
     private func wire(_ slot: HeroSlot) {
         slot.onChange = { [weak self] in self?.publish() }
-        slot.onVideoStarted = { [weak self, weak slot] in
-            guard let self, let slot, slot === self.main else { return }
-            // main 在预览期间才出画面：先停住，预览结束再接着播。
-            if self.hold.videoStarted() { slot.pause() }
-        }
         slot.onReachedEnd = { [weak self, weak slot] in
             guard let self, let slot, slot === self.main else { return }
             self.onReachedEnd?()
@@ -162,29 +170,34 @@ final class HeroSlot {
     private(set) var status = HeroPlayback.Status()
     /// 正在播（或正在加载）的剧；加载期间就有，转正时用它认出是哪一部。
     private(set) var dramaID: String?
-    /// 这部已经出过画面。
-    private(set) var videoShown = false
+    /// 该停着：加载途中就记下，播放器起播时照这个停在第一帧（PlayerController.startsPaused）。
+    private var wantsPaused = false
 
     var onChange: (() -> Void)?
-    var onVideoStarted: (() -> Void)?
     var onReachedEnd: (() -> Void)?
 
     private var gate = WatchGate()
     private var loadError: String?
     private var subscriptions: Set<AnyCancellable> = []
 
-    var isPaused: Bool { session?.controller.isPaused ?? false }
+    /// 看起来停着：要它停着（含还在加载的），或播放器自己停着。
+    var isPaused: Bool { wantsPaused || (session?.controller.isPaused ?? false) }
 
-    func pause() { session?.controller.pause() }
-    func resume() { session?.controller.resume() }
+    func pause() { setPaused(true) }
+    func resume() { setPaused(false) }
 
-    func togglePause() {
-        guard let controller = session?.controller else { return }
-        if controller.isPaused {
-            controller.resume()
-        } else {
-            controller.pause()
+    /// 播放器还没起播时 pause()/resume() 不起作用，所以同时改 startsPaused：加载完照这个停着或播放。
+    private func setPaused(_ paused: Bool) {
+        wantsPaused = paused
+        if let controller = session?.controller {
+            controller.startsPaused = paused
+            if paused {
+                controller.pause()
+            } else {
+                controller.resume()
+            }
         }
+        refreshStatus()
     }
 
     var fullScreenPresentation: PlaybackPresentation? {
@@ -197,10 +210,13 @@ final class HeroSlot {
         )
     }
 
-    /// 播这部剧：停掉旧的，取详情、按观看记录定起点（没看过从第 1 集开头），新建会话起播。
-    func play(_ drama: Drama, store: Store) async {
+    /// 播这部剧：停掉旧的，取详情、按观看记录定起点（没看过从第 1 集开头），新建会话起播；
+    /// paused 时停在第一帧（加载途中按了暂停 / 继续也照最新的来）。
+    func play(_ drama: Drama, store: Store, paused: Bool) async {
         stop()
         dramaID = drama.id
+        wantsPaused = paused
+        refreshStatus()
         do {
             let detail = try await CoreClient.shared.detail(drama: drama)
             guard !Task.isCancelled, dramaID == drama.id else { return }
@@ -222,6 +238,7 @@ final class HeroSlot {
             let controller = PlayerController()
             // 屏保按电视的设置照常出现（owner 2026-11-08），不像全屏播放那样一直亮屏。
             controller.keepsScreenAwake = false
+            controller.startsPaused = wantsPaused
             let session = PlaybackSession(
                 drama: resolved,
                 episodes: detail.episodes,
@@ -252,7 +269,7 @@ final class HeroSlot {
         session?.stop()
         session = nil
         dramaID = nil
-        videoShown = false
+        wantsPaused = false
         loadError = nil
         refreshStatus()
     }
@@ -296,10 +313,6 @@ final class HeroSlot {
 
     private func progressed(_ progress: PlaybackProgress) {
         guard let session else { return }
-        if progress.duration > 0, !videoShown {
-            videoShown = true
-            onVideoStarted?()
-        }
         // 先计入门槛，再交给会话（会话这一拍若要存进度，看到的是最新的门槛）。
         gate.observe(position: progress.position, paused: session.controller.isPaused)
         session.handleProgress(position: progress.position, duration: progress.duration)
@@ -318,9 +331,10 @@ final class HeroSlot {
             next.fraction = hasDuration ? min(max(progress.position / progress.duration, 0), 1) : nil
             next.remaining = hasDuration ? max(progress.duration - progress.position, 0) : nil
             next.isLastEpisode = index >= session.episodes.count - 1
-            next.paused = controller.isPaused
+            next.paused = isPaused
             next.error = session.error.map { UserFacingError.message(for: $0) }
         } else {
+            next.paused = wantsPaused
             next.error = loadError
         }
         guard next != status else { return }

@@ -97,7 +97,8 @@ struct FeedHeroView: View {
             pendingFullScreen = false
             startHero()
         }
-        // 预览：焦点停 1 秒的那部开始实时播放，选定的这部原地暂停；焦点离开这一行时原样回来。
+        // 预览：焦点停 1 秒的那部开始实时播放，选定的这部原地暂停；焦点离开这一行时它回来。
+        // 用户按过暂停时预览停在第一帧，换海报、回来都仍停着，直到再按继续（HeroPauseIntent）。
         // 自动播放关着、还没开始时不预览（不联网、不出声）。
         .onChange(of: selection.previewID) { previewID in
             guard let previewID else {
@@ -291,7 +292,7 @@ struct FeedHeroView: View {
         dwellTask?.cancel()
         // 按下的正是在预览的那部：预览直接转正（不重新加载）；按下别的：选定的这部马上被换掉，不必再接着播。
         if drama.id != selection.committedID, !hero.promotePreview(dramaID: drama.id) {
-            hero.dropPreviewHold()
+            hero.abandonPreview()
         }
         selection.commit(drama.id)
         feed.select(drama)
