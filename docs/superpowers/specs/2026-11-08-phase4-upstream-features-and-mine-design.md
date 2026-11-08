@@ -71,6 +71,8 @@ It also turns 我的 into a profile dashboard.
 - Then keep paging with `more` (existing `FeedPaging`).
 - With no cache (first ever launch), the current path is unchanged: skeleton, then the first page.
 - 搜索's 大家都在看 also starts from the cached feed (first 14).
+- *(Builder's call.)* The fresh feed is spliced in once it holds at least one 接下来 row (10 dramas after the hero) or
+  its fill loop ends, whichever comes first. Never at the 2-drama first page, so 接下来 doesn't shrink to 2 posters.
 
 ### 3. 剧场 opens instantly
 - **Category view:** show `cached` for the source and category immediately, then refresh.
@@ -85,15 +87,22 @@ It also turns 我的 into a profile dashboard.
   - These are optional fields, so existing saved data still loads.
 - **Has an update** when `latestEpisodes > knownEpisodes`.
   - If `knownEpisodes` is unknown (for example 0 from a ranking item), the first check only sets the baseline and shows no badge.
+  - *(Builder's call.)* Follows saved before phase 4 take their baseline from their first check. That avoids false
+    badges after the upgrade, at the cost of not flagging an update released before that check. A new follow made on
+    the detail page takes the detail's episode count, the same measure (chapters) that `followCheck` returns. A follow
+    made elsewhere, such as from the hero, takes its first check.
 - **Checking:**
-  - after launch, once 推荐 has loaded;
+  - after launch, once 推荐's first list is on screen (cached or fresh), and again whenever the app returns to the
+    foreground. *(Builder's call: tvOS keeps apps suspended for days, so launch-only checks would rarely run.)*
   - one drama at a time, on the read lane;
-  - skipping dramas checked within the last 6 hours.
+  - skipping dramas checked within the last 6 hours, and dramas the user has finished.
   - 我的 → 检查追剧更新 checks all of them now.
 - **Shown as:**
   - "更新至 N 集" on 我的追剧 posters and on 继续观看 cards for that drama;
   - "N 部有更新" in 我的.
-- **Acknowledged** (badge cleared) when the user opens that drama's detail page or plays it: `knownEpisodes = latestEpisodes`.
+- **Acknowledged** (badge cleared) when the user opens that drama's detail page, or starts it deliberately (Play/Pause on
+  a poster or card, 全屏观看): `knownEpisodes = latestEpisodes`. *(Builder's call.)* Hero autoplay and 1 s previews
+  don't clear it, because the user never chose that drama.
 
 ### 5. Fuller drama info (`metadata`)
 - Upstream's rule: on the detail page, for a 红果 drama missing its score or release date, call `metadata` once and merge what comes back.
@@ -109,7 +118,10 @@ It also turns 我的 into a profile dashboard.
   - 累计观看: the sum of saved positions, in hours with one decimal.
 - **Groups, in two columns:**
   - 播放: 播完自动连播下一集, 清晰度 · 倍速, 弹幕, 播放诊断.
-  - 推荐: 进入推荐页自动播放. When off, the hero shows the cover and info but doesn't play; the 暂停 button reads 播放, and it or Play/Pause starts it.
+  - 推荐: 进入推荐页自动播放. When off, the hero shows the cover and info and does nothing on the network until the user
+    presses 播放 (the 暂停 button) or Play/Pause. *(Builder's call.)* Once started, the hero behaves as it does with
+    autoplay on (next episode, next drama, a pressed 接下来 poster all play) until the user leaves 推荐. Coming back
+    waits for a press again.
   - 追剧: 检查追剧更新 (shows "N 部有更新" or "刚刚检查"), 清除观看记录.
   - 存储与关于: 已用空间 (the size of the app's Caches folder, computed in the background), 站源, 关于.
 
@@ -126,5 +138,5 @@ It also turns 我的 into a profile dashboard.
 - File split and type names.
 - How the lane limit is enforced.
 - The ranking-cache file format.
-- The exact stat-tile styling: follow the mockup.
+- The exact stat-tile styling: follow `docs/superpowers/specs/assets/phase4-mine-layout-a.html` (layout A, committed).
 - Copy beyond the strings above.
