@@ -1,0 +1,74 @@
+<style>
+  .tv { width: 100%; aspect-ratio: 16 / 9; background: #0E0B0C; border-radius: 10px; position: relative; overflow: hidden;
+        font-family: -apple-system, "PingFang SC", sans-serif; color: #F5F1EE; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+  .tabs { position: absolute; top: 3.5%; left: 0; right: 0; display: flex; justify-content: center; gap: 2.2%; font-size: 1.05vw; color: rgba(245,241,238,.55); }
+  .tabs b { color: #0E0B0C; background: #F5F1EE; border-radius: 99px; padding: .15vw .9vw; font-weight: 600; }
+  .muted { color: rgba(245,241,238,.6); }
+  .accent { color: #E8364A; }
+  .chip { display: inline-block; background: rgba(245,241,238,.10); border-radius: 99px; padding: .15vw .7vw; font-size: .8vw; }
+  .group { background: rgba(245,241,238,.06); border-radius: .8vw; padding: .7vw .9vw; margin-bottom: .7vw; }
+  .group h4 { margin: 0 0 .35vw; font-size: .85vw; color: rgba(245,241,238,.55); font-weight: 600; }
+  .row { display: flex; justify-content: space-between; font-size: .9vw; padding: .28vw 0; border-bottom: 1px solid rgba(245,241,238,.06); }
+  .row:last-child { border-bottom: 0; }
+  .row.focus { background: #F5F1EE; color: #0E0B0C; border-radius: .5vw; padding: .28vw .5vw; margin: 0 -.5vw; }
+  .row.focus .muted { color: rgba(14,11,12,.6); }
+  .icon { width: 4.2vw; height: 4.2vw; border-radius: 1vw; background: linear-gradient(135deg,#F04E60,#D6283C);
+          display: flex; align-items: center; justify-content: center; font-size: 2vw; }
+  .stat { background: rgba(245,241,238,.06); border-radius: .8vw; padding: .6vw .8vw; flex: 1; }
+  .stat .n { font-size: 1.7vw; font-weight: 800; }
+  .stat .l { font-size: .75vw; color: rgba(245,241,238,.6); }
+  .badge { background: #E8364A; color: #F5F1EE; border-radius: .3vw; padding: 0 .35vw; font-size: .7vw; font-weight: 700; }
+</style>
+<h2>我的 — layout A (owner-approved 2026-11-08)</h2>
+<p class="subtitle">Profile dashboard. Numbers are placeholders; white row = focused. The 默认画面 row was removed with the 画面 option.</p>
+<div class="options">
+<div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Profile dashboard</h3>
+      <p>A header with the app identity and four stat tiles; settings below in two columns of groups.</p>
+      <div class="tv">
+        <div class="tabs"><span>推荐</span><span>剧场</span><span>追剧</span><span>搜索</span><b>我的</b></div>
+        <div style="position:absolute; top:13%; left:4.2%; right:4.2%;">
+          <div style="display:flex; align-items:center; gap:1vw; margin-bottom:1vw;">
+            <div class="icon">▶</div>
+            <div>
+              <div style="font-size:1.6vw; font-weight:800;">火龙果短剧</div>
+              <div class="muted" style="font-size:.85vw;">在电视上追短剧 · 版本 2.41 · 核心 d9ab863</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:.8vw; margin-bottom:1vw;">
+            <div class="stat"><div class="n">12</div><div class="l">在追</div></div>
+            <div class="stat"><div class="n">38</div><div class="l">看过的剧</div></div>
+            <div class="stat"><div class="n">146</div><div class="l">看完的集</div></div>
+            <div class="stat"><div class="n">31.5<span style="font-size:.9vw"> 小时</span></div><div class="l">累计观看</div></div>
+          </div>
+          <div style="display:flex; gap:1vw;">
+            <div style="flex:1">
+              <div class="group"><h4>播放</h4>
+                <div class="row focus"><span>播完自动连播下一集</span><span class="muted">开</span></div>
+                <div class="row"><span>清晰度 · 倍速</span><span class="muted">自动 · 1.00x</span></div>
+                <div class="row"><span>弹幕</span><span class="muted">开</span></div>
+              </div>
+              <div class="group"><h4>推荐</h4>
+                <div class="row"><span>进入推荐页自动播放</span><span class="muted">开</span></div>
+              </div>
+            </div>
+            <div style="flex:1">
+              <div class="group"><h4>追剧</h4>
+                <div class="row"><span>检查追剧更新</span><span class="muted"><span class="badge">3 部有更新</span></span></div>
+                <div class="row"><span>清除观看记录</span><span class="muted">›</span></div>
+              </div>
+              <div class="group"><h4>存储与关于</h4>
+                <div class="row"><span>已用空间</span><span class="muted">412 MB</span></div>
+                <div class="row"><span>站源</span><span class="muted">红果</span></div>
+                <div class="row"><span>关于</span><span class="muted">›</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div>
