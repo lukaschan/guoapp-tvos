@@ -47,3 +47,19 @@ struct WatchStatusTests {
         #expect(abs(status.seriesFraction - 0.2) < 1e-9)
     }
 }
+
+/// 红果榜单来自官网榜单页，那里每部剧只列出前几集的预告（episodeVids，通常 3 个），
+/// 核心按它的个数填总集数，所以榜单上的「3集」不是真实总集数，只能当作未知。
+struct RankingEpisodeCountTests {
+    @Test func hongguoRankingCountIsUnknown() {
+        #expect(EpisodeCount.fromRanking(reported: 3, source: "hongguo") == 0)
+    }
+
+    @Test func otherSourcesKeepTheirCount() {
+        #expect(EpisodeCount.fromRanking(reported: 40, source: "huangdou") == 40)
+    }
+
+    @Test func unknownStaysUnknown() {
+        #expect(EpisodeCount.fromRanking(reported: 0, source: "huangdou") == 0)
+    }
+}

@@ -60,4 +60,10 @@ enum EpisodeCount {
     static func effective(reported: Int, detailCount: Int) -> Int {
         reported > 0 ? reported : max(detailCount, 0)
     }
+
+    /// 榜单条目的总集数。红果榜单来自官网榜单页，每部剧只列出前几集预告（核心按其个数填，通常是 3），
+    /// 不是真实总集数，当作未知（0）：海报不显示「3集」，进详情 / 播放时由详情补上真实集数。
+    static func fromRanking(reported: Int, source: String) -> Int {
+        source == "hongguo" ? 0 : max(reported, 0)
+    }
 }

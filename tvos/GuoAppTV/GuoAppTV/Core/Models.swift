@@ -298,7 +298,9 @@ struct RankingPage {
             guard let row = row as? [String: Any],
                   let dramaDict = row["drama"] as? [String: Any]
             else { return nil }
-            return Drama(dict: dramaDict)
+            var drama = Drama(dict: dramaDict)
+            drama.episodes = EpisodeCount.fromRanking(reported: drama.episodes, source: drama.source)
+            return drama
         }
         let page = intValue(dict, "page")
         self.page = page > 0 ? page : 1
