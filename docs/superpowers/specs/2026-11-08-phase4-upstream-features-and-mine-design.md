@@ -26,6 +26,8 @@ It also turns 我的 into a profile dashboard.
   - `cached` instant start, including 推荐 through `cachedRecommendations`
   - parallel + cancellable requests
 - 我的 uses **layout A** (profile dashboard), from the 2026-11-08 mockup.
+- **Fix 弹幕** (it never worked: the core rejects `danmaku` requests without a read `session`/`sequence`, and the player
+  swallows the error). The full-screen player shows 弹幕 again under the existing 我的 toggle; the 推荐 hero stays without 弹幕.
 - The player's 画面 option (适应 / 填充 / 拉伸) is **removed** (done in `6940ef4`). 我的 has no default-screen-mode setting.
 - Not adopted:
   - downloads / local playback, device registration UI, update check, usage reporting, proxy settings;
