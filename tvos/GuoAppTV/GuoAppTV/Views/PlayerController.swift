@@ -63,6 +63,10 @@ final class PlayerController: NSObject, ObservableObject {
     /// 起播时（含换集、出错重试、画面重建后的重启）先停在第一帧、不出声。推荐页 hero 用：用户暂停后
     /// 预览别的剧，或在加载途中按了暂停，加载完也停着。由调用方维护（hero 暂停 / 继续时一起改）；全屏播放不用。
     var startsPaused = false
+    /// 按视频尺寸给出 mpv 的画面摆放选项（nil 尺寸 = 还不知道）。推荐页 hero 用：mpv 起播后不跟随图层尺寸变化，
+    /// 所以 hero 的图层固定铺满画布、从不改尺寸，由这里给的边距把画面摆到面板上（HeroLayout.mpvMargins）。
+    /// 起播前按 nil 设一次，mpv 报告视频参数（VIDEO_RECONFIG）后按实际尺寸再设。全屏播放不设。
+    var framing: ((CGSize?) -> [String: String])?
 
     /// 事件队列：mpv 事件泵跑在这里；销毁时同步等它排空，避免句柄悬空。
     nonisolated let eventQueue = DispatchQueue(label: "com.duanju.guoapp.tv.mpv-events")
@@ -160,6 +164,19 @@ final class PlayerController: NSObject, ObservableObject {
         setFlag("pause", paused)
         isPaused = getFlag("pause")
         updateIdleTimer()
+    }
+
+    /// 视频参数出来了（出第一帧前）：按实际尺寸摆放画面（framing），并立刻更新画面尺寸（不等每秒的计时器）。
+    private func videoReconfigured() {
+        guard let handle = mpv else { return }
+        let width = getInt64("video-params/w")
+        let height = getInt64("video-params/h")
+        guard width > 0, height > 0 else { return }
+        let size = CGSize(width: Double(width), height: Double(height))
+        for (name, value) in framing?(size) ?? [:] {
+            _ = mpv_set_property_string(handle, name, value)
+        }
+        if size != videoSize { videoSize = size }
     }
 
     /// 手动选集时先停掉当前句柄：旧集不再上报进度（否则会记到新集名下），
@@ -278,6 +295,9 @@ final class PlayerController: NSObject, ObservableObject {
         if startsPaused {
             _ = mpv_set_option_string(handle, "pause", "yes")
         }
+        for (name, value) in framing?(nil) ?? [:] {
+            _ = mpv_set_option_string(handle, name, value)
+        }
         _ = mpv_request_log_messages(handle, "no")
         let initStatus = mpv_initialize(handle)
         guard initStatus >= 0 else {
@@ -326,6 +346,9 @@ final class PlayerController: NSObject, ObservableObject {
             guard let event = mpv_wait_event(handle, 0) else { return }
             let eventId = event.pointee.event_id
             if eventId == MPV_EVENT_NONE || eventId == MPV_EVENT_SHUTDOWN { return }
+            if eventId == MPV_EVENT_VIDEO_RECONFIG {
+                Task { @MainActor [weak self] in self?.videoReconfigured() }
+            }
             if eventId == MPV_EVENT_END_FILE {
                 let endFile = event.pointee.data
                     .assumingMemoryBound(to: mpv_event_end_file.self).pointee

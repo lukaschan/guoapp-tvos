@@ -4,6 +4,8 @@ import UIKit
 /// 推荐页 hero 的画面层（1920×1080）：
 /// - 氛围底：同一张封面放大 1.25 倍、模糊 60、压暗 28 %（mpv 只有一个渲染层，做不了第二路模糊视频）；
 /// - 视频面板：竖屏贴右整高 608×1080、横屏 1060×596，边缘羽化 140 pt（横屏上下 98 pt），出画面前先显示封面；
+///   播放器图层固定铺满整个画布、从不改尺寸（mpv 起播后不跟随图层尺寸变化，改了会错位、露出黑块），
+///   画面由 mpv 用边距摆到面板上（HeroLayout.mpvMargins），这里只把面板以外遮掉、边缘羽化；
 /// - 左侧压一层背景色渐变到面板左缘，底部再压一层，给信息栏与「接下来」留出可读的底。
 struct HeroVideoPanel<Video: View>: View {
     let drama: Drama
@@ -12,8 +14,6 @@ struct HeroVideoPanel<Video: View>: View {
     @ViewBuilder let video: Video
 
     static var canvas: CGSize { CGSize(width: 1920, height: 1080) }
-    private static var feather: CGFloat { 140 }
-    private static var landscapeFeather: CGFloat { 98 }
 
     var body: some View {
         let layout = HeroLayout.panel(videoSize: videoSize)
@@ -23,8 +23,19 @@ struct HeroVideoPanel<Video: View>: View {
                 .scaleEffect(1.25)
                 .blur(radius: 60)
                 .overlay(Color.black.opacity(0.28))
-            panel(frame: layout.frame, vertical: layout.vertical)
+            video
+                .frame(width: Self.canvas.width, height: Self.canvas.height)
+                .mask(
+                    Color.black
+                        .feathered(frame: layout.frame, vertical: layout.vertical)
+                        .offset(x: layout.frame.minX, y: layout.frame.minY)
+                        .frame(width: Self.canvas.width, height: Self.canvas.height, alignment: .topLeading)
+                )
+            HeroCoverImage(drama: drama)
+                .feathered(frame: layout.frame, vertical: layout.vertical)
                 .offset(x: layout.frame.minX, y: layout.frame.minY)
+                .opacity(showsVideo ? 0 : 1)
+                .animation(.easeOut(duration: 0.4), value: showsVideo)
             leftScrim(width: layout.frame.minX)
             bottomScrim
         }
@@ -33,18 +44,6 @@ struct HeroVideoPanel<Video: View>: View {
         .animation(.easeInOut(duration: 0.35), value: layout.vertical)
     }
 
-    private func panel(frame: CGRect, vertical: Bool) -> some View {
-        ZStack {
-            video
-            HeroCoverImage(drama: drama)
-                .opacity(showsVideo ? 0 : 1)
-                .animation(.easeOut(duration: 0.4), value: showsVideo)
-        }
-        .frame(width: frame.width, height: frame.height)
-        .clipped()
-        .mask(EdgeFade(horizontal: true, fraction: Self.feather / frame.width))
-        .mask(EdgeFade(horizontal: false, fraction: vertical ? 0 : Self.landscapeFeather / frame.height))
-    }
 
     /// 背景色 92 % → 72 % 处 70 % → 面板左缘透明。
     private func leftScrim(width: CGFloat) -> some View {
@@ -69,6 +68,22 @@ struct HeroVideoPanel<Video: View>: View {
         .frame(width: Self.canvas.width, height: 360)
         .offset(y: Self.canvas.height - 360)
     }
+}
+
+extension View {
+    /// 按面板尺寸裁好、边缘羽化（左右 140 pt，横屏上下再 98 pt）；位置由调用方 offset。
+    fileprivate func feathered(frame: CGRect, vertical: Bool) -> some View {
+        self
+            .frame(width: frame.width, height: frame.height)
+            .clipped()
+            .mask(EdgeFade(horizontal: true, fraction: HeroVideoPanelMetrics.feather / frame.width))
+            .mask(EdgeFade(horizontal: false, fraction: vertical ? 0 : HeroVideoPanelMetrics.landscapeFeather / frame.height))
+    }
+}
+
+private enum HeroVideoPanelMetrics {
+    static let feather: CGFloat = 140
+    static let landscapeFeather: CGFloat = 98
 }
 
 /// 两端羽化的遮罩；fraction 为每端渐变占的比例，0 表示不羽化。

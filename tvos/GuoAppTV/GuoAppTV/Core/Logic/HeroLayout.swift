@@ -15,6 +15,21 @@ enum HeroLayout {
         return (landscapePanel, false)
     }
 
+    static let canvas = CGSize(width: 1920, height: 1080)
+
+    /// mpv 起播时定下渲染尺寸、之后不跟随图层尺寸变化（改了图层尺寸，画面会错位、露出黑块），
+    /// 所以 hero 的播放器图层固定铺满画布，由 mpv 用边距把画面摆到这个视频该在的面板上。
+    static func mpvMargins(videoSize: CGSize?) -> [String: String] {
+        let frame = panel(videoSize: videoSize).frame
+        func ratio(_ value: CGFloat, _ total: CGFloat) -> String { String(Double(value / total)) }
+        return [
+            "video-margin-ratio-left": ratio(frame.minX, canvas.width),
+            "video-margin-ratio-right": ratio(canvas.width - frame.maxX, canvas.width),
+            "video-margin-ratio-top": ratio(frame.minY, canvas.height),
+            "video-margin-ratio-bottom": ratio(canvas.height - frame.maxY, canvas.height),
+        ]
+    }
+
     static func infoWidth(vertical: Bool) -> CGFloat {
         vertical ? 1040 : 760
     }

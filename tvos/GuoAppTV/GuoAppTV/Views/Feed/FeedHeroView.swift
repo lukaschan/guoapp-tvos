@@ -221,6 +221,11 @@ struct FeedHeroView: View {
         // 先显示核心存着的推荐（立刻有内容），这次启动第一次加载这个站源（或点了重试）时在后台
         // 让核心取一份新的，接到 hero 后面（FeedModel.load）。
         await feed.load(source: source, force: force || loadedSource != source)
+        // 开发验证用：启动参数 -GUOAppHeroIndex N 让 hero 从推荐流第 N 部开始（只对这次启动有效）。
+        if loadedSource == nil, let index = Int(UserDefaults.standard.string(forKey: "GUOAppHeroIndex") ?? ""),
+           feed.dramas.indices.contains(index) {
+            feed.select(feed.dramas[index])
+        }
         loadedSource = source
     }
 

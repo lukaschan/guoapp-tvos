@@ -50,3 +50,34 @@ struct HeroLayoutTests {
             == "正在播放 第 3 集")
     }
 }
+
+/// mpv 起播后不跟随图层尺寸变化，所以 hero 的播放器图层固定铺满整个画布、从不改尺寸，
+/// 由 mpv 用边距把画面摆到面板位置（竖屏右侧整高面板、横屏右侧横框，与原设计一致）。
+struct HeroMarginsTests {
+    /// 边距围出的区域（画布 1920×1080 里）。
+    private func area(_ margins: [String: String]) -> CGRect {
+        let left = Double(margins["video-margin-ratio-left"] ?? "") ?? -1
+        let right = Double(margins["video-margin-ratio-right"] ?? "") ?? -1
+        let top = Double(margins["video-margin-ratio-top"] ?? "") ?? -1
+        let bottom = Double(margins["video-margin-ratio-bottom"] ?? "") ?? -1
+        return CGRect(x: left * 1920, y: top * 1080, width: (1 - left - right) * 1920, height: (1 - top - bottom) * 1080)
+    }
+
+    private func close(_ a: CGRect, _ b: CGRect) -> Bool {
+        abs(a.minX - b.minX) < 0.5 && abs(a.minY - b.minY) < 0.5 && abs(a.width - b.width) < 0.5 && abs(a.height - b.height) < 0.5
+    }
+
+    @Test func verticalVideoIsPlacedOnTheRightPanel() {
+        let margins = HeroLayout.mpvMargins(videoSize: CGSize(width: 1080, height: 1920))
+        #expect(close(area(margins), HeroLayout.verticalPanel))
+    }
+
+    @Test func landscapeVideoIsPlacedOnTheLandscapeBox() {
+        let margins = HeroLayout.mpvMargins(videoSize: CGSize(width: 1920, height: 1080))
+        #expect(close(area(margins), HeroLayout.landscapePanel))
+    }
+
+    @Test func unknownSizeStartsOnTheVerticalPanel() {
+        #expect(HeroLayout.mpvMargins(videoSize: nil) == HeroLayout.mpvMargins(videoSize: CGSize(width: 720, height: 1280)))
+    }
+}

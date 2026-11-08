@@ -238,6 +238,8 @@ final class HeroSlot {
             let controller = PlayerController()
             // 屏保按电视的设置照常出现（owner 2026-11-08），不像全屏播放那样一直亮屏。
             controller.keepsScreenAwake = false
+            // 图层固定铺满画布，画面由 mpv 按视频方向摆到面板上（mpv 不跟随图层尺寸变化）。
+            controller.framing = { HeroLayout.mpvMargins(videoSize: $0) }
             controller.startsPaused = wantsPaused
             let session = PlaybackSession(
                 drama: resolved,
