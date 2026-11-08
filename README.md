@@ -1,6 +1,6 @@
 # 红果 tvOS（Apple TV）
 
-红果鉴 / 真果鉴的 Apple TV 原生应用：SwiftUI 界面 + Go 核心 + MPVKit（libmpv）播放。
+火龙果短剧 / 真果鉴的 Apple TV 原生应用：SwiftUI 界面 + Go 核心 + MPVKit（libmpv）播放。
 
 ![Description](Screenshot.jpg)
 
@@ -30,7 +30,7 @@
 
 两个版本功能相同，区别只在站源范围：
 
-- 红果鉴（hongguojian）：仅红果站源
+- 火龙果短剧（hongguojian）：仅红果站源
 - 真果鉴（zhenguojian）：全部站源
 
 ## 与上游共享的部分
@@ -90,7 +90,7 @@ git clone --recurse-submodules https://github.com/lukaschan/guoapp-tvos.git
 python3 scripts/build_tvos.py [--all-sources]
 ```
 
-- 默认构建红果鉴；`--all-sources` 构建真果鉴。
+- 默认构建火龙果短剧；`--all-sources` 构建真果鉴。
 - 产物在 `dist/tvos/`，为**未签名** IPA，需在 Mac 上用 Xcode 签名后安装到 Apple TV。
 - CI（GitHub Actions，手动触发）构建两个版本并发布 Release，tag 形如 `tvos-v2.41`。
 

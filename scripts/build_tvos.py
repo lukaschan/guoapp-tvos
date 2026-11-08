@@ -19,7 +19,7 @@ app_name = 'GuoAppTV'
 # 放在 upstream/（见 .gitmodules），核心路径即 upstream/native。
 core = root / 'upstream' / 'native'
 # 核心编译时就决定了站源范围（-X buildAllSources），这里记下 xcframework 属于哪个版本，
-# 复用已编好的核心时据此拒绝把红果鉴核心装进真果鉴包（或反过来）。
+# 复用已编好的核心时据此拒绝把火龙果短剧（仅红果）核心装进真果鉴包（或反过来）。
 core_stamp = root / 'tvos' / 'DuanjuCore' / 'DuanjuCore.variant'
 
 
@@ -138,7 +138,7 @@ def verify_display_name(application, variant):
 
 def xcode_settings(variant, version):
     # 关于页显示的版本以根目录 VERSION 为准：构建时覆盖工程里的 MARKETING_VERSION；
-    # 显示名按版本区分（红果鉴 / 真果鉴），作为构建设置在签名前写进 Info.plist。
+    # 显示名按版本区分（火龙果短剧 / 真果鉴），作为构建设置在签名前写进 Info.plist。
     return [f'MARKETING_VERSION={version}', f'GUOAPP_DISPLAY_NAME={variant.display_name}']
 
 
@@ -158,7 +158,7 @@ def read_version():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='构建红果鉴 / 真果鉴 tvOS 核心和应用')
+    parser = argparse.ArgumentParser(description='构建火龙果短剧 / 真果鉴 tvOS 核心和应用')
     parser.add_argument('--core-only', action='store_true')
     parser.add_argument('--simulator', action='store_true', help='额外生成模拟器核心；不启动模拟器')
     parser.add_argument('--export-options', type=Path, help='使用自己的 Xcode 签名配置导出 IPA')

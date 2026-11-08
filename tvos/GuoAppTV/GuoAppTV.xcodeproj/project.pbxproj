@@ -362,7 +362,7 @@
 				);
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GENERATE_INFOPLIST_FILE = NO;
-				GUOAPP_DISPLAY_NAME = "红果鉴";
+				GUOAPP_DISPLAY_NAME = "火龙果短剧";
 				INFOPLIST_FILE = GuoAppTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -402,7 +402,7 @@
 				);
 				GCC_OPTIMIZATION_LEVEL = s;
 				GENERATE_INFOPLIST_FILE = NO;
-				GUOAPP_DISPLAY_NAME = "红果鉴";
+				GUOAPP_DISPLAY_NAME = "火龙果短剧";
 				INFOPLIST_FILE = GuoAppTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

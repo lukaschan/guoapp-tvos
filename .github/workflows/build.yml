@@ -137,7 +137,7 @@ jobs:
           cat > notes.md <<EOF
           Apple TV（tvOS 16+）原生应用，两个版本功能相同，区别只在站源范围，按需选择：
 
-          - 红果鉴 hongguojian：仅红果站源
+          - 火龙果短剧 hongguojian：仅红果站源
           - 真果鉴 zhenguojian：全部站源
 
           tvOS：
