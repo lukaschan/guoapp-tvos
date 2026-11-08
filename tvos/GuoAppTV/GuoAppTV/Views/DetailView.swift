@@ -120,13 +120,16 @@ struct DetailView: View {
         return parts
     }
 
-    /// 主操作文案：记录里的那集在分集列表中时「继续观看 第 N 集」，否则「立即观看」。
-    private var resumeLabel: String {
-        if nextPartToWatch != nil { return "观看下一部" }
-        guard let target = resumeTarget, target.position > 0 || target.index > 0,
-              let episodes = detail?.episodes, episodes.indices.contains(target.index)
-        else { return "立即观看" }
-        return "继续观看 第 \(episodes[target.index].number) 集"
+    /// 主操作文案：观看下一部 / 重新观看 / 继续观看 第 N 集 / 立即观看（见 ResumeAction）。
+    private var resumeLabel: String { resumeAction.title }
+
+    private var resumeAction: ResumeAction {
+        ResumeAction.make(
+            target: resumeTarget,
+            episodeNumbers: detail?.episodes.map(\.number) ?? [],
+            isFinished: isFinished,
+            hasNextPart: nextPart != nil
+        )
     }
 
     private var resumeTarget: ResumeTarget? {
@@ -199,29 +202,38 @@ struct DetailView: View {
 
     // MARK: - 播放与加载（业务逻辑与原版一致）
 
-    /// 这一部已看完且本系列还有下一部时，主操作改为观看下一部。
-    private var nextPartToWatch: Drama? {
-        guard let series, let detail,
+    /// 本系列里这一部之后的那一部（没有系列或已是最后一部时为 nil）。
+    private var nextPart: Drama? {
+        guard let series,
               let current = series.parts.first(where: { $0.item.id == drama.id }),
-              let next = series.parts.first(where: { $0.part > current.part }),
-              let latest = store.latestProgress(for: drama.id)
+              let next = series.parts.first(where: { $0.part > current.part })
         else { return nil }
-        let finished = WatchStatus(
+        return next.item
+    }
+
+    /// 这一部是否已看完（最后一集看到 99 %）。
+    private var isFinished: Bool {
+        guard let detail, let latest = store.latestProgress(for: drama.id) else { return false }
+        return WatchStatus(
             latestEpisode: latest.episode,
             position: latest.position,
             duration: latest.duration,
             totalEpisodes: detail.episodes.count
         ).isFinished
-        return finished ? next.item : nil
     }
 
     private func playResume() {
-        if let next = nextPartToWatch {
-            launcher.play(next, store: store)
-            return
+        guard let episodes = detail?.episodes else { return }
+        switch resumeAction {
+        case .nextPart:
+            if let next = nextPart { launcher.play(next, store: store) }
+        case .restart:
+            // 看完了且没有下一部：从第 1 集开头重新看。
+            launcher.present(drama: displayDrama, episodes: episodes, startIndex: 0, startPosition: 0)
+        case .start, .resume:
+            guard let target = resumeTarget else { return }
+            launcher.present(drama: displayDrama, episodes: episodes, startIndex: target.index, startPosition: target.position)
         }
-        guard let target = resumeTarget, let episodes = detail?.episodes else { return }
-        launcher.present(drama: displayDrama, episodes: episodes, startIndex: target.index, startPosition: target.position)
     }
 
     private func load() async {
