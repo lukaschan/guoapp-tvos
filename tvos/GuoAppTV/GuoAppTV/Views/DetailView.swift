@@ -18,6 +18,9 @@ struct DetailView: View {
 
     /// 展示用的剧信息：详情接口返回的完整数据优先（简介 / 分类等更全），
     /// 详情未加载出来时回落到目录传来的剧信息。
+    /// 补全信息（核心的 metadata）：红果剧缺评分或上线日期时进详情补一次。
+    @State private var supplement: Drama?
+
     private var displayDrama: Drama { detail?.drama ?? drama }
 
     var body: some View {
@@ -33,6 +36,7 @@ struct DetailView: View {
             // 用户自己打开了这部剧：追剧更新的角标消失。
             store.acknowledgeUpdate(dramaID: drama.id)
             await load()
+            await loadSupplement()
             // 详情到了再查本系列：搜索排在详情之后，不挡第一屏。
             series = await SeriesLookup.shared.parts(of: drama)
         }
@@ -119,7 +123,11 @@ struct DetailView: View {
         if !displayDrama.category.isEmpty { parts.append(displayDrama.category) }
         if !displayDrama.releaseLabel.isEmpty { parts.append(displayDrama.releaseLabel) }
         if displayDrama.episodes > 0 { parts.append("共 \(displayDrama.episodes) 集") }
-        if !displayDrama.heat.isEmpty { parts.append("热度 \(displayDrama.heat)") }
+        // 评分、上线月份、热度：优先用补全回来的（DramaMetadata，热度原始数字换成万 / 亿）。
+        let score = supplement?.score ?? displayDrama.score
+        let onlineDate = (supplement?.onlineDate).flatMap { $0.isEmpty ? nil : $0 } ?? displayDrama.onlineDate
+        let heat = (supplement?.heat).flatMap { $0.isEmpty ? nil : $0 } ?? displayDrama.heat
+        parts += DramaMetadata.headerParts(score: score, onlineDate: onlineDate, heat: heat)
         return parts
     }
 
@@ -228,6 +236,15 @@ struct DetailView: View {
             guard let target = resumeTarget else { return }
             launcher.present(drama: displayDrama, episodes: episodes, startIndex: target.index, startPosition: target.position)
         }
+    }
+
+    /// 列表里缺评分或上线日期的红果剧：补一次（失败或被取消就不显示，不影响详情）。
+    private func loadSupplement() async {
+        let shown = displayDrama
+        guard supplement == nil,
+              DramaMetadata.needsSupplement(source: shown.source, score: shown.score, onlineDate: shown.onlineDate)
+        else { return }
+        supplement = try? await CoreClient.shared.metadata(drama: shown)
     }
 
     private func load() async {

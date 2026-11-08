@@ -182,6 +182,12 @@ actor CoreClient {
         return result
     }
 
+    /// 补全信息（评分、上线日期、热度），核心会存下来；带读会话 metadata。
+    func metadata(drama: Drama) async throws -> Drama {
+        let data = try await call(["action": "metadata", "drama": drama.requestJSON()], session: "metadata")
+        return Drama(dict: data["drama"] as? [String: Any] ?? [:])
+    }
+
     /// 追剧检查（后台取一次详情）：返回这部剧现在的信息，episodes 是现有分集数。
     func followCheck(drama: Drama) async throws -> Drama {
         let data = try await call(["action": "followCheck", "drama": drama.requestJSON()])

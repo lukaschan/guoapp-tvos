@@ -33,6 +33,8 @@ struct Drama: Identifiable, Hashable, Codable {
     var onlineDate: String
     var tags: [String]
     var releaseStatus: String
+    /// 评分（核心的 metadata 补全；旧版存下的剧没有这个字段，可选）。
+    var score: String?
 
     var releaseLabel: String {
         switch releaseStatus {
@@ -57,6 +59,8 @@ struct Drama: Identifiable, Hashable, Codable {
         onlineDate = stringValue(dict, "onlineDate")
         tags = stringList(dict, "tags")
         releaseStatus = stringValue(dict, "releaseStatus")
+        let scoreText = stringValue(dict, "score")
+        score = scoreText.isEmpty ? nil : scoreText
     }
 
     /// 发给 Go 核心的 drama 结构，与 Dart 侧 Drama.toJson 对齐。
@@ -78,6 +82,7 @@ struct Drama: Identifiable, Hashable, Codable {
             "releaseStatus": releaseStatus,
         ]
         if let vip { json["vip"] = vip }
+        if let score { json["score"] = score }
         return json
     }
 }
