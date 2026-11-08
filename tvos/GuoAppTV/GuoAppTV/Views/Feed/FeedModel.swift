@@ -101,13 +101,6 @@ final class FeedModel: ObservableObject {
         state = dramas.isEmpty ? .empty : .loaded
     }
 
-    /// 当前这部的最后一集播完：换到下一部，到底后回到第一部。
-    func advance() {
-        guard !dramas.isEmpty else { return }
-        currentIndex = (currentIndex + 1) % dramas.count
-        loadMoreIfNeeded()
-    }
-
     /// 在「接下来」里选定一部，让它成为 hero。
     func select(_ drama: Drama) {
         guard let index = dramas.firstIndex(where: { $0.id == drama.id }) else { return }

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A100000000000000000000BD /* HeroTeaser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BE /* HeroTeaser.swift */; };
 		A100000000000000000000BB /* LoadGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BC /* LoadGeneration.swift */; };
 		A100000000000000000000B9 /* HeroPauseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BA /* HeroPauseIntent.swift */; };
 		A100000000000000000000B7 /* ViewingStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B8 /* ViewingStats.swift */; };
@@ -42,7 +43,6 @@
 		A1000000000000000000007B /* HeroLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007C /* HeroLayout.swift */; };
 		A10000000000000000000079 /* FeedModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007A /* FeedModel.swift */; };
 		A10000000000000000000077 /* UpNext.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000078 /* UpNext.swift */; };
-		A10000000000000000000075 /* WatchGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000076 /* WatchGate.swift */; };
 		A10000000000000000000073 /* PlayerHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000074 /* PlayerHostView.swift */; };
 		A10000000000000000000071 /* PlaybackSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000072 /* PlaybackSession.swift */; };
 		A1000000000000000000006F /* PlaybackRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000070 /* PlaybackRules.swift */; };
@@ -77,6 +77,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A100000000000000000000BE /* HeroTeaser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/HeroTeaser.swift; sourceTree = "<group>"; };
 		A100000000000000000000BC /* LoadGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/LoadGeneration.swift; sourceTree = "<group>"; };
 		A100000000000000000000BA /* HeroPauseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/HeroPauseIntent.swift; sourceTree = "<group>"; };
 		A100000000000000000000B8 /* ViewingStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/ViewingStats.swift; sourceTree = "<group>"; };
@@ -112,7 +113,6 @@
 		A1000000000000000000007C /* HeroLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/HeroLayout.swift; sourceTree = "<group>"; };
 		A1000000000000000000007A /* FeedModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/FeedModel.swift; sourceTree = "<group>"; };
 		A10000000000000000000078 /* UpNext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/UpNext.swift; sourceTree = "<group>"; };
-		A10000000000000000000076 /* WatchGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/WatchGate.swift; sourceTree = "<group>"; };
 		A10000000000000000000074 /* PlayerHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerHostView.swift; sourceTree = "<group>"; };
 		A10000000000000000000072 /* PlaybackSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSession.swift; sourceTree = "<group>"; };
 		A10000000000000000000070 /* PlaybackRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/PlaybackRules.swift; sourceTree = "<group>"; };
@@ -199,7 +199,6 @@
 				A1000000000000000000006A /* SeriesLookup.swift */,
 				A1000000000000000000006E /* SeriesCache.swift */,
 				A10000000000000000000070 /* PlaybackRules.swift */,
-				A10000000000000000000076 /* WatchGate.swift */,
 				A10000000000000000000078 /* UpNext.swift */,
 				A1000000000000000000007C /* HeroLayout.swift */,
 				A1000000000000000000007E /* PreviewSelection.swift */,
@@ -224,6 +223,7 @@
 				A100000000000000000000B8 /* ViewingStats.swift */,
 				A100000000000000000000BA /* HeroPauseIntent.swift */,
 				A100000000000000000000BC /* LoadGeneration.swift */,
+				A100000000000000000000BE /* HeroTeaser.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -373,7 +373,6 @@
 				A1000000000000000000006F /* PlaybackRules.swift in Sources */,
 				A10000000000000000000071 /* PlaybackSession.swift in Sources */,
 				A10000000000000000000073 /* PlayerHostView.swift in Sources */,
-				A10000000000000000000075 /* WatchGate.swift in Sources */,
 				A10000000000000000000077 /* UpNext.swift in Sources */,
 				A10000000000000000000079 /* FeedModel.swift in Sources */,
 				A1000000000000000000007B /* HeroLayout.swift in Sources */,
@@ -409,6 +408,7 @@
 				A100000000000000000000B7 /* ViewingStats.swift in Sources */,
 				A100000000000000000000B9 /* HeroPauseIntent.swift in Sources */,
 				A100000000000000000000BB /* LoadGeneration.swift in Sources */,
+				A100000000000000000000BD /* HeroTeaser.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

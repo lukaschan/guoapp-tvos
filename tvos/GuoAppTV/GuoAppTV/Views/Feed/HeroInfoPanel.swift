@@ -6,7 +6,6 @@ struct HeroInfoPanel: View {
     let drama: Drama
     let isPreview: Bool
     let status: HeroPlayback.Status
-    let autoAdvance: Bool
     let width: CGFloat
     let isFollowing: Bool
     let defaultFocus: Namespace.ID
@@ -66,18 +65,16 @@ struct HeroInfoPanel: View {
     private var statusLine: String {
         if isIdle { return "按播放键开始播放" }
         if let error = status.error { return error }
-        return HeroStatus.line(
-            episode: status.showsVideo ? status.episode : nil,
-            remaining: status.remaining,
-            isLastEpisode: status.isLastEpisode,
+        return HeroStatus.teaserLine(
+            episode: status.showsVideo || status.finished ? status.episode : nil,
             paused: status.paused,
-            autoAdvance: autoAdvance
+            finished: status.finished
         )
     }
 
     private var progressRow: some View {
         HStack(spacing: 20) {
-            if let episode = status.episode, statusLine != HeroStatus.playing(episode: episode) {
+            if let episode = status.episode, !status.finished, statusLine != HeroStatus.playing(episode: episode) {
                 Text(HeroStatus.playing(episode: episode))
                     .font(.system(size: TVTheme.TextSize.caption, weight: .semibold))
                     .foregroundColor(TVTheme.textPrimary)
@@ -100,13 +97,14 @@ struct HeroInfoPanel: View {
             TVPrimaryButton(
                 title: status.error == nil ? "全屏观看" : "重试",
                 icon: status.error == nil ? "play.fill" : "arrow.clockwise",
-                isLoading: !isIdle && !status.showsVideo && status.error == nil
+                isLoading: !isIdle && !status.showsVideo && !status.finished && status.error == nil
             ) {
                 if status.error == nil { onWatch() } else { onRetry() }
             }
             .prefersDefaultFocus(true, in: defaultFocus)
+            // 停在封面 / 预告播完：「播放」；预告在播：「暂停」；暂停了：「继续」。
             TVSecondaryButton(
-                title: isIdle ? "播放" : (status.paused ? "继续" : "暂停"),
+                title: isIdle || status.finished ? "播放" : (status.paused ? "继续" : "暂停"),
                 icon: isIdle || status.paused ? "play.fill" : "pause.fill"
             ) {
                 onTogglePause()

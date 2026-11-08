@@ -22,21 +22,14 @@ enum HeroLayout {
 
 /// hero 进度行的文字。
 enum HeroStatus {
-    static func line(episode: Int?, remaining: Double?, isLastEpisode: Bool, paused: Bool, autoAdvance: Bool) -> String {
+    /// 预告的状态行：加载中 / 已暂停 / 正在播放第几集 / 播完了。
+    static func teaserLine(episode: Int?, paused: Bool, finished: Bool) -> String {
+        if finished { return "预告已播完 · 按全屏观看接着看" }
         guard let episode else { return "正在加载…" }
-        if paused { return "已暂停 · 按播放键继续" }
-        guard autoAdvance, let remaining, remaining.isFinite else { return playing(episode: episode) }
-        let countdown = clock(remaining)
-        return isLastEpisode ? "\(countdown) 后播放下一部" : "\(countdown) 后自动播放下一集"
+        return paused ? "已暂停 · 按播放键继续" : playing(episode: episode)
     }
 
     static func playing(episode: Int) -> String {
         "正在播放 第 \(episode) 集"
-    }
-
-    /// 剩余秒数向上取整成 MM:SS（超过一小时分钟数照写，如 75:00）。
-    private static func clock(_ seconds: Double) -> String {
-        let total = max(0, Int(seconds.rounded(.up)))
-        return String(format: "%02d:%02d", total / 60, total % 60)
     }
 }

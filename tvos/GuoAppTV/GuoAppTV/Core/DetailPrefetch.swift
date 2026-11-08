@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// 海报焦点预取（只预取封面和详情，不 resolve、不预热播放）：
+/// 海报焦点预取（只预取封面和详情，不 resolve、不预热播放；推荐页预告的提前加载见 HeroPlayback）：
 /// - 封面：获得焦点立刻低优先级加载后面几张；
 /// - 详情：焦点停 0.5 秒后取这部剧的详情，同一时间最多取一个（PrefetchSlot），
 ///   结果放进 3 分钟有效的 TimedCache，进详情页 / 按播放键时直接命中。
@@ -23,6 +23,15 @@ final class DetailPrefetch {
     func detail(for drama: Drama) async throws -> DramaDetail {
         try await cache.value(for: drama.id) {
             try await CoreClient.shared.detail(drama: drama)
+        }
+    }
+
+    /// 推荐页「接下来」一出现就把这一排的详情逐个取好（一次一个，不挤占读请求的并发名额；
+    /// 已缓存的立刻跳过），焦点停上去、开始预告时不用再等详情。任务取消（这一排换了）就停。
+    func warm(_ dramas: [Drama]) async {
+        for drama in dramas {
+            guard !Task.isCancelled else { return }
+            _ = try? await detail(for: drama)
         }
     }
 

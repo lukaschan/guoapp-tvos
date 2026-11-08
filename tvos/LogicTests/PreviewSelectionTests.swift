@@ -82,3 +82,28 @@ struct PreviewSelectionTests {
         #expect(PreviewSelection.quietAfterCommit == 1.5)
     }
 }
+
+/// 焦点停 0.3 秒就在后台加载预览：只给到点时真的会预览的那张加载。
+struct PreviewWarmupTests {
+    @Test func focusedPosterWillPreview() {
+        var selection = PreviewSelection(committedID: "hero")
+        selection.focus("a")
+        #expect(selection.willPreview("a"))
+        #expect(!selection.willPreview("b"))
+    }
+
+    @Test func committedDramaNeverPreviews() {
+        var selection = PreviewSelection(committedID: "hero")
+        selection.focus("hero")
+        #expect(!selection.willPreview("hero"))
+    }
+
+    @Test func quietPeriodAfterCommitDoesNotWarm() {
+        let now = Date()
+        var selection = PreviewSelection(committedID: "hero")
+        selection.commit("b", at: now)
+        selection.focus("c")
+        #expect(!selection.willPreview("c", at: now.addingTimeInterval(1)))
+        #expect(selection.willPreview("c", at: now.addingTimeInterval(2)))
+    }
+}
