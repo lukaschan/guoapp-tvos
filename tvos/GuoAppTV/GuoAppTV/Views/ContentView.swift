@@ -65,10 +65,10 @@ struct KeepAliveTabView: UIViewControllerRepresentable {
     var store: Store
 
     func makeUIViewController(context: Context) -> UITabBarController {
-        let tabBarController = UITabBarController()
+        let tabBarController = KeepAliveTabBarController()
         tabBarController.viewControllers = [
             // redfruit 标签结构：推荐（整屏 hero，默认页）· 剧场 · 追剧 · 搜索 · 我的。
-            hosting(FeedHeroView(), title: "推荐", image: "sparkles", tag: 0),
+            hosting(FeedHeroView(), title: "推荐", image: "sparkles", tag: KeepAliveTabBarController.feedTabIndex),
             hosting(HomeView(), title: "剧场", image: "film.stack", tag: 1),
             hosting(MyListView(), title: "追剧", image: "heart", tag: 2),
             hosting(SearchView(), title: "搜索", image: "magnifyingglass", tag: 3),
@@ -87,5 +87,54 @@ struct KeepAliveTabView: UIViewControllerRepresentable {
         controller.view.backgroundColor = UIColor(TVTheme.background)
         controller.tabBarItem = UITabBarItem(title: title, image: UIImage(systemName: image), tag: tag)
         return controller
+    }
+}
+
+/// 标签栏容器。焦点在顶部标签栏时，遥控器的播放/暂停键走 UIKit 响应链、到不了 SwiftUI 页面
+///（App 启动时焦点就在标签栏）；选中的是推荐页时把这个键转给推荐页，hero 照样能暂停 / 继续。
+/// 焦点在页面里时不转发，由页面自己的 onPlayPauseCommand 处理，避免同一次按键切换两次。
+final class KeepAliveTabBarController: UITabBarController {
+    static let feedTabIndex = 0
+
+    /// 已转发、不再交给系统的按键（began / ended 成对处理）。
+    private var forwardedPresses = Set<UIPress>()
+
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        let forwarded = presses.filter { $0.type == .playPause && forwardsPlayPause }
+        if !forwarded.isEmpty {
+            forwardedPresses.formUnion(forwarded)
+            NotificationCenter.default.post(name: .feedHeroTogglePlayback, object: nil)
+        }
+        let rest = presses.subtracting(forwarded)
+        if !rest.isEmpty { super.pressesBegan(rest, with: event) }
+    }
+
+    override func pressesChanged(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        let rest = presses.subtracting(forwardedPresses)
+        if !rest.isEmpty { super.pressesChanged(rest, with: event) }
+    }
+
+    override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        let rest = finish(presses)
+        if !rest.isEmpty { super.pressesEnded(rest, with: event) }
+    }
+
+    override func pressesCancelled(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        let rest = finish(presses)
+        if !rest.isEmpty { super.pressesCancelled(rest, with: event) }
+    }
+
+    /// 去掉已转发的按键并返回其余的。
+    private func finish(_ presses: Set<UIPress>) -> Set<UIPress> {
+        let mine = presses.intersection(forwardedPresses)
+        forwardedPresses.subtract(mine)
+        return presses.subtracting(mine)
+    }
+
+    private var forwardsPlayPause: Bool {
+        guard selectedIndex == Self.feedTabIndex,
+              let focused = UIFocusSystem.focusSystem(for: self)?.focusedItem as? UIView
+        else { return false }
+        return focused.isDescendant(of: tabBar)
     }
 }

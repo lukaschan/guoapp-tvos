@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 推荐页 hero 左侧信息栏（x 80、y 250 起，竖排间距 22）：
-/// 角标（热播 / 预览）、标签与状态、大标题、简介、播放进度行、操作按钮（全屏观看 / 追剧 / 选集）。
+/// 角标（热播 / 预览）、标签与状态、大标题、简介、播放进度行、操作按钮（全屏观看 / 暂停 / 追剧 / 选集）。
 struct HeroInfoPanel: View {
     let drama: Drama
     let isPreview: Bool
@@ -11,6 +11,7 @@ struct HeroInfoPanel: View {
     let isFollowing: Bool
     let defaultFocus: Namespace.ID
     let onWatch: () -> Void
+    let onTogglePause: () -> Void
     let onFollow: () -> Void
     let onEpisodes: () -> Void
 
@@ -94,6 +95,9 @@ struct HeroInfoPanel: View {
                 onWatch()
             }
             .prefersDefaultFocus(true, in: defaultFocus)
+            TVSecondaryButton(title: status.paused ? "继续" : "暂停", icon: status.paused ? "play.fill" : "pause.fill") {
+                onTogglePause()
+            }
             TVSecondaryButton(title: isFollowing ? "已追剧" : "追剧", icon: isFollowing ? "heart.fill" : "heart") {
                 onFollow()
             }

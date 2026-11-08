@@ -74,6 +74,10 @@ struct FeedHeroView: View {
         .onPlayPauseCommand {
             hero.togglePause()
         }
+        // 焦点在顶部标签栏时 SwiftUI 收不到播放键，由标签栏容器转发过来（见 KeepAliveTabBarController）。
+        .onReceive(NotificationCenter.default.publisher(for: .feedHeroTogglePlayback)) { _ in
+            if isVisible { hero.togglePause() }
+        }
         .fullScreenCover(item: $fullScreen, onDismiss: startHero) { presentation in
             PlayerView(
                 drama: presentation.drama,
@@ -97,32 +101,43 @@ struct FeedHeroView: View {
                         .id(ObjectIdentifier(controller))
                 }
             }
-            HeroInfoPanel(
-                drama: shown,
-                isPreview: selection.previewID != nil,
-                status: hero.status,
-                autoAdvance: autoAdvance,
-                width: HeroLayout.infoWidth(vertical: layout.vertical),
-                isFollowing: store.isFollowing(shown),
-                defaultFocus: focusScope,
-                onWatch: watchFullScreen,
-                onFollow: { store.toggleFollow(shown) },
-                onEpisodes: { path.append(shown) }
-            )
-            .padding(.leading, 80)
-            .padding(.top, 250)
-            .opacity(rowFocused ? 0.55 : 1)
-            .animation(.easeOut(duration: 0.3), value: rowFocused)
-            if !feed.upNext.isEmpty {
-                UpNextRow(dramas: feed.upNext, onFocus: focusUpNext, onCommit: commit)
-                    .padding(.leading, 80)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                    // 平时露出一截、海报底部压在屏幕下缘外 70 pt；有焦点时上移 40 pt。
-                    .offset(y: rowFocused ? 50 : 90)
-                    .animation(.easeOut(duration: 0.3), value: rowFocused)
+            // 信息栏与「接下来」放在同一列、底部对齐，中间固定留 40 pt：标题两行时也不会被海报挡住；
+            // 有焦点时整列一起上移 40 pt（信息栏同时变淡），两者始终错开。
+            VStack(alignment: .leading, spacing: Self.infoToRowSpacing) {
+                HeroInfoPanel(
+                    drama: shown,
+                    isPreview: selection.previewID != nil,
+                    status: hero.status,
+                    autoAdvance: autoAdvance,
+                    width: HeroLayout.infoWidth(vertical: layout.vertical),
+                    isFollowing: store.isFollowing(shown),
+                    defaultFocus: focusScope,
+                    onWatch: watchFullScreen,
+                    onTogglePause: hero.togglePause,
+                    onFollow: { store.toggleFollow(shown) },
+                    onEpisodes: { path.append(shown) }
+                )
+                .opacity(rowFocused ? 0.55 : 1)
+                if !feed.upNext.isEmpty {
+                    UpNextRow(dramas: feed.upNext, onFocus: focusUpNext, onCommit: commit)
+                }
             }
+            .padding(.leading, 80)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .offset(y: columnOffset)
+            .animation(.easeOut(duration: 0.3), value: rowFocused)
         }
         .frame(width: HeroVideoPanel<EmptyView>.canvas.width, height: HeroVideoPanel<EmptyView>.canvas.height, alignment: .topLeading)
+    }
+
+    /// 信息栏底部到「接下来」标题之间的固定间距。
+    private static let infoToRowSpacing: CGFloat = 40
+
+    /// 整列的纵向偏移：有「接下来」时海报底部压在屏幕下缘外 70 pt（行内上下各留 20 pt 给焦点放大），
+    /// 有焦点时上移 40 pt；没有「接下来」时信息栏停在底部安全区（60 pt）之上。
+    private var columnOffset: CGFloat {
+        guard !feed.upNext.isEmpty else { return -80 }
+        return rowFocused ? 50 : 90
     }
 
     private func failure(_ message: String) -> some View {
@@ -186,6 +201,11 @@ struct FeedHeroView: View {
         selection.commit(drama.id)
         feed.select(drama)
     }
+}
+
+extension Notification.Name {
+    /// 焦点在标签栏、选中推荐页时按了播放/暂停键。
+    static let feedHeroTogglePlayback = Notification.Name("guoapp.feedHeroTogglePlayback")
 }
 
 /// 推荐页骨架（灰块；闪光动效在第三阶段加）：左侧信息栏各行 + 右侧竖屏面板。
