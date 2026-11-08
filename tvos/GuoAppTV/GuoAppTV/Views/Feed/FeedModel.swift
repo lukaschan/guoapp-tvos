@@ -45,7 +45,7 @@ final class FeedModel: ObservableObject {
         } catch {
             guard !Task.isCancelled else { return }
             // 已有剧单时保留（重新加载失败不打断正在看的）；否则显示错误与重试。
-            if dramas.isEmpty { state = .failed(error.localizedDescription) }
+            if dramas.isEmpty { state = .failed(UserFacingError.message(for: error)) }
         }
     }
 

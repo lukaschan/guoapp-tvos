@@ -149,18 +149,9 @@ struct DetailView: View {
             TVLoadingView("正在加载详情…")
                 .padding(.vertical, 80)
         } else if let error {
-            VStack(spacing: 26) {
-                TVStatusView(
-                    icon: "exclamationmark.triangle",
-                    title: "详情加载失败",
-                    message: error,
-                    expands: false
-                )
-                TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
-                    Task { await load() }
-                }
+            TVFailureView(message: error) {
+                Task { await load() }
             }
-            .frame(maxWidth: .infinity)
             .padding(.vertical, 60)
         } else if let detail {
             episodeSection(detail)
@@ -242,7 +233,7 @@ struct DetailView: View {
         do {
             detail = try await CoreClient.shared.detail(drama: drama)
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.message(for: error)
         }
         loading = false
     }

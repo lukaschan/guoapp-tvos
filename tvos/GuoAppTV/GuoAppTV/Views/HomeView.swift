@@ -99,16 +99,8 @@ struct HomeView: View {
         if loading && items.isEmpty {
             TheaterSkeleton()
         } else if let error, items.isEmpty {
-            VStack(spacing: 26) {
-                TVStatusView(
-                    icon: "exclamationmark.triangle",
-                    title: "内容加载失败",
-                    message: error,
-                    expands: false
-                )
-                TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
-                    Task { await reload(firstPage: true) }
-                }
+            TVFailureView(message: UserFacingError.message(for: error)) {
+                Task { await reload(firstPage: true) }
             }
             .padding(.vertical, 90)
         } else if items.isEmpty {

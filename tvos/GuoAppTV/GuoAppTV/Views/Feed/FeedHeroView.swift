@@ -40,7 +40,13 @@ struct FeedHeroView: View {
             case .loading:
                 FeedSkeleton()
             case .empty:
-                TVStatusView(icon: "sparkles", title: "暂时没有可播放的短剧", message: "稍后再来看看吧")
+                VStack(spacing: 28) {
+                    TVStatusView(icon: "sparkles", title: "暂时没有可播放的短剧", message: "稍后再来看看吧", expands: false)
+                    TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
+                        Task { await loadFeed(force: true) }
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .failed(let message):
                 failure(message)
             case .loaded:
@@ -114,6 +120,7 @@ struct FeedHeroView: View {
                     isFollowing: store.isFollowing(shown),
                     defaultFocus: focusScope,
                     onWatch: watchFullScreen,
+                    onRetry: startHero,
                     onTogglePause: hero.togglePause,
                     onFollow: { store.toggleFollow(shown) },
                     onEpisodes: { path.append(shown) }
@@ -142,13 +149,10 @@ struct FeedHeroView: View {
     }
 
     private func failure(_ message: String) -> some View {
-        VStack(spacing: 28) {
-            TVStatusView(icon: "exclamationmark.triangle.fill", title: "推荐加载失败", message: message, expands: false)
-            TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
-                Task { await loadFeed(force: true) }
-            }
+        TVFailureView(message: message) {
+            Task { await loadFeed(force: true) }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxHeight: .infinity)
     }
 
     // MARK: - 状态

@@ -56,18 +56,9 @@ private struct SearchResultsView: View {
     @ViewBuilder
     private var resultSection: some View {
         if let error = model.error {
-            VStack(spacing: 26) {
-                TVStatusView(
-                    icon: "exclamationmark.triangle",
-                    title: "搜索失败",
-                    message: error,
-                    expands: false
-                )
-                TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
-                    model.retry()
-                }
+            TVFailureView(message: error) {
+                model.retry()
             }
-            .frame(maxWidth: .infinity)
             .padding(.vertical, 100)
         } else if model.loading && model.results.isEmpty {
             TVLoadingView("正在搜索…")

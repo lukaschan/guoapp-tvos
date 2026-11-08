@@ -306,6 +306,25 @@ struct TVLoadingView: View {
     }
 }
 
+/// 加载失败（redfruit 的 MessageView.failure）：「出了点问题」+ 一句说明（经 UserFacingError 处理）+ 重试。
+struct TVFailureView: View {
+    let message: String
+    let retry: () -> Void
+
+    init(message: String, retry: @escaping () -> Void) {
+        self.message = message
+        self.retry = retry
+    }
+
+    var body: some View {
+        VStack(spacing: 28) {
+            TVStatusView(icon: "exclamationmark.triangle", title: "出了点问题", message: message, expands: false)
+            TVPrimaryButton(title: "重试", icon: "arrow.clockwise", action: retry)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
 /// 通用状态视图：空态 / 错误态 / 提示态。
 /// `expands` 为 true 时撑满可用空间（页面级空态），false 时按内容收紧（区块内使用）。
 struct TVStatusView: View {

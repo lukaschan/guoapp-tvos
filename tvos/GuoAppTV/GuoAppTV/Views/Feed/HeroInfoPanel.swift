@@ -11,6 +11,8 @@ struct HeroInfoPanel: View {
     let isFollowing: Bool
     let defaultFocus: Namespace.ID
     let onWatch: () -> Void
+    /// 出错时主按钮变成「重试」：重新起播这部剧。
+    let onRetry: () -> Void
     let onTogglePause: () -> Void
     let onFollow: () -> Void
     let onEpisodes: () -> Void
@@ -91,8 +93,13 @@ struct HeroInfoPanel: View {
 
     private var buttons: some View {
         HStack(spacing: 24) {
-            TVPrimaryButton(title: "全屏观看", icon: "play.fill", isLoading: !status.showsVideo && status.error == nil) {
-                onWatch()
+            // 同一个按钮换文字和动作（不换视图），焦点在它上面时出错也不会丢焦点。
+            TVPrimaryButton(
+                title: status.error == nil ? "全屏观看" : "重试",
+                icon: status.error == nil ? "play.fill" : "arrow.clockwise",
+                isLoading: !status.showsVideo && status.error == nil
+            ) {
+                if status.error == nil { onWatch() } else { onRetry() }
             }
             .prefersDefaultFocus(true, in: defaultFocus)
             TVSecondaryButton(title: status.paused ? "继续" : "暂停", icon: status.paused ? "play.fill" : "pause.fill") {

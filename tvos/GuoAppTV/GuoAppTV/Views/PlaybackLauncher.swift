@@ -42,7 +42,7 @@ final class PlaybackLauncher: ObservableObject {
                     startPosition: target.position
                 )
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = UserFacingError.message(for: error)
             }
         }
     }

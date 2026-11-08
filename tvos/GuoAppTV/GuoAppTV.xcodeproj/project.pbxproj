@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000099 /* UserFacingError.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000009A /* UserFacingError.swift */; };
 		A10000000000000000000097 /* Skeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000098 /* Skeleton.swift */; };
 		A10000000000000000000095 /* Shimmer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000096 /* Shimmer.swift */; };
 		A10000000000000000000093 /* ImageDownsampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000094 /* ImageDownsampler.swift */; };
@@ -59,6 +60,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A1000000000000000000009A /* UserFacingError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/UserFacingError.swift; sourceTree = "<group>"; };
 		A10000000000000000000098 /* Skeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skeleton.swift; sourceTree = "<group>"; };
 		A10000000000000000000096 /* Shimmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/Shimmer.swift; sourceTree = "<group>"; };
 		A10000000000000000000094 /* ImageDownsampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/ImageDownsampler.swift; sourceTree = "<group>"; };
@@ -171,6 +173,7 @@
 				A1000000000000000000008E /* LiveSearch.swift */,
 				A10000000000000000000094 /* ImageDownsampler.swift */,
 				A10000000000000000000096 /* Shimmer.swift */,
+				A1000000000000000000009A /* UserFacingError.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -337,6 +340,7 @@
 				A10000000000000000000093 /* ImageDownsampler.swift in Sources */,
 				A10000000000000000000095 /* Shimmer.swift in Sources */,
 				A10000000000000000000097 /* Skeleton.swift in Sources */,
+				A10000000000000000000099 /* UserFacingError.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -69,7 +69,7 @@ final class HeroPlayback: ObservableObject {
             session.start()
         } catch {
             guard !Task.isCancelled else { return }
-            fail(error.localizedDescription)
+            fail(UserFacingError.message(for: error))
         }
     }
 
@@ -160,7 +160,7 @@ final class HeroPlayback: ObservableObject {
             next.remaining = hasDuration ? max(progress.duration - progress.position, 0) : nil
             next.isLastEpisode = index >= session.episodes.count - 1
             next.paused = controller.isPaused
-            next.error = session.error
+            next.error = session.error.map { UserFacingError.message(for: $0) }
         } else {
             next.error = loadError
         }

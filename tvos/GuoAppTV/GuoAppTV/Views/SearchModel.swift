@@ -71,7 +71,7 @@ final class SearchModel: ObservableObject {
             }
         } catch {
             guard !Task.isCancelled else { return }
-            self.error = error.localizedDescription
+            self.error = UserFacingError.message(for: error)
             searchedQuery = key
         }
         loading = false

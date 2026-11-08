@@ -248,7 +248,7 @@ private struct PlayerScreen: View {
                     TVStatusView(
                         icon: "exclamationmark.triangle.fill",
                         title: "播放失败",
-                        message: error,
+                        message: UserFacingError.message(for: error),
                         expands: false
                     )
                     HStack(spacing: 20) {
