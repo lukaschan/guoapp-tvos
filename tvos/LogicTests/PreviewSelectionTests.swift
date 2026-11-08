@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import GuoAppLogic
 
@@ -58,5 +59,26 @@ struct PreviewSelectionTests {
 
     @Test func dwellIsOneSecond() {
         #expect(PreviewSelection.dwell == .milliseconds(1000))
+    }
+
+    /// 按下切换后的 1.5 秒内不自动预览：焦点被挤到旁边那张时，不会 1 秒后自己换成它。
+    @Test func noPreviewRightAfterCommit() {
+        let start = Date(timeIntervalSince1970: 1_000)
+        var selection = PreviewSelection(committedID: "hero")
+        selection.commit("x", at: start)
+        selection.focus("y")
+        selection.dwellElapsed(for: "y", at: start.addingTimeInterval(1.0))
+        #expect(selection.previewID == nil)
+        #expect(selection.heroID == "x")
+    }
+
+    @Test func previewResumesAfterQuietPeriod() {
+        let start = Date(timeIntervalSince1970: 1_000)
+        var selection = PreviewSelection(committedID: "hero")
+        selection.commit("x", at: start)
+        selection.focus("y")
+        selection.dwellElapsed(for: "y", at: start.addingTimeInterval(PreviewSelection.quietAfterCommit + 0.1))
+        #expect(selection.previewID == "y")
+        #expect(PreviewSelection.quietAfterCommit == 1.5)
     }
 }

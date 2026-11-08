@@ -50,4 +50,19 @@ struct UpNextFreezeTests {
         freeze.rowFocusChanged(isFocused: false, currentIDs: ["c", "d", "a"])
         #expect(freeze.visibleIDs(current: ["c", "d", "a"]) == ["c", "d", "a"])
     }
+
+    /// 按下切换后，行里换成新 hero 之后的那一组（像以前一样刷新），焦点仍在行内时保持这一组。
+    @Test func commitRefreshesFrozenRow() {
+        var freeze = UpNextFreeze()
+        freeze.rowFocusChanged(isFocused: true, currentIDs: ["b", "c", "d"])
+        freeze.refresh(currentIDs: ["c", "d", "a"])
+        #expect(freeze.visibleIDs(current: ["c", "d", "a"]) == ["c", "d", "a"])
+        #expect(freeze.visibleIDs(current: ["d", "a", "b"]) == ["c", "d", "a"])
+    }
+
+    @Test func refreshWhenRowNotFocusedFollowsCurrent() {
+        var freeze = UpNextFreeze()
+        freeze.refresh(currentIDs: ["c", "d"])
+        #expect(freeze.visibleIDs(current: ["x", "y"]) == ["x", "y"])
+    }
 }

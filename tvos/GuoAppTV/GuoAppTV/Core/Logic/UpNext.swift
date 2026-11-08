@@ -9,9 +9,9 @@ enum UpNext {
     }
 }
 
-/// 「接下来」一行有焦点时冻结内容：按下切换后，推荐流的「接下来」会跟着新的 hero 变，
-/// 被按下的海报若从行里消失，焦点会被挤到旁边的海报上、1 秒后自己开始预览另一部。
-/// 所以行有焦点期间保持进入时的那一组，焦点离开这一行再按当前这部刷新。
+/// 「接下来」一行有焦点时冻结内容：hero 变了（预览、播完换下一部）这一行也不跟着跳，
+/// 焦点不会被挤走；只有按下切换时主动刷新成新 hero 之后的那一组（refresh），
+/// 自动预览由 PreviewSelection 的静默期挡住。焦点离开这一行再按当前这部刷新。
 struct UpNextFreeze: Equatable, Sendable {
     private(set) var frozenIDs: [String]?
 
@@ -27,5 +27,10 @@ struct UpNextFreeze: Equatable, Sendable {
 
     func visibleIDs(current: [String]) -> [String] {
         frozenIDs ?? current
+    }
+
+    /// 按下切换后：行有焦点时换成新 hero 之后的那一组（像以前一样刷新），之后照旧保持到焦点离开。
+    mutating func refresh(currentIDs: [String]) {
+        if frozenIDs != nil { frozenIDs = currentIDs }
     }
 }

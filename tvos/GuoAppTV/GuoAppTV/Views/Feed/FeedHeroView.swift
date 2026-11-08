@@ -227,6 +227,8 @@ struct FeedHeroView: View {
         dwellTask?.cancel()
         selection.commit(drama.id)
         feed.select(drama)
+        // 像以前一样刷新这一行（换成新 hero 之后的那一组）；按下后 1.5 秒内不自动预览（PreviewSelection）。
+        upNextFreeze.refresh(currentIDs: feed.upNext.map(\.id))
     }
 }
 
