@@ -33,6 +33,11 @@ struct SettingsView: View {
         value == 0 ? "自动 · 优先高清" : "\(value)P"
     }
 
+    /// 统计卡片里能按的两张（在追、看过的剧），焦点放大用。
+    private enum StatLink: Hashable { case following, watched }
+    @FocusState private var focusedStat: StatLink?
+    @State private var showsHistory = false
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -68,6 +73,13 @@ struct SettingsView: View {
             }
             .task {
                 storageBytes = await Self.cachesSize()
+            }
+            .navigationDestination(isPresented: $showsHistory) {
+                WatchHistoryView()
+            }
+            .onAppear {
+                // 开发验证用：启动参数 -GUOAppShowHistory YES 直接打开观看记录（只对这次启动有效）。
+                if UserDefaults.standard.bool(forKey: "GUOAppShowHistory") { showsHistory = true }
             }
         }
     }
@@ -108,14 +120,30 @@ struct SettingsView: View {
     private var statTiles: some View {
         let stats = stats
         return HStack(spacing: 24) {
-            statTile(value: "\(stats.following)", unit: nil, label: "在追")
-            statTile(value: "\(stats.dramasWatched)", unit: nil, label: "看过的剧")
+            // 在追 → 追剧页；看过的剧 → 观看记录（owner 2026-11-08）；另外两张只显示数字。
+            statLink(.following, value: "\(stats.following)", label: "在追") {
+                NotificationCenter.default.post(name: .selectTab, object: KeepAliveTabBarController.followTabIndex)
+            }
+            statLink(.watched, value: "\(stats.dramasWatched)", label: "看过的剧") {
+                showsHistory = true
+            }
             statTile(value: "\(stats.episodesFinished)", unit: nil, label: "看完的集")
             statTile(value: String(format: "%.1f", stats.hoursWatched), unit: "小时", label: "累计观看")
         }
+        .focusSection()
     }
 
-    private func statTile(value: String, unit: String?, label: String) -> some View {
+    /// 能按的统计卡片：标签后带「›」，获得焦点时与海报一样放大、描白边。
+    private func statLink(_ link: StatLink, value: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            statTile(value: value, unit: nil, label: label, opens: true)
+        }
+        .buttonStyle(TVPressButtonStyle())
+        .focused($focusedStat, equals: link)
+        .tvFocusEffect(focused: focusedStat == link, scale: 1.04, cornerRadius: 20)
+    }
+
+    private func statTile(value: String, unit: String?, label: String, opens: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(value)
@@ -127,7 +155,7 @@ struct SettingsView: View {
                         .foregroundColor(TVTheme.textPrimary)
                 }
             }
-            Text(label)
+            Text(opens ? "\(label) ›" : label)
                 .font(.system(size: TVTheme.TextSize.caption))
                 .foregroundColor(TVTheme.textSecondary)
         }

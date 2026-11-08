@@ -19,6 +19,26 @@ struct ViewingStats: Equatable, Sendable {
     }
 }
 
+/// 「我的」→ 看过的剧 → 观看记录：有进度的每部剧一项（取最近看的那一集），最近看的在前；
+/// 部数与 ViewingStats.dramasWatched 一致。
+enum WatchHistory {
+    static func dramas<Entry>(
+        _ entries: [Entry],
+        dramaID: (Entry) -> String,
+        position: (Entry) -> Double,
+        updatedAt: (Entry) -> Date
+    ) -> [Entry] {
+        let watched = Set(entries.filter { position($0) > 0 }.map(dramaID))
+        var latest: [String: Entry] = [:]
+        for entry in entries where watched.contains(dramaID(entry)) {
+            let id = dramaID(entry)
+            if let current = latest[id], updatedAt(current) >= updatedAt(entry) { continue }
+            latest[id] = entry
+        }
+        return latest.values.sorted { updatedAt($0) > updatedAt($1) }
+    }
+}
+
 /// 存储大小的文字，与系统设置一样按 1000 进位：820 KB、412 MB、1.2 GB。
 enum StorageSize {
     static func label(bytes: Int64) -> String {

@@ -306,6 +306,8 @@ extension Notification.Name {
     static let feedHeroTogglePlayback = Notification.Name("guoapp.feedHeroTogglePlayback")
     /// 标签切换了（object 为新选中的下标，见 KeepAliveTabBarController）。
     static let tabSelectionChanged = Notification.Name("guoapp.tabSelectionChanged")
+    /// 要求切到某个标签（object 为下标，由 KeepAliveTabBarController 执行）。
+    static let selectTab = Notification.Name("guoapp.selectTab")
 }
 
 /// 推荐页骨架：左侧信息栏各行 + 右侧竖屏面板，整体扫光（见 Skeleton.swift）。

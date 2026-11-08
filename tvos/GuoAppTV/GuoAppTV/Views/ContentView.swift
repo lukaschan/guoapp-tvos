@@ -78,6 +78,11 @@ struct KeepAliveTabView: UIViewControllerRepresentable {
             hosting(SearchView(), title: "搜索", image: "magnifyingglass", tag: 3),
             hosting(SettingsView(), title: "我的", image: "person.crop.circle", tag: 4),
         ]
+        // 开发验证用：启动参数 -GUOAppInitialTab N 直接打开第 N 个标签（只对这次启动有效，平时没有这个参数）。
+        if let tab = Int(UserDefaults.standard.string(forKey: "GUOAppInitialTab") ?? ""),
+           tabBarController.viewControllers?.indices.contains(tab) == true {
+            tabBarController.selectedIndex = tab
+        }
         return tabBarController
     }
 
@@ -99,10 +104,20 @@ struct KeepAliveTabView: UIViewControllerRepresentable {
 /// 焦点在页面里时不转发，由页面自己的 onPlayPauseCommand 处理，避免同一次按键切换两次。
 final class KeepAliveTabBarController: UITabBarController, UITabBarControllerDelegate {
     static let feedTabIndex = 0
+    static let followTabIndex = 2
 
     override func viewDidLoad() {
         super.viewDidLoad()
         delegate = self
+        // 页面里要求切到某个标签（如「我的」→ 在追 → 追剧页）：代码切换不走 didSelect，这里照样发切换通知。
+        NotificationCenter.default.addObserver(forName: .selectTab, object: nil, queue: .main) { [weak self] note in
+            guard let index = note.object as? Int else { return }
+            MainActor.assumeIsolated {
+                guard let self, self.viewControllers?.indices.contains(index) == true, self.selectedIndex != index else { return }
+                self.selectedIndex = index
+                NotificationCenter.default.post(name: .tabSelectionChanged, object: index)
+            }
+        }
     }
 
     /// 标签一切换就通知（推荐页据此立刻停掉 hero，不等页面消失的回调）。

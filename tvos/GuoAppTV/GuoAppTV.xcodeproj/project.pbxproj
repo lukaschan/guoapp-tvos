@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A100000000000000000000BD /* WatchHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BE /* WatchHistoryView.swift */; };
 		A100000000000000000000BB /* LoadGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BC /* LoadGeneration.swift */; };
 		A100000000000000000000B9 /* HeroPauseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BA /* HeroPauseIntent.swift */; };
 		A100000000000000000000B7 /* ViewingStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B8 /* ViewingStats.swift */; };
@@ -77,6 +78,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A100000000000000000000BE /* WatchHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHistoryView.swift; sourceTree = "<group>"; };
 		A100000000000000000000BC /* LoadGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/LoadGeneration.swift; sourceTree = "<group>"; };
 		A100000000000000000000BA /* HeroPauseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/HeroPauseIntent.swift; sourceTree = "<group>"; };
 		A100000000000000000000B8 /* ViewingStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/ViewingStats.swift; sourceTree = "<group>"; };
@@ -259,6 +261,7 @@
 				A10000000000000000000092 /* NativeSearchContainer.swift */,
 				A10000000000000000000098 /* Skeleton.swift */,
 				A100000000000000000000A4 /* FeedLoader.swift */,
+				A100000000000000000000BE /* WatchHistoryView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -409,6 +412,7 @@
 				A100000000000000000000B7 /* ViewingStats.swift in Sources */,
 				A100000000000000000000B9 /* HeroPauseIntent.swift in Sources */,
 				A100000000000000000000BB /* LoadGeneration.swift in Sources */,
+				A100000000000000000000BD /* WatchHistoryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
