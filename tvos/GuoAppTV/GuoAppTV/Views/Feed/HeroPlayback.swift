@@ -8,6 +8,8 @@ import Foundation
 /// （HeroPauseIntent）：按了暂停，预览也停在第一帧，换海报、回到 main 都仍停着，直到再按继续。
 /// 按下正在预览的那张海报时，预览直接转正成 main（不重新加载）并播放。
 /// 两个槽的画面都一直挂着（hosts，按控制器区分，不重建），只是显示可见的那个；界面只观察这一个对象。
+/// 【设计已锁定】owner 2026-11-08：推荐页 hero 的实时视频设计不要再改（含版式、观感与机制），改动须 owner 明确同意；
+/// 见 docs/superpowers/specs/2026-11-08-hero-live-video-design.md。
 @MainActor
 final class HeroPlayback: ObservableObject {
     struct Status: Equatable {

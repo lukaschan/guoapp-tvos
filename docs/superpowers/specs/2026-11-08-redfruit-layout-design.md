@@ -143,6 +143,8 @@ there.
   2026-11-08; the old Play/Pause-to-refresh is removed.)
 
 ### 推荐 hero (phase 2). redfruit: `Features/Feed/` (FeedHeroScreen, HeroVideo, HeroInfoPanel, UpNextRow)
+> **Superseded — the final, locked live-video design is `2026-11-08-hero-live-video-design.md`** (owner,
+> 2026-11-08: do not change it without the owner's approval).
 - **Feed source:** the core's `recommendations` action (红果 推荐 feed: `{action: "recommendations",
   category: <feed key>, command: "more"?}` → catalog result; feed keys are in
   `upstream/native/core/provider_hongguo_recommendations.go`). For a non-红果 source, use that source's

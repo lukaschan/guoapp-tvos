@@ -3,6 +3,8 @@ import Foundation
 
 /// 推荐页 hero 的版式（1920×1080 画布）：竖屏视频贴右边整高，横屏视频右侧居中偏上；
 /// 左侧信息栏宽度随之变化。
+/// 【设计已锁定】owner 2026-11-08：推荐页 hero 的实时视频设计不要再改（含版式、观感与机制），改动须 owner 明确同意；
+/// 见 docs/superpowers/specs/2026-11-08-hero-live-video-design.md。
 enum HeroLayout {
     static let verticalPanel = CGRect(x: 1192, y: 0, width: 608, height: 1080)
     static let landscapePanel = CGRect(x: 860, y: 150, width: 1060, height: 596)
