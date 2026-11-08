@@ -31,6 +31,7 @@ struct Drama: Identifiable, Hashable, Codable {
     var heat: String
     var views: String
     var onlineDate: String
+    var producer: String
     var tags: [String]
     var releaseStatus: String
 
@@ -55,6 +56,7 @@ struct Drama: Identifiable, Hashable, Codable {
         heat = dict["heat"].map { "\($0)" } ?? ""
         views = dict["views"].map { "\($0)" } ?? ""
         onlineDate = stringValue(dict, "onlineDate")
+        producer = stringValue(dict, "producer")
         tags = stringList(dict, "tags")
         releaseStatus = stringValue(dict, "releaseStatus")
     }
@@ -74,6 +76,7 @@ struct Drama: Identifiable, Hashable, Codable {
             "heat": heat,
             "views": views,
             "onlineDate": onlineDate,
+            "producer": producer,
             "tags": tags,
             "releaseStatus": releaseStatus,
         ]
@@ -123,6 +126,17 @@ struct DramaDetail {
             return Episode(raw: row, fallback: index + 1)
         }
         warning = stringValue(dict, "warning")
+    }
+}
+
+struct ProducerWorks {
+    let producer: String
+    let items: [Drama]
+
+    init(dict: [String: Any]) {
+        producer = stringValue(dict, "producer")
+        let rows = dict["items"] as? [Any] ?? []
+        items = rows.compactMap { ($0 as? [String: Any]).map(Drama.init(dict:)) }
     }
 }
 

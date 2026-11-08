@@ -79,6 +79,26 @@ struct DetailView: View {
                     .lineSpacing(8)
                     .lineLimit(4)
             }
+            if displayDrama.source == "hongguo" {
+                NavigationLink {
+                    ProducerView(drama: displayDrama)
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "building.2")
+                            .font(.system(size: 20))
+                        Text("出品方")
+                            .font(.system(size: 22))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(TVTheme.textTertiary)
+                    }
+                    .foregroundColor(TVTheme.textPrimary)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(TVTheme.surface))
+                }
+                .buttonStyle(TVPressButtonStyle())
+            }
             HStack(spacing: 20) {
                 TVPrimaryButton(title: resumeLabel, icon: "play.fill") {
                     playResume()

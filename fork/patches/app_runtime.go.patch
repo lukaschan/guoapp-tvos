@@ -1,0 +1,32 @@
+diff --git a/native/core/app_runtime.go b/native/core/app_runtime.go
+index e3ae003..f7ce1ca 100644
+--- a/native/core/app_runtime.go
++++ b/native/core/app_runtime.go
+@@ -99,6 +99,7 @@ type nativeDrama struct {
+ 	Tags           []string `json:"tags,omitempty"`
+ 	ReleaseStatus  string   `json:"releaseStatus,omitempty"`
+ 	Badge          string   `json:"badge,omitempty"`
++	Producer       string   `json:"producer,omitempty"`
+ }
+ 
+ type nativeInput struct {
+@@ -238,7 +239,7 @@ func nativeNormalize(drama Drama) nativeDrama {
+ 		Description: firstNonEmpty(drama.Desc, drama.Intro), Cover: cover, Episodes: episodes,
+ 		Category: nativeDramaCategory(drama), VIP: drama.VIP,
+ 		Heat: drama.Heat, Views: drama.Views, OnlineDate: providerReleaseDate(drama.OnlineDate), Score: nativeDramaScore(drama.Score),
+-		Tags: append([]string(nil), drama.Tags...), ReleaseStatus: drama.ReleaseStatus, Badge: drama.Badge}
++		Tags: append([]string(nil), drama.Tags...), ReleaseStatus: drama.ReleaseStatus, Badge: drama.Badge, Producer: drama.Producer}
+ }
+ 
+ func nativeDramaScore(score string) string {
+@@ -411,6 +412,10 @@ func nativeDispatch(input nativeInput) (any, error) {
+ 		return map[string]any{"items": boards}, nil
+ 	case "rankings":
+ 		return engine.nativeRanking(ctx, input)
++	case "producerDramas":
++		return engine.nativeProducerDramas(ctx, input.Query)
++	case "producerWorks":
++		return engine.nativeProducerWorks(ctx, input.Drama)
+ 	case "suggestions":
+ 		items, err := engine.suggestions(ctx, input.Query)
+ 		return map[string]any{"items": items}, err

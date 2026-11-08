@@ -1,0 +1,12 @@
+diff --git a/native/core/models.go b/native/core/models.go
+index b543a56..cfcd7aa 100644
+--- a/native/core/models.go
++++ b/native/core/models.go
+@@ -50,6 +50,7 @@ type Drama struct {
+ 	Views             string             `json:"views,omitempty"`
+ 	Heat              string             `json:"heat,omitempty"`
+ 	OnlineDate        string             `json:"onlineDate,omitempty"`
++	Producer          string             `json:"producer,omitempty"`
+ 	Tags              []string           `json:"tags,omitempty"`
+ 	ReleaseStatus     string             `json:"releaseStatus,omitempty"`
+ 	SortMetadata      *sortMetadataState `json:"sortMetadata,omitempty"`

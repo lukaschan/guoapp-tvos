@@ -1,0 +1,13 @@
+diff --git a/native/core/provider_hongguo.go b/native/core/provider_hongguo.go
+index c41126c..4bfb608 100644
+--- a/native/core/provider_hongguo.go
++++ b/native/core/provider_hongguo.go
+@@ -288,7 +288,7 @@ func hongguoDramaFromAny(v any, category string) Drama {
+ 	if genre == "" && len(tags) > 0 {
+ 		genre = tags[0]
+ 	}
+-	return Drama{ID: providerDramaID(sourceHongguo, sourceID), Source: sourceHongguo, SourceID: sourceID, Title: title, Name: title, Desc: intro, Intro: intro, Cover: cover, CoverURL: cover, CategoryName: firstNonEmpty(genre, category), ChannelName: "红果", Remark: remark, TotalEpisode: count, EpisodeCount: count, Tags: tags, ReleaseStatus: releaseStatus, Score: mapString(vd, "score"), Views: mapString(vd, "series_play_cnt", "play_cnt"), Heat: hongguoHeat(vd), OnlineDate: hongguoOnlineDate(vd, time.Now())}
++	return Drama{ID: providerDramaID(sourceHongguo, sourceID), Source: sourceHongguo, SourceID: sourceID, Title: title, Name: title, Desc: intro, Intro: intro, Cover: cover, CoverURL: cover, CategoryName: firstNonEmpty(genre, category), ChannelName: "红果", Remark: remark, TotalEpisode: count, EpisodeCount: count, Tags: tags, ReleaseStatus: releaseStatus, Score: mapString(vd, "score"), Views: mapString(vd, "series_play_cnt", "play_cnt"), Heat: hongguoHeat(vd), OnlineDate: hongguoOnlineDate(vd, time.Now()), Producer: strings.TrimSpace(firstNonEmpty(mapString(vd, "copyright"), mapString(m, "copyright")))}
+ }
+ 
+ func nestedMap(v any, keys ...string) map[string]any {

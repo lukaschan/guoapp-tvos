@@ -1,0 +1,14 @@
+diff --git a/native/core/app_catalog_cache.go b/native/core/app_catalog_cache.go
+index eb73ba7..2abe939 100644
+--- a/native/core/app_catalog_cache.go
++++ b/native/core/app_catalog_cache.go
+@@ -185,6 +185,9 @@ func mergeNativeDrama(previous, fresh nativeDrama) nativeDrama {
+ 	if fresh.Badge == "" {
+ 		fresh.Badge = previous.Badge
+ 	}
++	if fresh.Producer == "" {
++		fresh.Producer = previous.Producer
++	}
+ 	return fresh
+ }
+ 

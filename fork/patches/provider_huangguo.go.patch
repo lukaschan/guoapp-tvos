@@ -1,0 +1,14 @@
+diff --git a/native/core/provider_huangguo.go b/native/core/provider_huangguo.go
+index cb8d7b5..1f2eff3 100644
+--- a/native/core/provider_huangguo.go
++++ b/native/core/provider_huangguo.go
+@@ -199,6 +199,9 @@ func mergeDramaMetadata(base, extra Drama) Drama {
+ 	if strings.TrimSpace(base.OnlineDate) == "" {
+ 		base.OnlineDate = extra.OnlineDate
+ 	}
++	if strings.TrimSpace(base.Producer) == "" {
++		base.Producer = extra.Producer
++	}
+ 	if len(base.Tags) == 0 {
+ 		base.Tags = extra.Tags
+ 	}

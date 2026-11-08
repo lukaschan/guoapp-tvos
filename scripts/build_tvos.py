@@ -58,6 +58,8 @@ def validate_package(package, prefix):
 
 
 def build_core(simulator=False, variant=BuildVariant()):
+    # 先合入 fork 对上游核心的本地改动（出品方功能），补丁打不上直接失败。
+    run([sys.executable, str(root / 'scripts' / 'apply_fork_overlay.py')])
     if platform.system() != 'Darwin':
         raise SystemExit('tvOS 构建需要 macOS 和完整 Xcode。')
     go = shutil.which('go')

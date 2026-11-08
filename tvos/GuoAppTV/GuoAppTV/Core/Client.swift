@@ -188,6 +188,13 @@ actor CoreClient {
         return DramaDetail(dict: data)
     }
 
+    /// 出品方剧作：点入详情页的出品方入口后才调用，核心先按剧名定出品方，
+    /// 再拉该出品方的全部剧作（已补上线日期，供按最新/最热排序）。
+    func producerWorks(drama: Drama) async throws -> ProducerWorks {
+        let data = try await call(["action": "producerWorks", "drama": drama.requestJSON()])
+        return ProducerWorks(dict: data)
+    }
+
     func resolve(drama: Drama, episode: Episode, quality: Int = 0) async throws -> PlaybackPlan {
         let data = try await call([
             "action": "resolve",
