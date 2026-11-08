@@ -49,13 +49,16 @@ final class HeroPlayback: ObservableObject {
             let resolved = PlaybackLauncher.withEpisodeCount(
                 detail.drama.id.isEmpty ? drama : detail.drama, detail.episodes.count
             )
+            let controller = PlayerController()
+            // 屏保按电视的设置照常出现（owner 2026-11-08），不像全屏播放那样一直亮屏。
+            controller.keepsScreenAwake = false
             let session = PlaybackSession(
                 drama: resolved,
                 episodes: detail.episodes,
                 startIndex: target.index,
                 startPosition: target.position,
                 store: store,
-                controller: PlayerController()
+                controller: controller
             )
             gate.reset()
             session.saveGate = { [weak self] _ in self?.gate.isOpen ?? false }

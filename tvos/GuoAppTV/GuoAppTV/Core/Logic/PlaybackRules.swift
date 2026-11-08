@@ -30,6 +30,12 @@ enum PlaybackRules {
         abs(position - lastSaved) >= saveIntervalSeconds
     }
 
+    /// 是否关掉系统空闲计时器（不让屏保出现）：有播放器、正在播放、且这个播放器允许。
+    /// 推荐页 hero 不允许（owner 2026-11-08：屏保按电视的设置照常出现，出现时 hero 随之暂停）。
+    static func disablesIdleTimer(hasPlayer: Bool, paused: Bool, keepsScreenAwake: Bool) -> Bool {
+        keepsScreenAwake && hasPlayer && !paused
+    }
+
     /// 换到 target 集时，预取若是为它或它的下一集准备的就留着，否则释放。
     static func keepsPrefetch(prefetchedIndex: Int?, target: Int) -> Bool {
         prefetchedIndex == target || prefetchedIndex == target + 1

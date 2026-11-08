@@ -45,4 +45,12 @@ struct PlaybackRulesTests {
         #expect(!PlaybackRules.keepsPrefetch(prefetchedIndex: 5, target: 3))
         #expect(!PlaybackRules.keepsPrefetch(prefetchedIndex: nil, target: 3))
     }
+
+    /// 全屏播放时播放中不让屏保出现；推荐页 hero 不拦，屏保按电视的设置照常出现。
+    @Test func screenStaysAwakeOnlyWhilePlayingWhereAllowed() {
+        #expect(PlaybackRules.disablesIdleTimer(hasPlayer: true, paused: false, keepsScreenAwake: true))
+        #expect(!PlaybackRules.disablesIdleTimer(hasPlayer: true, paused: true, keepsScreenAwake: true))
+        #expect(!PlaybackRules.disablesIdleTimer(hasPlayer: false, paused: false, keepsScreenAwake: true))
+        #expect(!PlaybackRules.disablesIdleTimer(hasPlayer: true, paused: false, keepsScreenAwake: false))
+    }
 }

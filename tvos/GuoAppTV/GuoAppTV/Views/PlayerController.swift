@@ -57,6 +57,9 @@ final class PlayerController: NSObject, ObservableObject {
     /// 视频画面的像素尺寸（video-params/w、h）；推荐页 hero 按它选竖屏 / 横屏版式。
     /// 只在变化时发布，起播与停止时清空。
     @Published private(set) var videoSize: CGSize?
+    /// 播放中是否不让屏保出现。全屏播放页保持默认 true；推荐页 hero 设为 false，
+    /// 屏保按电视的设置出现（App 失去活跃时 enterBackground 会暂停，醒来再续播）。
+    var keepsScreenAwake = true
 
     /// 事件队列：mpv 事件泵跑在这里；销毁时同步等它排空，避免句柄悬空。
     nonisolated let eventQueue = DispatchQueue(label: "com.duanju.guoapp.tv.mpv-events")
@@ -186,7 +189,9 @@ final class PlayerController: NSObject, ObservableObject {
     /// 暂停 / 停止 / 切后台时恢复，屏保才能正常出现。
     /// 注意：mpv 不是 AVPlayer，系统不知道在播视频，必须手动关空闲计时器。
     private func updateIdleTimer() {
-        UIApplication.shared.isIdleTimerDisabled = mpv != nil && !getFlag("pause")
+        UIApplication.shared.isIdleTimerDisabled = PlaybackRules.disablesIdleTimer(
+            hasPlayer: mpv != nil, paused: getFlag("pause"), keepsScreenAwake: keepsScreenAwake
+        )
     }
 
     func seek(by seconds: Double) {
