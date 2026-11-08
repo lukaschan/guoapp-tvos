@@ -97,12 +97,15 @@ struct FeedHeroView: View {
             pendingFullScreen = false
             startHero()
         }
+        // 预览：焦点停 1 秒的那部开始实时播放，选定的这部原地暂停；焦点离开这一行时原样回来。
+        // 自动播放关着、还没开始时不预览（不联网、不出声）。
         .onChange(of: selection.previewID) { previewID in
-            if previewID == nil {
+            guard let previewID else {
                 hero.endPreview()
-            } else {
-                hero.beginPreview()
+                return
             }
+            guard !isIdle, let drama = feed.dramas.first(where: { $0.id == previewID }) else { return }
+            hero.startPreview(drama, store: store)
         }
         // 切到别的标签时立刻停（不等页面消失的回调，免得推荐的声音再响一两秒）；切回来再起播。
         .onReceive(NotificationCenter.default.publisher(for: .tabSelectionChanged)) { note in
@@ -137,14 +140,12 @@ struct FeedHeroView: View {
         let shown = hero.session?.drama.id == drama.id ? hero.session?.drama ?? drama : drama
         let layout = HeroLayout.panel(videoSize: hero.status.videoSize)
         return ZStack(alignment: .topLeading) {
-            // 预览时画面换成预览那部的封面（正在播的这部在下面原地暂停）。
-            HeroVideoPanel(
-                drama: drama, videoSize: hero.status.videoSize,
-                showsVideo: hero.status.showsVideo && selection.previewID == nil
-            ) {
-                if let controller = hero.controller {
-                    PlayerHostView(controller: controller)
-                        .id(ObjectIdentifier(controller))
+            // 两个播放器（选定的这部、预览那部）的画面都一直挂着，只显示看得见的那个：
+            // 切换时不拆掉 mpv、不重新加载；预览出画面之前先显示它的封面。
+            HeroVideoPanel(drama: drama, videoSize: hero.status.videoSize, showsVideo: hero.status.showsVideo) {
+                ForEach(hero.hosts) { host in
+                    PlayerHostView(controller: host.controller)
+                        .opacity(host.visible ? 1 : 0)
                 }
             }
             // 信息栏与「接下来」放在同一列、底部对齐，中间固定留 40 pt：标题两行时也不会被海报挡住；
@@ -159,7 +160,10 @@ struct FeedHeroView: View {
                     isFollowing: store.isFollowing(shown),
                     defaultFocus: focusScope,
                     onWatch: watchFullScreen,
-                    onRetry: startHero,
+                    onRetry: {
+                        stopHero()
+                        startHero()
+                    },
                     onTogglePause: togglePlayback,
                     isIdle: isIdle,
                     onFollow: { store.toggleFollow(shown) },
@@ -238,9 +242,11 @@ struct FeedHeroView: View {
     }
 
     private func startHero() {
+        guard isVisible, fullScreen == nil, !isIdle, let drama = committedDrama else { return }
+        // 已经在播（或正在加载）这一部：不重来（例如预览转正、在推荐页上又选中了推荐标签）。
+        guard hero.mainDramaID != drama.id else { return }
         heroTask?.cancel()
         heroTask = nil
-        guard isVisible, fullScreen == nil, !isIdle, let drama = committedDrama else { return }
         heroTask = Task { await hero.play(drama, store: store) }
     }
 
@@ -283,7 +289,10 @@ struct FeedHeroView: View {
 
     private func commit(_ drama: Drama) {
         dwellTask?.cancel()
-        if drama.id != selection.committedID { hero.dropPreviewHold() }
+        // 按下的正是在预览的那部：预览直接转正（不重新加载）；按下别的：选定的这部马上被换掉，不必再接着播。
+        if drama.id != selection.committedID, !hero.promotePreview(dramaID: drama.id) {
+            hero.dropPreviewHold()
+        }
         selection.commit(drama.id)
         feed.select(drama)
         // 像以前一样刷新这一行（换成新 hero 之后的那一组）；按下后 1.5 秒内不自动预览（PreviewSelection）。

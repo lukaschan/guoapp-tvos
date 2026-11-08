@@ -1,10 +1,12 @@
 import Combine
 import Foundation
 
-/// 推荐页 hero 的播放：每换一部剧新建一个 PlayerController 与 PlaybackSession
-/// （会话 stop() 会让控制器不再起播，所以控制器不复用），只有「真正看满 30 秒」才存进度。
-/// 把播放器事件接到会话上，并汇总成一份 status 给界面；界面只观察这一个对象，
-/// 换剧时按钮与「接下来」一行不会重建，焦点不丢。
+/// 推荐页 hero 的播放，两个「槽」：
+/// - main：选定的这部（选集、播完换下一部、全屏观看都看它）；
+/// - preview：焦点停在「接下来」某张海报上时，这一部的实时预览（有画面有声音）。
+/// 预览期间 main 原地暂停、不重新加载（PreviewHold）；焦点离开这一行时预览关掉、main 原样回来——
+/// 原本在播的接着播，用户自己暂停的仍暂停；按下正在预览的那张海报时，预览直接转正成 main，也不重新加载。
+/// 两个槽的画面都一直挂着（hosts，按控制器区分，不重建），只是显示可见的那个；界面只观察这一个对象。
 @MainActor
 final class HeroPlayback: ObservableObject {
     struct Status: Equatable {
@@ -19,27 +21,189 @@ final class HeroPlayback: ObservableObject {
         var error: String?
     }
 
+    /// 一个要挂在画面里的播放器；visible 的那个显示，另一个透明（不拆掉，避免重建 mpv）。
+    struct Host: Identifiable, Equatable {
+        let controller: PlayerController
+        let visible: Bool
+
+        var id: ObjectIdentifier { ObjectIdentifier(controller) }
+
+        static func == (lhs: Host, rhs: Host) -> Bool {
+            lhs.id == rhs.id && lhs.visible == rhs.visible
+        }
+    }
+
+    /// main 槽的会话（全屏观看、转全屏前的等待都看它）。
     @Published private(set) var session: PlaybackSession?
+    /// 可见那个槽的状态（预览时是预览那部的）。
     @Published private(set) var status = Status()
-    /// 这部剧的最后一集播完：换下一部。
+    @Published private(set) var hosts: [Host] = []
+    @Published private(set) var isPreviewing = false
+    /// main 这部剧的最后一集播完：换下一部。
+    var onReachedEnd: (() -> Void)?
+
+    private var main = HeroSlot()
+    private var preview = HeroSlot()
+    private var hold = PreviewHold()
+    private var previewTask: Task<Void, Never>?
+
+    init() {
+        wire(main)
+        wire(preview)
+    }
+
+    /// main 槽正在播（或正在加载）的剧。
+    var mainDramaID: String? { main.dramaID }
+
+    /// 换到这部剧（main）：先关掉预览，停掉旧的，按观看记录定起点新建会话起播。
+    func play(_ drama: Drama, store: Store) async {
+        closePreview()
+        await main.play(drama, store: store)
+        publish()
+    }
+
+    /// 离开推荐页 / 转全屏 / 换剧：两个槽都停（先暂停再销毁，过了 30 秒门槛才存进度）。
+    func stop() {
+        closePreview()
+        main.stop()
+        hold.reset()
+        publish()
+    }
+
+    /// 焦点停在「接下来」某张海报上：main 原地暂停（在播的才暂停，之后接着播），预览那部开始实时播放。
+    func startPreview(_ drama: Drama, store: Store) {
+        if !isPreviewing {
+            isPreviewing = true
+            if hold.begin(playing: main.videoShown && !main.isPaused) { main.pause() }
+        }
+        previewTask?.cancel()
+        preview.stop()
+        publish()
+        let slot = preview
+        previewTask = Task { [weak self] in
+            await slot.play(drama, store: store)
+            self?.publish()
+        }
+    }
+
+    /// 焦点离开「接下来」：关掉预览，main 原样回来。
+    func endPreview() {
+        guard isPreviewing else { return }
+        closePreview()
+        if hold.end() { main.resume() }
+        publish()
+    }
+
+    /// 按下正在预览的那部：预览直接转正成 main（不重新加载）。返回是否转正了。
+    func promotePreview(dramaID: String) -> Bool {
+        guard isPreviewing, preview.dramaID == dramaID else { return false }
+        previewTask = nil
+        main.stop()
+        let promoted = preview
+        preview = main
+        main = promoted
+        isPreviewing = false
+        hold.reset()
+        publish()
+        return true
+    }
+
+    /// 按下另一张（不是正在预览的）海报换剧：main 马上要被换掉，关预览时不要再让它接着播。
+    func dropPreviewHold() {
+        hold.reset()
+    }
+
+    /// 播放键 / 暂停按钮：控制看得见的那个。
+    func togglePause() {
+        (isPreviewing ? preview : main).togglePause()
+    }
+
+    /// 转到全屏播放：从 main 当前这集、当前位置接着播。
+    var fullScreenPresentation: PlaybackPresentation? {
+        main.fullScreenPresentation
+    }
+
+    private func closePreview() {
+        previewTask?.cancel()
+        previewTask = nil
+        preview.stop()
+        isPreviewing = false
+    }
+
+    private func wire(_ slot: HeroSlot) {
+        slot.onChange = { [weak self] in self?.publish() }
+        slot.onVideoStarted = { [weak self, weak slot] in
+            guard let self, let slot, slot === self.main else { return }
+            // main 在预览期间才出画面：先停住，预览结束再接着播。
+            if self.hold.videoStarted() { slot.pause() }
+        }
+        slot.onReachedEnd = { [weak self, weak slot] in
+            guard let self, let slot, slot === self.main else { return }
+            self.onReachedEnd?()
+        }
+    }
+
+    private func publish() {
+        if session !== main.session { session = main.session }
+        let visible = isPreviewing ? preview : main
+        if visible.status != status { status = visible.status }
+        let nextHosts = [main, preview].compactMap { slot in
+            slot.session.map { Host(controller: $0.controller, visible: slot === visible) }
+        }
+        if nextHosts != hosts { hosts = nextHosts }
+    }
+}
+
+/// hero 的一个播放槽：一部剧的会话、30 秒存进度门槛、汇总给界面的状态。
+/// 每换一部剧新建 PlayerController 与 PlaybackSession（会话 stop() 会让控制器不再起播，所以不复用）。
+@MainActor
+final class HeroSlot {
+    private(set) var session: PlaybackSession?
+    private(set) var status = HeroPlayback.Status()
+    /// 正在播（或正在加载）的剧；加载期间就有，转正时用它认出是哪一部。
+    private(set) var dramaID: String?
+    /// 这部已经出过画面。
+    private(set) var videoShown = false
+
+    var onChange: (() -> Void)?
+    var onVideoStarted: (() -> Void)?
     var onReachedEnd: (() -> Void)?
 
     private var gate = WatchGate()
-    /// 「接下来」预览期间这部原地暂停、预览结束原样回来（PreviewHold）。
-    private var hold = PreviewHold()
-    /// 这部已经出过画面（用来分辨「预览期间才出画面」）。
-    private var videoShown = false
     private var loadError: String?
     private var subscriptions: Set<AnyCancellable> = []
 
-    var controller: PlayerController? { session?.controller }
+    var isPaused: Bool { session?.controller.isPaused ?? false }
 
-    /// 换到这部剧：停掉旧的，取详情、按观看记录定起点（没看过从第 1 集开头），新建会话起播。
+    func pause() { session?.controller.pause() }
+    func resume() { session?.controller.resume() }
+
+    func togglePause() {
+        guard let controller = session?.controller else { return }
+        if controller.isPaused {
+            controller.resume()
+        } else {
+            controller.pause()
+        }
+    }
+
+    var fullScreenPresentation: PlaybackPresentation? {
+        guard let session else { return nil }
+        return PlaybackPresentation(
+            drama: session.drama,
+            episodes: session.episodes,
+            startIndex: session.currentIndex,
+            startPosition: session.currentPosition
+        )
+    }
+
+    /// 播这部剧：停掉旧的，取详情、按观看记录定起点（没看过从第 1 集开头），新建会话起播。
     func play(_ drama: Drama, store: Store) async {
         stop()
+        dramaID = drama.id
         do {
             let detail = try await CoreClient.shared.detail(drama: drama)
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, dramaID == drama.id else { return }
             let latest = store.latestProgress(for: drama.id)
             guard let target = ResumeTarget.playbackStart(
                 episodeNumbers: detail.episodes.map(\.number),
@@ -73,59 +237,24 @@ final class HeroPlayback: ObservableObject {
             self.session = session
             bind(session)
             session.start()
+            refreshStatus()
         } catch {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, dramaID == drama.id else { return }
             fail(UserFacingError.message(for: error))
         }
     }
 
-    /// 离开推荐页 / 转全屏 / 换剧：存进度（过了 30 秒门槛才存）、销毁句柄、释放会话。
+    /// 停掉：先暂停再销毁（mpv 在 Apple TV 上的音频输出缓冲约 2 秒，直接销毁时这段声音会接着响完），
+    /// 存进度（过了 30 秒门槛才存）、释放会话。
     func stop() {
         subscriptions.removeAll()
-        // 先暂停再销毁：mpv 在 Apple TV 上的音频输出缓冲约 2 秒，直接销毁时这段声音会接着响完。
         session?.controller.pause()
         session?.stop()
-        hold.reset()
-        videoShown = false
         session = nil
+        dramaID = nil
+        videoShown = false
         loadError = nil
         refreshStatus()
-    }
-
-    /// 焦点停在「接下来」某张海报上（预览）：只换封面和介绍，这部原地暂停（正在播的才暂停，之后接着播）。
-    func beginPreview() {
-        guard let controller else { return }
-        if hold.begin(playing: videoShown && !controller.isPaused) { controller.pause() }
-    }
-
-    /// 按下海报换剧：这部马上要被换掉，预览结束时不要再让它接着播（否则会响一下再停）。
-    func dropPreviewHold() {
-        hold.reset()
-    }
-
-    /// 焦点离开「接下来」：这部原样回来——原本在播的接着播，用户自己暂停的仍暂停。
-    func endPreview() {
-        if hold.end() { controller?.resume() }
-    }
-
-    func togglePause() {
-        guard let controller else { return }
-        if controller.isPaused {
-            controller.resume()
-        } else {
-            controller.pause()
-        }
-    }
-
-    /// 转到全屏播放：从 hero 当前这集、当前位置接着播。
-    var fullScreenPresentation: PlaybackPresentation? {
-        guard let session else { return nil }
-        return PlaybackPresentation(
-            drama: session.drama,
-            episodes: session.episodes,
-            startIndex: session.currentIndex,
-            startPosition: session.currentPosition
-        )
     }
 
     private func fail(_ message: String) {
@@ -167,18 +296,17 @@ final class HeroPlayback: ObservableObject {
 
     private func progressed(_ progress: PlaybackProgress) {
         guard let session else { return }
-        // 先计入门槛，再交给会话（会话这一拍若要存进度，看到的是最新的门槛）。
         if progress.duration > 0, !videoShown {
             videoShown = true
-            // 预览期间才出画面：先停住，预览结束再接着播。
-            if hold.videoStarted() { session.controller.pause() }
+            onVideoStarted?()
         }
+        // 先计入门槛，再交给会话（会话这一拍若要存进度，看到的是最新的门槛）。
         gate.observe(position: progress.position, paused: session.controller.isPaused)
         session.handleProgress(position: progress.position, duration: progress.duration)
     }
 
     private func refreshStatus() {
-        var next = Status()
+        var next = HeroPlayback.Status()
         if let session {
             let controller = session.controller
             let progress = controller.progress
@@ -195,6 +323,8 @@ final class HeroPlayback: ObservableObject {
         } else {
             next.error = loadError
         }
-        if next != status { status = next }
+        guard next != status else { return }
+        status = next
+        onChange?()
     }
 }
