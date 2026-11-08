@@ -145,6 +145,17 @@ actor CoreClient {
         return result
     }
 
+    /// 红果推荐流（推荐页 hero）：核心自己缓存，返回累积的整份列表；more 时再往后取一页。
+    func recommendations(feed: String = "home_feed", more: Bool = false, force: Bool = false) async throws -> CatalogPage {
+        let data = try await call([
+            "action": "recommendations",
+            "category": feed,
+            "command": more ? "more" : "",
+            "force": force,
+        ])
+        return CatalogPage(dict: data)
+    }
+
     func catalog(
         source: String, page: Int = 1, query: String = "", category: String = "", force: Bool = false
     ) async throws -> CatalogPage {

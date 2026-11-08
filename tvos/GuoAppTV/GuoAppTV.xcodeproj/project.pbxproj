@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000079 /* FeedModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007A /* FeedModel.swift */; };
+		A10000000000000000000077 /* UpNext.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000078 /* UpNext.swift */; };
 		A10000000000000000000075 /* WatchGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000076 /* WatchGate.swift */; };
 		A10000000000000000000073 /* PlayerHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000074 /* PlayerHostView.swift */; };
 		A10000000000000000000071 /* PlaybackSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000072 /* PlaybackSession.swift */; };
@@ -42,6 +44,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A1000000000000000000007A /* FeedModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/FeedModel.swift; sourceTree = "<group>"; };
+		A10000000000000000000078 /* UpNext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/UpNext.swift; sourceTree = "<group>"; };
 		A10000000000000000000076 /* WatchGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/WatchGate.swift; sourceTree = "<group>"; };
 		A10000000000000000000074 /* PlayerHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerHostView.swift; sourceTree = "<group>"; };
 		A10000000000000000000072 /* PlaybackSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSession.swift; sourceTree = "<group>"; };
@@ -130,6 +134,7 @@
 				A1000000000000000000006E /* SeriesCache.swift */,
 				A10000000000000000000070 /* PlaybackRules.swift */,
 				A10000000000000000000076 /* WatchGate.swift */,
+				A10000000000000000000078 /* UpNext.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -154,6 +159,7 @@
 				A1000000000000000000006C /* SeriesShelf.swift */,
 				A10000000000000000000072 /* PlaybackSession.swift */,
 				A10000000000000000000074 /* PlayerHostView.swift */,
+				A1000000000000000000007A /* FeedModel.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -269,6 +275,8 @@
 				A10000000000000000000071 /* PlaybackSession.swift in Sources */,
 				A10000000000000000000073 /* PlayerHostView.swift in Sources */,
 				A10000000000000000000075 /* WatchGate.swift in Sources */,
+				A10000000000000000000077 /* UpNext.swift in Sources */,
+				A10000000000000000000079 /* FeedModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
