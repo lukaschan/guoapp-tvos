@@ -17,6 +17,8 @@ struct HomeView: View {
     @State private var loading = false
     /// 正在加载第一页的次数（换分类 / 榜单 / 站源）：大于 0 时网格变暗、分类行下转圈，不清空网格。
     @State private var firstPageLoads = 0
+    /// 正在显示上次存下的内容（榜单快照或核心缓存的片库），新的在后台加载：不变暗、不转圈。
+    @State private var showingSaved = false
     @State private var error: String?
     @State private var categoriesSource = ""
     @State private var rankingBoards: [RankingBoard] = []
@@ -128,7 +130,7 @@ struct HomeView: View {
                     loadingID: launcher.loadingDramaID,
                     firstRank: 2
                 )
-                if loading && !isSwitching {
+                if loading && !isSwitching && !showingSaved {
                     TVLoadingView("正在加载更多…")
                         .padding(.vertical, 24)
                 }
@@ -142,7 +144,21 @@ struct HomeView: View {
     private static let bannerInset: CGFloat = 80
 
     /// 换分类后第一页还没回来、且网格里还有旧内容：变暗 + 转圈（首屏仍用整块加载视图）。
-    private var isSwitching: Bool { firstPageLoads > 0 && !items.isEmpty }
+    private var isSwitching: Bool { firstPageLoads > 0 && !items.isEmpty && !showingSaved }
+
+    /// 首屏还空着时先放上次存下的内容：榜单用本地快照，分类用核心缓存的片库（都不联网）。
+    private func showSavedContent() async {
+        if isRankingMode {
+            guard let saved = RankingSnapshotStore.shared.snapshot(board: selectedBoard) else { return }
+            items = saved
+        } else {
+            guard let page = try? await CoreClient.shared.cached(source: appState.selectedSource, category: selectedCategory),
+                  !page.items.isEmpty
+            else { return }
+            items = page.items
+        }
+        showingSaved = true
+    }
 
     private var sourceRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -245,11 +261,13 @@ struct HomeView: View {
                     hasMore = false
                     warning = ""
                 } else {
+                    if firstPage, items.isEmpty { await showSavedContent() }
                     let result = try await CoreClient.shared.rankings(
                         board: selectedBoard, page: page
                     )
                     if firstPage {
                         items = result.items
+                        RankingSnapshotStore.shared.save(board: selectedBoard, items: result.items)
                     } else {
                         items += result.items
                     }
@@ -257,6 +275,7 @@ struct HomeView: View {
                     warning = result.warning
                 }
             } else {
+                if firstPage, items.isEmpty { await showSavedContent() }
                 let result = try await CoreClient.shared.catalog(
                     source: appState.selectedSource, page: page, category: selectedCategory
                 )
@@ -271,6 +290,7 @@ struct HomeView: View {
         } catch {
             self.error = error.localizedDescription
         }
+        showingSaved = false
         loading = false
     }
 

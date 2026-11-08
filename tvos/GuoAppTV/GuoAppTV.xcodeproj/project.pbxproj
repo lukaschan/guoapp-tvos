@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A100000000000000000000AF /* RankingSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B0 /* RankingSnapshotStore.swift */; };
+		A100000000000000000000AD /* RankingSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000AE /* RankingSnapshot.swift */; };
 		A100000000000000000000AB /* FeedSplice.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000AC /* FeedSplice.swift */; };
 		A100000000000000000000A9 /* CoreRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000AA /* CoreRoute.swift */; };
 		A100000000000000000000A7 /* AsyncLimiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A8 /* AsyncLimiter.swift */; };
@@ -69,6 +71,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A100000000000000000000B0 /* RankingSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RankingSnapshotStore.swift; sourceTree = "<group>"; };
+		A100000000000000000000AE /* RankingSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/RankingSnapshot.swift; sourceTree = "<group>"; };
 		A100000000000000000000AC /* FeedSplice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/FeedSplice.swift; sourceTree = "<group>"; };
 		A100000000000000000000AA /* CoreRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/CoreRoute.swift; sourceTree = "<group>"; };
 		A100000000000000000000A8 /* AsyncLimiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/AsyncLimiter.swift; sourceTree = "<group>"; };
@@ -200,6 +204,8 @@
 				A100000000000000000000A8 /* AsyncLimiter.swift */,
 				A100000000000000000000AA /* CoreRoute.swift */,
 				A100000000000000000000AC /* FeedSplice.swift */,
+				A100000000000000000000AE /* RankingSnapshot.swift */,
+				A100000000000000000000B0 /* RankingSnapshotStore.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -377,6 +383,8 @@
 				A100000000000000000000A7 /* AsyncLimiter.swift in Sources */,
 				A100000000000000000000A9 /* CoreRoute.swift in Sources */,
 				A100000000000000000000AB /* FeedSplice.swift in Sources */,
+				A100000000000000000000AD /* RankingSnapshot.swift in Sources */,
+				A100000000000000000000AF /* RankingSnapshotStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

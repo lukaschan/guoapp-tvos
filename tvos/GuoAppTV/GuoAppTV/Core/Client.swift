@@ -182,6 +182,12 @@ actor CoreClient {
         return result
     }
 
+    /// 核心存着的片库（某站源某分类上次取到的整份，不联网、立刻返回）：剧场分类模式启动时先显示它。
+    func cached(source: String, category: String) async throws -> CatalogPage {
+        let data = try await call(["action": "cached", "source": source, "category": category])
+        return CatalogPage(dict: data)
+    }
+
     /// 核心存在本地的推荐（上次取到的那份，不联网、立刻返回）：推荐页与「大家都在看」启动时先显示它。
     func cachedRecommendations(feed: String = "home_feed") async throws -> CatalogPage {
         let data = try await call(["action": "cachedRecommendations", "category": feed])
