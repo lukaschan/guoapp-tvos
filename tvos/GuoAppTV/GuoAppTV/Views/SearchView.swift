@@ -1,11 +1,10 @@
 import SwiftUI
-import UIKit
 
-/// 搜索页：大屏搜索。
+/// 搜索页：tvOS 原生搜索界面（SwiftUI `.searchable`，与 Apple TV App 的搜索一致）。
 ///
-/// 顶部为醒目的搜索框（进入页面自动聚焦，拉起系统键盘）；
-/// 输入中给出联想词；确认后展示统一的海报网格。
-/// 加载中 / 失败 / 无结果均有清晰状态。
+/// 顶部是系统的搜索框与键盘，结果网格就在下面，边输入边出结果（停止输入 0.6 秒后搜索）；
+/// 联想词显示在键盘旁，选中即搜。切到本页时焦点留在标签栏，向下才进入键盘。
+/// 搜索本身与原版一致：核心 catalog 的 query 搜索，结果按系列归组。
 struct SearchView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var store: Store
@@ -13,27 +12,29 @@ struct SearchView: View {
     @State private var query = ""
     @State private var suggestions: [String] = []
     @State private var results: [Drama] = []
-    @State private var searched = false
+    /// 当前结果对应的关键词；nil 表示还没搜过（或已清空）。
+    @State private var searchedQuery: String?
     @State private var loading = false
     @State private var error: String?
-    /// 搜索栏容器是否聚焦（只控制放大镜图标亮度，不触发布键盘）。
-    @FocusState private var searchBarFocused: Bool
-    /// 是否正在输入（键盘是否弹出），由 TVSearchTextField 驱动。
-    @State private var isEditing = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    searchField
-                    if !searched, !suggestions.isEmpty {
-                        suggestionList
-                    }
                     resultSection
                 }
                 .padding(.horizontal, TVTheme.posterPageInset)
                 .padding(.top, 24)
                 .padding(.bottom, 56)
+            }
+            .searchable(text: $query, prompt: "输入剧名、演员或关键词")
+            .searchSuggestions {
+                ForEach(suggestions.prefix(8), id: \.self) { suggestion in
+                    Text(suggestion).searchCompletion(suggestion)
+                }
+            }
+            .task(id: query) {
+                await liveSearch()
             }
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
@@ -42,95 +43,11 @@ struct SearchView: View {
         }
     }
 
-    // MARK: - 搜索框
-
-    private var searchField: some View {
-        // 可见搜索栏只是深黑底 + 白字的展示层，本身是一个可聚焦容器，
-        // 点按时通过 TVSearchTextField 直接拉起键盘。
-        // 不用 SwiftUI TextField：tvOS 会在焦点层给它画一个白框，
-        // 焦点层在所有 App 视图之上，任何遮罩都盖不住。
-        HStack(spacing: 14) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: TVTheme.TextSize.caption, weight: .medium))
-                .foregroundColor(searchBarFocused ? TVTheme.textPrimary : TVTheme.textTertiary)
-            Text(query.isEmpty ? "输入剧名、演员或关键词" : query)
-                .font(.system(size: TVTheme.TextSize.body))
-                .foregroundColor(TVTheme.textPrimary)
-                .lineLimit(1)
-            Spacer(minLength: 0)
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: TVTheme.TextSize.caption))
-                        .foregroundColor(TVTheme.textTertiary)
-                }
-                .buttonStyle(TVPressButtonStyle())
-            }
-        }
-        .padding(.horizontal, 26)
-        .padding(.vertical, 20)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(white: 0.10))
-        )
-        .focusable()
-        .focused($searchBarFocused)
-        .onTapGesture { isEditing = true }
-        .background {
-            // 真正的输入框：1x1 透明 UITextField，永不参与焦点导航。
-            TVSearchTextField(
-                text: $query,
-                isEditing: $isEditing,
-                onSubmit: { Task { await search() } }
-            )
-            .frame(width: 1, height: 1)
-        }
-        .onChange(of: query) { newValue in
-            if newValue.isEmpty {
-                suggestions = []
-                results = []
-                searched = false
-            } else {
-                searched = false
-            }
-        }
-        .task(id: query) {
-            guard !query.isEmpty else { return }
-            try? await Task.sleep(nanoseconds: 300_000_000)
-            guard !Task.isCancelled else { return }
-            suggestions = (try? await CoreClient.shared.suggestions(query: query)) ?? []
-        }
-        .onAppear {
-            // 进入搜索页默认聚焦搜索框；从详情页返回时不打扰已结果状态。
-            if !searched {
-                DispatchQueue.main.async { searchBarFocused = true }
-            }
-        }
-    }
-
-    // MARK: - 联想词
-
-    private var suggestionList: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(suggestions.prefix(8), id: \.self) { suggestion in
-                TVSuggestionRow(title: suggestion) {
-                    query = suggestion
-                    Task { await search() }
-                }
-            }
-        }
-    }
-
     // MARK: - 结果与状态
 
     @ViewBuilder
     private var resultSection: some View {
-        if loading {
-            TVLoadingView("正在搜索…")
-                .padding(.vertical, 160)
-        } else if let error {
+        if let error {
             VStack(spacing: 26) {
                 TVStatusView(
                     icon: "exclamationmark.triangle",
@@ -139,22 +56,30 @@ struct SearchView: View {
                     expands: false
                 )
                 TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
-                    Task { await search() }
+                    guard let key = LiveSearch.query(from: query) else { return }
+                    Task { await search(key) }
                 }
             }
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 100)
-        } else if searched, results.isEmpty {
+        } else if loading && results.isEmpty {
+            TVLoadingView("正在搜索…")
+                .padding(.vertical, 160)
+        } else if searchedQuery != nil, !loading, results.isEmpty {
             TVStatusView(
                 icon: "magnifyingglass",
                 title: "没有找到相关内容",
                 message: "换个关键词试试。",
                 expands: false
             )
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 100)
         } else if !results.isEmpty {
-            // 搜索海报往下挪：单独给海报加顶部间距，只动海报、不动搜索框。
+            // 换关键词时旧结果先变暗，新结果回来再替换，不闪成整块加载。
             resultGrid
                 .padding(.top, 12)
+                .opacity(loading ? 0.5 : 1)
+                .animation(.easeInOut(duration: 0.2), value: loading)
         }
     }
 
@@ -193,126 +118,51 @@ struct SearchView: View {
 
     // MARK: - 搜索（业务逻辑与原版一致）
 
-    private func search() async {
-        guard !query.isEmpty else { return }
-        suggestions = []
-        searched = true
+    /// 关键词变化后：清空时复位；否则等停止输入 0.6 秒再搜，并更新联想词。
+    /// 输入继续变化会取消这一次（.task(id:)），只有最后一次的结果会显示。
+    private func liveSearch() async {
+        guard let key = LiveSearch.query(from: query) else {
+            suggestions = []
+            results = []
+            searchedQuery = nil
+            error = nil
+            loading = false
+            return
+        }
+        try? await Task.sleep(for: LiveSearch.debounce)
+        guard !Task.isCancelled else { return }
+        if key != searchedQuery {
+            await search(key)
+        } else {
+            // 改回了正在显示的关键词（输入后又删掉）：不重搜；被取消的上一次可能留下了加载中状态。
+            loading = false
+        }
+        guard !Task.isCancelled else { return }
+        let words = (try? await CoreClient.shared.suggestions(query: key)) ?? []
+        guard !Task.isCancelled else { return }
+        suggestions = words.filter { $0 != key }
+    }
+
+    private func search(_ key: String) async {
         loading = true
         error = nil
         do {
             let result = try await CoreClient.shared.catalog(
-                source: appState.selectedSource, query: query
+                source: appState.selectedSource, query: key
             )
+            // 输入已经变了：这次的结果作废（新的一次会自己更新状态）。
+            guard !Task.isCancelled else { return }
             results = result.items
+            searchedQuery = key
             // 归组出的系列存进 SeriesLookup，进详情页时「本系列」直接命中、不再搜索。
             for case .series(let group) in SeriesGrouping.group(result.items, title: \.title, source: \.source) {
                 await SeriesLookup.shared.remember(group)
             }
         } catch {
+            guard !Task.isCancelled else { return }
             self.error = error.localizedDescription
+            searchedQuery = key
         }
         loading = false
     }
-}
-
-/// 搜索推荐词条行：可聚焦，焦点时放大 + 投影（与海报卡一致的焦点视觉），
-/// 遥控器划过时能看清当前选中哪条。
-private struct TVSuggestionRow: View {
-    let title: String
-    let action: () -> Void
-
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 14) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: TVTheme.TextSize.caption2))
-                    .foregroundColor(TVTheme.textTertiary)
-                Text(title)
-                    .font(.system(size: TVTheme.TextSize.caption))
-                    .foregroundColor(TVTheme.textPrimary)
-                    .lineLimit(1)
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(TVTheme.surfaceDim)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(TVPressButtonStyle())
-        .focused($focused)
-        .tvFocusEffect(focused: focused, scale: TVTheme.focusScale, cornerRadius: 14, stroke: false)
-        .zIndex(focused ? 1 : 0)
-    }
-}
-
-/// tvOS 搜索输入框（UIKit 封装）。
-///
-/// SwiftUI TextField 在 tvOS 聚焦时，系统会在焦点层画一个白框，
-/// 焦点层在所有 App 视图之上，任何 SwiftUI 遮罩都盖不住。
-/// 这里用 UITextField 子类（canBecomeFocused = false），
-/// 永不参与焦点导航、永不画白框；由外部点按直接调 becomeFirstResponder()
-/// 拉起键盘，只负责收输入与回车搜索。
-private struct TVSearchTextField: UIViewRepresentable {
-    @Binding var text: String
-    @Binding var isEditing: Bool
-    var onSubmit: () -> Void
-
-    func makeUIView(context: Context) -> _TVSearchField {
-        let field = _TVSearchField()
-        field.backgroundColor = .clear
-        field.borderStyle = .none
-        field.textColor = .clear
-        field.tintColor = .clear
-        field.returnKeyType = .search
-        field.autocorrectionType = .no
-        field.spellCheckingType = .no
-        field.autocapitalizationType = .none
-        field.delegate = context.coordinator
-        field.addTarget(context.coordinator, action: #selector(Coordinator.editingChanged(_:)), for: .editingChanged)
-        return field
-    }
-
-    func updateUIView(_ uiView: _TVSearchField, context: Context) {
-        if uiView.text != text {
-            uiView.text = text
-        }
-        if isEditing && !uiView.isFirstResponder {
-            uiView.becomeFirstResponder()
-        } else if !isEditing && uiView.isFirstResponder {
-            uiView.resignFirstResponder()
-        }
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-
-    final class Coordinator: NSObject, UITextFieldDelegate {
-        private let parent: TVSearchTextField
-        init(_ parent: TVSearchTextField) { self.parent = parent }
-
-        @objc func editingChanged(_ field: UITextField) {
-            parent.text = field.text ?? ""
-        }
-
-        func textFieldShouldReturn(_ field: UITextField) -> Bool {
-            parent.onSubmit()
-            parent.isEditing = false
-            return true
-        }
-
-        func textFieldDidEndEditing(_ field: UITextField) {
-            parent.isEditing = false
-        }
-    }
-}
-
-/// 永不参与 tvOS 焦点导航的 UITextField（避免系统给它画白框）。
-private final class _TVSearchField: UITextField {
-    override var canBecomeFocused: Bool { false }
 }
