@@ -31,7 +31,9 @@ Canvas: 1920×1080 pt.
 
 - The hero plays continuously, with sound and without 弹幕. It moves to the next episode, and to the next drama
   after the last episode, with the "MM:SS 后自动播放下一集" countdown.
-- Progress is saved only after 30 s of real watching.
+- The hero **never saves watch progress** (owner change, 2026-11-08). 看过的剧, 继续观看, 观看记录 and the 我的 stats
+  count only what was watched in the full-screen player. The hero still starts from full-screen progress, and
+  全屏观看 continues from the hero's current position. This replaced the earlier 30 s save gate.
 - Two players:
   - **main**, the selected drama;
   - **preview**: resting on a 接下来 poster for 1 s plays that drama live while main pauses in place.
