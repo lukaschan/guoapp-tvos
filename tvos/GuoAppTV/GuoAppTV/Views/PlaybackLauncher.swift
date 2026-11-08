@@ -72,6 +72,8 @@ extension PlaybackLauncher {
 
 private struct PlaybackLauncherModifier: ViewModifier {
     @ObservedObject var launcher: PlaybackLauncher
+    /// 交给播放会话存进度（播放页本身也从环境里读同一个 Store）。
+    @EnvironmentObject private var store: Store
 
     func body(content: Content) -> some View {
         content
@@ -80,7 +82,8 @@ private struct PlaybackLauncherModifier: ViewModifier {
                     drama: presentation.drama,
                     episodes: presentation.episodes,
                     startIndex: presentation.startIndex,
-                    startPosition: presentation.startPosition
+                    startPosition: presentation.startPosition,
+                    store: store
                 )
             }
             .alert("无法播放", isPresented: errorShown) {

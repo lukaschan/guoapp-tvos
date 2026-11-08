@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000071 /* PlaybackSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000072 /* PlaybackSession.swift */; };
+		A1000000000000000000006F /* PlaybackRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000070 /* PlaybackRules.swift */; };
 		A1000000000000000000006D /* SeriesCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000006E /* SeriesCache.swift */; };
 		A1000000000000000000006B /* SeriesShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000006C /* SeriesShelf.swift */; };
 		A10000000000000000000069 /* SeriesLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000006A /* SeriesLookup.swift */; };
@@ -38,6 +40,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A10000000000000000000072 /* PlaybackSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSession.swift; sourceTree = "<group>"; };
+		A10000000000000000000070 /* PlaybackRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/PlaybackRules.swift; sourceTree = "<group>"; };
 		A1000000000000000000006E /* SeriesCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/SeriesCache.swift; sourceTree = "<group>"; };
 		A1000000000000000000006C /* SeriesShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesShelf.swift; sourceTree = "<group>"; };
 		A1000000000000000000006A /* SeriesLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesLookup.swift; sourceTree = "<group>"; };
@@ -120,6 +124,7 @@
 				A10000000000000000000068 /* SeriesTitle.swift */,
 				A1000000000000000000006A /* SeriesLookup.swift */,
 				A1000000000000000000006E /* SeriesCache.swift */,
+				A10000000000000000000070 /* PlaybackRules.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -142,6 +147,7 @@
 				A10000000000000000000064 /* ContinueWatchingCard.swift */,
 				A10000000000000000000066 /* MyListView.swift */,
 				A1000000000000000000006C /* SeriesShelf.swift */,
+				A10000000000000000000072 /* PlaybackSession.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -253,6 +259,8 @@
 				A10000000000000000000069 /* SeriesLookup.swift in Sources */,
 				A1000000000000000000006B /* SeriesShelf.swift in Sources */,
 				A1000000000000000000006D /* SeriesCache.swift in Sources */,
+				A1000000000000000000006F /* PlaybackRules.swift in Sources */,
+				A10000000000000000000071 /* PlaybackSession.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
