@@ -4,7 +4,7 @@
 live video design anymore"). Do not change anything in this document without the owner's explicit approval:
 the layout, the look, or the mechanism. That covers bug fixes that would alter what is on screen.
 
-Implemented on `feature/polish` at `c9b0a30` (on top of `ed9c221`). Supersedes the 推荐 hero layout notes in
+Implemented on `feature/polish` at `1443a7a` (on top of `49012dd`). Supersedes the 推荐 hero layout notes in
 `2026-11-08-redfruit-layout-design.md`.
 
 ## What the owner sees
@@ -46,7 +46,7 @@ Canvas: 1920×1080 pt.
   **does not follow later layer resizes**.
   - Resizing the player layer to change the layout draws the picture misplaced: corner-anchored, with visible
     edges and black areas.
-  - This was the landscape bug from phase 2 until `c9b0a30`.
+  - This was the landscape bug from phase 2 until `1443a7a`.
 - Therefore **the hero's player layer always covers the full 1920×1080 canvas and never changes size.**
   - mpv places the picture on the panel with `video-margin-ratio-left/right/top/bottom`, computed by
     `HeroLayout.mpvMargins(videoSize:)` from `HeroLayout.panel(videoSize:)`.
@@ -62,15 +62,15 @@ Canvas: 1920×1080 pt.
 - **Landscape video full screen** (behind the info column): the owner rejected it.
 - **Resizing the mpv layer per layout**, or a seek to force a redraw after a resize: the picture stays misplaced.
 - **A 10 s teaser instead of continuous play**, with background preloading: rolled back by the owner
-  (`2188d04`).
+  (`30be1d6`).
 
 ## How to check a change on the TV
 
-Screenshots: `xcrun devicectl device capture screenshot --device Bureau --destination shot.png`. tvOS has no
+Screenshots: `xcrun devicectl device capture screenshot --device <your Apple TV> --destination shot.png`. tvOS has no
 screen recording.
 
 Dev-only launch arguments, valid for one launch and passed after `--`:
-`xcrun devicectl device process launch --device Bureau --terminate-existing com.redguojian.tv -- -GUOAppHeroIndex N`.
+`xcrun devicectl device process launch --device <your Apple TV> --terminate-existing <bundle-id> -- -GUOAppHeroIndex N`.
 - `-GUOAppHeroIndex N` starts the hero on feed item N.
 - `-GUOAppInitialTab N` opens tab N.
 - `-GUOAppShowHistory YES` opens 观看记录.

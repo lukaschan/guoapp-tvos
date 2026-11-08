@@ -471,7 +471,7 @@ Detail, 系列, 我的, plus Owner decisions).
 - [ ] **Step 1:** README: replace the outdated remote notes (首页 Play/Pause refresh; 最近观看 Play/Pause
   delete) with the new behaviour. CHANGELOG: one `## 未发布` bullet summarising phase 1.
 - [ ] **Step 2:** Deploy with `python3 scripts/deploy_tvos.py`. Expected: "完成。", and the app running
-  on Bureau.
+  on the Apple TV.
 - [ ] **Step 3:** Owner checks on the TV, covering Review Focus 4 and 5:
   - 剧场 Play/Pause on a poster plays it.
   - 追剧 card click resumes at the saved second; long-press menus work.
