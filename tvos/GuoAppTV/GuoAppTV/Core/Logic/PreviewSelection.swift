@@ -30,15 +30,9 @@ struct PreviewSelection: Equatable, Sendable {
 
     /// 停留计时到了：焦点还在这张、它不是已选定的那部、且不在按下切换后的静默期里，才开始预览。
     mutating func dwellElapsed(for id: String, at now: Date = Date()) {
-        guard willPreview(id, at: now) else { return }
+        guard focusedID == id, id != committedID else { return }
+        if let quietUntil, now < quietUntil { return }
         previewID = id
-    }
-
-    /// 到 now 这个时间点停留计时到了的话，会不会预览这张（提前在后台加载预告前先问一下）。
-    func willPreview(_ id: String, at now: Date = Date()) -> Bool {
-        guard focusedID == id, id != committedID else { return false }
-        if let quietUntil, now < quietUntil { return false }
-        return true
     }
 
     mutating func commit(_ id: String, at now: Date = Date()) {

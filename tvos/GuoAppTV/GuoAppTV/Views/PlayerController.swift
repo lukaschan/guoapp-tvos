@@ -63,12 +63,6 @@ final class PlayerController: NSObject, ObservableObject {
     /// 起播时（含换集、出错重试、画面重建后的重启）先停在第一帧、不出声。推荐页 hero 用：用户暂停后
     /// 预览别的剧，或在加载途中按了暂停，加载完也停着。由调用方维护（hero 暂停 / 继续时一起改）；全屏播放不用。
     var startsPaused = false
-    /// 最多预读多少字节（mpv demuxer-max-bytes）；nil 为 mpv 默认（会把整集下完）。推荐页 hero 的预告用，全屏播放不设。
-    var readAheadBytes: Int?
-    /// 画面填满播放区域（mpv panscan=1，比例不合时放大裁掉多出的部分，不留黑边）。推荐页 hero 用；全屏播放照原样适应。
-    var fillsFrame = false
-    /// 最近一次真正创建 mpv 起播的时间（推荐页 hero 记录起播耗时用）。
-    private(set) var startedAt: Date?
 
     /// 事件队列：mpv 事件泵跑在这里；销毁时同步等它排空，避免句柄悬空。
     nonisolated let eventQueue = DispatchQueue(label: "com.duanju.guoapp.tv.mpv-events")
@@ -102,7 +96,6 @@ final class PlayerController: NSObject, ObservableObject {
             destroyMpv()
         }
         metalLayer = newLayer
-        container.onResize = { [weak self] in self?.redrawIfPaused() }
         if !overlayAttached {
             overlay.frame = container.bounds
             overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -167,13 +160,6 @@ final class PlayerController: NSObject, ObservableObject {
         setFlag("pause", paused)
         isPaused = getFlag("pause")
         updateIdleTimer()
-    }
-
-    /// 画面尺寸变了：暂停中的 mpv 不会自己重画（Metal 层只在出新帧时才按新尺寸渲染），
-    /// 留着旧尺寸的那一帧会错位、露出黑块；原地精确跳转一次，让它按新尺寸重画当前帧。播放中下一帧自然会重画。
-    private func redrawIfPaused() {
-        guard mpv != nil, getFlag("pause") else { return }
-        command(["seek", "0", "relative+exact"])
     }
 
     /// 手动选集时先停掉当前句柄：旧集不再上报进度（否则会记到新集名下），
@@ -247,7 +233,6 @@ final class PlayerController: NSObject, ObservableObject {
             return
         }
         mpv = handle
-        startedAt = Date()
         // wid 是 int64，内容为 CAMetalLayer 的对象地址（mpv 不持有引用；
         // 本控制器的 metalLayer 强引用该图层，句柄销毁前图层一直有效）。
         var wid = Int64(Int(bitPattern: Unmanaged.passUnretained(layer).toOpaque()))
@@ -292,12 +277,6 @@ final class PlayerController: NSObject, ObservableObject {
         }
         if startsPaused {
             _ = mpv_set_option_string(handle, "pause", "yes")
-        }
-        if fillsFrame {
-            _ = mpv_set_option_string(handle, "panscan", "1.0")
-        }
-        if let readAheadBytes {
-            _ = mpv_set_option_string(handle, "demuxer-max-bytes", "\(readAheadBytes)")
         }
         _ = mpv_request_log_messages(handle, "no")
         let initStatus = mpv_initialize(handle)
@@ -347,11 +326,6 @@ final class PlayerController: NSObject, ObservableObject {
             guard let event = mpv_wait_event(handle, 0) else { return }
             let eventId = event.pointee.event_id
             if eventId == MPV_EVENT_NONE || eventId == MPV_EVENT_SHUTDOWN { return }
-            // 文件打开 / 开始出画面时立刻刷新一次进度（时长、画面尺寸），不等每秒一次的计时器：
-            // 推荐页 hero 靠「时长已知」才撤掉封面，否则画面已经在播，封面还要多盖最多 1 秒。
-            if eventId == MPV_EVENT_FILE_LOADED || eventId == MPV_EVENT_PLAYBACK_RESTART {
-                Task { @MainActor [weak self] in self?.tick() }
-            }
             if eventId == MPV_EVENT_END_FILE {
                 let endFile = event.pointee.data
                     .assumingMemoryBound(to: mpv_event_end_file.self).pointee

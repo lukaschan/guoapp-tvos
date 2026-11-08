@@ -1,15 +1,17 @@
 import SwiftUI
 
 /// 推荐页（redfruit 的 FeedHeroScreen）：整屏 hero 播放推荐流里的剧，左侧信息栏，底部「接下来」。
-/// - hero 每部剧只放 10 秒预告（从看到的那一集开头），播完回到封面；想看就全屏观看接着看（HeroTeaser）；
-/// - 预告不记进度；离开页面（切标签、进详情、转全屏）就停掉，回来再放一遍；
+/// - 进页面 / 换剧时从观看记录续播；离开页面（切标签、进详情、转全屏）就停掉，回来再按观看记录重新起播，
+///   全屏播放里看的进度不会被 hero 回退；
+/// - hero 只有真正看满 30 秒才存进度（HeroPlayback）；
 /// - 播放键在本页任何位置都是 hero 的暂停 / 继续。
 struct FeedHeroView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var store: Store
+    @AppStorage("autoAdvance") private var autoAdvance = true
     /// 「我的」→ 进入推荐页自动播放；关掉时 hero 先停在封面，按播放键或「播放」才开始（不联网）。
     @AppStorage("heroAutoplay") private var heroAutoplay = true
-    /// 自动播放关着时，用户这次进入推荐页后已经按过播放：之后照常放预告、预览，离开本页再重置。
+    /// 自动播放关着时，用户这次进入推荐页后已经按过播放：之后照常连播、换剧，离开本页再重置。
     @State private var userStartedHero = false
 
     @StateObject private var feed = FeedModel()
@@ -67,6 +69,8 @@ struct FeedHeroView: View {
         }
         .onAppear {
             isVisible = true
+            // 这部剧最后一集播完：推荐流换下一部（selection 跟着 commit，hero 随之换剧）。
+            hero.onReachedEnd = { [feed] in feed.advance() }
             startHero()
         }
         .onDisappear {
@@ -88,7 +92,7 @@ struct FeedHeroView: View {
         .onChange(of: feed.current?.id) { id in
             if let id { selection.commit(id) }
         }
-        // 只有选定的剧变了（按下海报）才换会话；预览用另一个播放器，不重新加载选定的这部。
+        // 只有选定的剧变了（按下海报、播完换下一部）才换会话；预览只换封面和介绍，不重新加载。
         .onChange(of: selection.committedID) { _ in
             pendingFullScreen = false
             startHero()
@@ -134,8 +138,8 @@ struct FeedHeroView: View {
     // MARK: - 布局
 
     private func stage(_ drama: Drama) -> some View {
-        // 详情补全过的剧（总集数等）；预告播完、播放器释放后也不变。
-        let shown = hero.shownDrama?.id == drama.id ? hero.shownDrama ?? drama : drama
+        let shown = hero.session?.drama.id == drama.id ? hero.session?.drama ?? drama : drama
+        let layout = HeroLayout.panel(videoSize: hero.status.videoSize)
         return ZStack(alignment: .topLeading) {
             // 两个播放器（选定的这部、预览那部）的画面都一直挂着，只显示看得见的那个：
             // 切换时不拆掉 mpv、不重新加载；预览出画面之前先显示它的封面。
@@ -152,7 +156,8 @@ struct FeedHeroView: View {
                     drama: shown,
                     isPreview: selection.previewID != nil,
                     status: hero.status,
-                    width: HeroLayout.infoWidth,
+                    autoAdvance: autoAdvance,
+                    width: HeroLayout.infoWidth(vertical: layout.vertical),
                     isFollowing: store.isFollowing(shown),
                     defaultFocus: focusScope,
                     onWatch: watchFullScreen,
@@ -168,12 +173,6 @@ struct FeedHeroView: View {
                 .opacity(rowFocused ? 0.55 : 1)
                 if !upNextDramas.isEmpty {
                     UpNextRow(dramas: upNextDramas, onFocus: focusUpNext, onCommit: commit)
-                        // 这一排一出现（或换了一组）就逐个取好详情：焦点停上去时预告不用再等详情。
-                        // 自动播放关着时先不联网，按了播放（isIdle 变了）再取。
-                        .task(id: upNextDramas.map(\.id) + [isIdle ? "idle" : "active"]) {
-                            guard !isIdle else { return }
-                            await DetailPrefetch.shared.warm(upNextDramas)
-                        }
                 }
             }
             .padding(.leading, 80)
@@ -281,20 +280,9 @@ struct FeedHeroView: View {
         upNextFreeze.rowFocusChanged(isFocused: id != nil, currentIDs: feed.upNext.map(\.id))
         selection.focus(id)
         dwellTask?.cancel()
-        guard let id else {
-            // 焦点离开这一行：还没显示、只在后台加载的预告也关掉。
-            hero.endPreview()
-            return
-        }
+        guard let id else { return }
         dwellTask = Task {
-            // 停 0.3 秒先在后台加载预告（不可见、停着），停满 1 秒再显示（startPreview）。
-            try? await Task.sleep(for: HeroTeaser.warmDelay)
-            guard !Task.isCancelled else { return }
-            let dwellAt = Date().addingTimeInterval((PreviewSelection.dwell - HeroTeaser.warmDelay).timeInterval)
-            if !isIdle, selection.willPreview(id, at: dwellAt), let drama = feed.dramas.first(where: { $0.id == id }) {
-                hero.preparePreview(drama, store: store)
-            }
-            try? await Task.sleep(for: PreviewSelection.dwell - HeroTeaser.warmDelay)
+            try? await Task.sleep(for: PreviewSelection.dwell)
             guard !Task.isCancelled else { return }
             selection.dwellElapsed(for: id)
         }
@@ -302,7 +290,7 @@ struct FeedHeroView: View {
 
     private func commit(_ drama: Drama) {
         dwellTask?.cancel()
-        // 按下的正是在预览（或已在后台加载）的那部：直接转正（不重新加载）；按下别的：选定的这部马上被换掉，不必再接着播。
+        // 按下的正是在预览的那部：预览直接转正（不重新加载）；按下别的：选定的这部马上被换掉，不必再接着播。
         if drama.id != selection.committedID, !hero.promotePreview(dramaID: drama.id) {
             hero.abandonPreview()
         }
