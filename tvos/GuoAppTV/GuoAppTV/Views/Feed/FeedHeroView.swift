@@ -136,7 +136,6 @@ struct FeedHeroView: View {
     private func stage(_ drama: Drama) -> some View {
         // 详情补全过的剧（总集数等）；预告播完、播放器释放后也不变。
         let shown = hero.shownDrama?.id == drama.id ? hero.shownDrama ?? drama : drama
-        let layout = HeroLayout.panel(videoSize: hero.status.videoSize)
         return ZStack(alignment: .topLeading) {
             // 两个播放器（选定的这部、预览那部）的画面都一直挂着，只显示看得见的那个：
             // 切换时不拆掉 mpv、不重新加载；预览出画面之前先显示它的封面。
@@ -153,7 +152,7 @@ struct FeedHeroView: View {
                     drama: shown,
                     isPreview: selection.previewID != nil,
                     status: hero.status,
-                    width: HeroLayout.infoWidth(vertical: layout.vertical),
+                    width: HeroLayout.infoWidth,
                     isFollowing: store.isFollowing(shown),
                     defaultFocus: focusScope,
                     onWatch: watchFullScreen,

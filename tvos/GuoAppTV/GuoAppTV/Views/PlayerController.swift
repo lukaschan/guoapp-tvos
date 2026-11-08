@@ -65,6 +65,8 @@ final class PlayerController: NSObject, ObservableObject {
     var startsPaused = false
     /// 最多预读多少字节（mpv demuxer-max-bytes）；nil 为 mpv 默认（会把整集下完）。推荐页 hero 的预告用，全屏播放不设。
     var readAheadBytes: Int?
+    /// 画面填满播放区域（mpv panscan=1，比例不合时放大裁掉多出的部分，不留黑边）。推荐页 hero 用；全屏播放照原样适应。
+    var fillsFrame = false
     /// 最近一次真正创建 mpv 起播的时间（推荐页 hero 记录起播耗时用）。
     private(set) var startedAt: Date?
 
@@ -290,6 +292,9 @@ final class PlayerController: NSObject, ObservableObject {
         }
         if startsPaused {
             _ = mpv_set_option_string(handle, "pause", "yes")
+        }
+        if fillsFrame {
+            _ = mpv_set_option_string(handle, "panscan", "1.0")
         }
         if let readAheadBytes {
             _ = mpv_set_option_string(handle, "demuxer-max-bytes", "\(readAheadBytes)")

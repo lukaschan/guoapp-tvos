@@ -9,14 +9,15 @@ struct HeroLayoutTests {
         #expect(layout.vertical)
         #expect(layout.frame == CGRect(x: 1192, y: 0, width: 608, height: 1080))
         #expect(HeroLayout.panel(videoSize: CGSize(width: 720, height: 1280)).vertical)
-        #expect(HeroLayout.infoWidth(vertical: true) == 1040)
+        #expect(HeroLayout.infoWidth == 1040)
     }
 
     @Test func landscape() {
+        // 横屏视频铺满整屏（owner 2026-11-08：全屏沉浸、看不到边框），信息栏宽度不变、切换时文字不重排。
         let layout = HeroLayout.panel(videoSize: CGSize(width: 1920, height: 1080))
         #expect(!layout.vertical)
-        #expect(layout.frame == CGRect(x: 860, y: 150, width: 1060, height: 596))
-        #expect(HeroLayout.infoWidth(vertical: false) == 760)
+        #expect(layout.frame == CGRect(x: 0, y: 0, width: 1920, height: 1080))
+        #expect(HeroLayout.infoWidth == 1040)
     }
 
     @Test func teaserLoading() {

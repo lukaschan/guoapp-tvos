@@ -1,11 +1,13 @@
 import CoreGraphics
 import Foundation
 
-/// 推荐页 hero 的版式（1920×1080 画布）：竖屏视频贴右边整高，横屏视频右侧居中偏上；
-/// 左侧信息栏宽度随之变化。
+/// 推荐页 hero 的版式（1920×1080 画布）：竖屏视频贴右边整高、边缘羽化；横屏视频铺满整屏
+///（owner 2026-11-08：全屏沉浸、看不到边框），左侧与底部压暗给信息栏和「接下来」。
+/// 信息栏宽度两种版式一样，切换时文字不重排。
 enum HeroLayout {
     static let verticalPanel = CGRect(x: 1192, y: 0, width: 608, height: 1080)
-    static let landscapePanel = CGRect(x: 860, y: 150, width: 1060, height: 596)
+    static let landscapePanel = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+    static let infoWidth: CGFloat = 1040
 
     /// 尺寸未知（还没出画面）时按竖屏排，短剧大多是竖屏。
     static func panel(videoSize: CGSize?) -> (frame: CGRect, vertical: Bool) {
@@ -13,10 +15,6 @@ enum HeroLayout {
             return (verticalPanel, true)
         }
         return (landscapePanel, false)
-    }
-
-    static func infoWidth(vertical: Bool) -> CGFloat {
-        vertical ? 1040 : 760
     }
 }
 

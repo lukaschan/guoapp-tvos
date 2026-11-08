@@ -236,7 +236,7 @@ final class HeroSlot {
     /// 这次起播的计时：开始放、详情取回的时间；出画面时写一行到 HeroTimingLog。
     private var timing: (title: String, start: Date, detail: Date?, paused: Bool)?
 
-    /// 这次预告：放的是哪一集、看过时的续播目标、播到的位置与画面尺寸。
+    /// 这次预告：放的是哪一集、看过时的续播目标、播到的位置。
     private struct Teaser {
         /// 传进来的剧（重播用）与详情补全后的剧（全屏观看用）。
         let drama: Drama
@@ -245,7 +245,6 @@ final class HeroSlot {
         let index: Int
         let saved: ResumeTarget?
         var position: Double = 0
-        var videoSize: CGSize?
     }
 
     /// 详情补全后的剧（放预告期间与播完后都有）。
@@ -310,6 +309,8 @@ final class HeroSlot {
             controller.keepsScreenAwake = false
             controller.startsPaused = wantsPaused
             controller.readAheadBytes = HeroTeaser.readAheadBytes
+            // 横屏铺满整屏、竖屏贴右整高：画面填满，看不到边框（owner 2026-11-08）。
+            controller.fillsFrame = true
             let session = PlaybackSession(
                 drama: resolved,
                 episodes: detail.episodes,
@@ -382,7 +383,6 @@ final class HeroSlot {
         isFinished = true
         session.controller.pause()
         teaser?.position = session.currentPosition
-        teaser?.videoSize = session.controller.videoSize
         refreshStatus()
         releaseTask = Task { [weak self] in
             try? await Task.sleep(for: Self.fadeOut)
@@ -449,7 +449,7 @@ final class HeroSlot {
     private func refreshStatus() {
         var next = HeroPlayback.Status()
         if isFinished, let teaser {
-            next.videoSize = teaser.videoSize
+            // 回到封面：按竖屏面板排（竖版封面放进横屏铺满的画面会被裁得很怪）。
             next.episode = teaser.episodes.indices.contains(teaser.index) ? teaser.episodes[teaser.index].number : nil
             next.fraction = 1
             next.paused = true
