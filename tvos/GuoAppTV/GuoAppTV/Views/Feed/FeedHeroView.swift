@@ -9,6 +9,10 @@ struct FeedHeroView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var store: Store
     @AppStorage("autoAdvance") private var autoAdvance = true
+    /// 「我的」→ 进入推荐页自动播放；关掉时 hero 先停在封面，按播放键或「播放」才开始（不联网）。
+    @AppStorage("heroAutoplay") private var heroAutoplay = true
+    /// 自动播放关着时，用户这次进入推荐页后已经按过播放：之后照常连播、换剧，离开本页再重置。
+    @State private var userStartedHero = false
 
     @StateObject private var feed = FeedModel()
     @StateObject private var hero = HeroPlayback()
@@ -71,6 +75,7 @@ struct FeedHeroView: View {
         }
         .onDisappear {
             isVisible = false
+            userStartedHero = false
             pendingFullScreen = false
             dwellTask?.cancel()
             stopHero()
@@ -92,11 +97,11 @@ struct FeedHeroView: View {
             startHero()
         }
         .onPlayPauseCommand {
-            hero.togglePause()
+            togglePlayback()
         }
         // 焦点在顶部标签栏时 SwiftUI 收不到播放键，由标签栏容器转发过来（见 KeepAliveTabBarController）。
         .onReceive(NotificationCenter.default.publisher(for: .feedHeroTogglePlayback)) { _ in
-            if isVisible { hero.togglePause() }
+            if isVisible { togglePlayback() }
         }
         .fullScreenCover(item: $fullScreen, onDismiss: startHero) { presentation in
             PlayerView(
@@ -134,7 +139,8 @@ struct FeedHeroView: View {
                     defaultFocus: focusScope,
                     onWatch: watchFullScreen,
                     onRetry: startHero,
-                    onTogglePause: hero.togglePause,
+                    onTogglePause: togglePlayback,
+                    isIdle: isIdle,
                     onFollow: { store.toggleFollow(shown) },
                     onEpisodes: { path.append(shown) }
                 )
@@ -192,10 +198,23 @@ struct FeedHeroView: View {
         loadedSource = source
     }
 
+    /// 自动播放关着、用户还没按过播放：hero 停在封面，不取详情、不起播。
+    private var isIdle: Bool { !heroAutoplay && !userStartedHero }
+
+    /// 播放键 / 「暂停 · 继续 · 播放」按钮：停在封面时开始播放，否则暂停 / 继续。
+    private func togglePlayback() {
+        if isIdle {
+            userStartedHero = true
+            startHero()
+        } else {
+            hero.togglePause()
+        }
+    }
+
     private func startHero() {
         heroTask?.cancel()
         heroTask = nil
-        guard isVisible, fullScreen == nil, let drama = heroDrama else { return }
+        guard isVisible, fullScreen == nil, !isIdle, let drama = heroDrama else { return }
         heroTask = Task { await hero.play(drama, store: store) }
     }
 
@@ -207,8 +226,12 @@ struct FeedHeroView: View {
 
     private func watchFullScreen() {
         guard let presentation = hero.fullScreenPresentation else {
-            // 详情还没取回：记下来，会话建好后再转（不默默吞掉这次按键）。
+            // 详情还没取回：记下来，会话建好后再转（不默默吞掉这次按键）；停在封面时先开始。
             pendingFullScreen = true
+            if isIdle {
+                userStartedHero = true
+                startHero()
+            }
             return
         }
         pendingFullScreen = false

@@ -136,10 +136,24 @@ def verify_display_name(application, variant):
         raise SystemExit(f'tvOS 包显示名应为 {variant.display_name}，实际为 {display_name!r}')
 
 
+def core_revision():
+    # 「我的」里显示的核心版本：upstream 子模块当前提交的短哈希；取不到（如下载的 ZIP）时为空。
+    result = subprocess.run(
+        ['git', '-C', str(root / 'upstream'), 'rev-parse', '--short', 'HEAD'],
+        capture_output=True, text=True, check=False,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ''
+
+
 def xcode_settings(variant, version):
     # 关于页显示的版本以根目录 VERSION 为准：构建时覆盖工程里的 MARKETING_VERSION；
-    # 显示名按版本区分（火龙果短剧 / 真果鉴），作为构建设置在签名前写进 Info.plist。
-    return [f'MARKETING_VERSION={version}', f'GUOAPP_DISPLAY_NAME={variant.display_name}']
+    # 显示名按版本区分（火龙果短剧 / 真果鉴），作为构建设置在签名前写进 Info.plist；
+    # 核心版本（upstream 短哈希）同样写进 Info.plist 的 GUOAppCoreRevision。
+    return [
+        f'MARKETING_VERSION={version}',
+        f'GUOAPP_DISPLAY_NAME={variant.display_name}',
+        f'GUOAPP_CORE_REVISION={core_revision()}',
+    ]
 
 
 def resolve_packages(derived):

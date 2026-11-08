@@ -14,6 +14,8 @@ struct HeroInfoPanel: View {
     /// 出错时主按钮变成「重试」：重新起播这部剧。
     let onRetry: () -> Void
     let onTogglePause: () -> Void
+    /// 自动播放关着、还没开始：按钮显示「播放」，状态行提示按播放键开始。
+    var isIdle = false
     let onFollow: () -> Void
     let onEpisodes: () -> Void
 
@@ -62,6 +64,7 @@ struct HeroInfoPanel: View {
     }
 
     private var statusLine: String {
+        if isIdle { return "按播放键开始播放" }
         if let error = status.error { return error }
         return HeroStatus.line(
             episode: status.showsVideo ? status.episode : nil,
@@ -97,12 +100,15 @@ struct HeroInfoPanel: View {
             TVPrimaryButton(
                 title: status.error == nil ? "全屏观看" : "重试",
                 icon: status.error == nil ? "play.fill" : "arrow.clockwise",
-                isLoading: !status.showsVideo && status.error == nil
+                isLoading: !isIdle && !status.showsVideo && status.error == nil
             ) {
                 if status.error == nil { onWatch() } else { onRetry() }
             }
             .prefersDefaultFocus(true, in: defaultFocus)
-            TVSecondaryButton(title: status.paused ? "继续" : "暂停", icon: status.paused ? "play.fill" : "pause.fill") {
+            TVSecondaryButton(
+                title: isIdle ? "播放" : (status.paused ? "继续" : "暂停"),
+                icon: isIdle || status.paused ? "play.fill" : "pause.fill"
+            ) {
                 onTogglePause()
             }
             TVSecondaryButton(title: isFollowing ? "已追剧" : "追剧", icon: isFollowing ? "heart.fill" : "heart") {

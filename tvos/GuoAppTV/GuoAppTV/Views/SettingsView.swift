@@ -1,23 +1,22 @@
 import SwiftUI
 
-/// 「我的」（redfruit 样式）：左栏应用图标与名称，右栏分组设置。
-///
-/// - 站源：分组行内直接选择，当前站源打勾；
-/// - 播放：开关行点按即切换；清晰度 / 倍速弹出居中选项卡（默认聚焦当前值）；
-/// - 观看记录：清除全部观看记录（追剧不受影响）；
-/// - 关于：版本与说明信息。
-/// 配置项与存储键（AppStorage）与原版完全一致。
+/// 「我的」（第四阶段 · 布局 A，见 docs/superpowers/specs/assets/phase4-mine-layout-a.html）：
+/// 顶部应用图标、名称、版本与核心版本；四个观看统计；下面两栏分组设置——
+/// 播放 / 推荐（左），追剧 / 站源 / 存储与关于（右）。配置项与存储键（AppStorage）沿用原来的。
 struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var store: Store
+    @ObservedObject private var checker = FollowUpdateChecker.shared
     @State private var confirmClearHistory = false
+    @State private var activePicker: ActivePicker?
+    /// Caches 文件夹占用（后台算出）；nil 表示还在算。
+    @State private var storageBytes: Int64?
     @AppStorage("danmakuEnabled") private var danmakuEnabled = true
     @AppStorage("autoAdvance") private var autoAdvance = true
     @AppStorage("playbackDiagnostics") private var diagnosticsEnabled = false
     @AppStorage("preferredQuality") private var preferredQuality = 0
     @AppStorage("playbackSpeed") private var playbackSpeed = 1.0
-
-    @State private var activePicker: ActivePicker?
+    @AppStorage("heroAutoplay") private var heroAutoplay = true
 
     /// 弹窗选择的类别。
     private enum ActivePicker: String, Identifiable {
@@ -36,20 +35,28 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            HStack(alignment: .top, spacing: 80) {
-                identityColumn
-                ScrollView {
-                    VStack(alignment: .leading, spacing: TVTheme.sectionSpacing) {
-                        sourceGroup
-                        playbackGroup
-                        historyGroup
-                        aboutGroup
+            ScrollView {
+                VStack(alignment: .leading, spacing: 40) {
+                    header
+                    statTiles
+                    HStack(alignment: .top, spacing: 40) {
+                        VStack(alignment: .leading, spacing: TVTheme.sectionSpacing) {
+                            playbackGroup
+                            heroGroup
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        VStack(alignment: .leading, spacing: TVTheme.sectionSpacing) {
+                            followGroup
+                            if appState.allSources { sourceGroup }
+                            storageAboutGroup
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
-                    .padding(.top, 20)
-                    .padding(.bottom, 56)
                 }
+                .padding(.horizontal, 80)
+                .padding(.top, 40)
+                .padding(.bottom, 60)
             }
-            .padding(.horizontal, 80)
             .sheet(item: $activePicker) { picker in
                 pickerSheet(picker)
             }
@@ -59,46 +66,129 @@ struct SettingsView: View {
             } message: {
                 Text("「继续观看」会被清空，追剧列表不受影响。")
             }
+            .task {
+                storageBytes = await Self.cachesSize()
+            }
         }
     }
 
-    // MARK: - 左栏
+    // MARK: - 顶部
 
-    private var identityColumn: some View {
-        VStack(alignment: .leading, spacing: 28) {
-            RoundedRectangle(cornerRadius: 48, style: .continuous)
+    private var header: some View {
+        HStack(alignment: .center, spacing: 32) {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(TVTheme.accentGradient)
-                .frame(width: 320, height: 320)
+                .frame(width: 128, height: 128)
                 .overlay {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 140, weight: .bold))
+                        .font(.system(size: 56, weight: .bold))
                         .foregroundColor(TVTheme.textPrimary)
                 }
-                .shadow(color: TVTheme.accent.opacity(0.35), radius: 40, y: 16)
+                .shadow(color: TVTheme.accent.opacity(0.35), radius: 30, y: 12)
             VStack(alignment: .leading, spacing: 10) {
                 Text(tvAppDisplayName)
                     .font(.system(size: TVTheme.TextSize.title2, weight: .heavy))
                     .foregroundColor(TVTheme.textPrimary)
-                Text("在电视上追短剧")
-                    .font(.system(size: TVTheme.TextSize.body))
+                Text("在电视上追短剧 · 版本 \(appVersion) · 核心 \(coreRevision)")
+                    .font(.system(size: TVTheme.TextSize.caption))
                     .foregroundColor(TVTheme.textSecondary)
             }
         }
-        .frame(width: 560, alignment: .leading)
-        .padding(.top, 120)
     }
 
-    // MARK: - 观看记录
+    // MARK: - 观看统计
 
-    private var historyGroup: some View {
-        TVSettingGroup(title: "观看记录") {
+    private var stats: ViewingStats {
+        ViewingStats.make(
+            follows: store.follows.count,
+            entries: store.progress.map { (dramaID: $0.drama.id, position: $0.position, duration: $0.duration) }
+        )
+    }
+
+    private var statTiles: some View {
+        let stats = stats
+        return HStack(spacing: 24) {
+            statTile(value: "\(stats.following)", unit: nil, label: "在追")
+            statTile(value: "\(stats.dramasWatched)", unit: nil, label: "看过的剧")
+            statTile(value: "\(stats.episodesFinished)", unit: nil, label: "看完的集")
+            statTile(value: String(format: "%.1f", stats.hoursWatched), unit: "小时", label: "累计观看")
+        }
+    }
+
+    private func statTile(value: String, unit: String?, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(value)
+                    .font(.system(size: TVTheme.TextSize.title2, weight: .heavy).monospacedDigit())
+                    .foregroundColor(TVTheme.textPrimary)
+                if let unit {
+                    Text(unit)
+                        .font(.system(size: TVTheme.TextSize.callout, weight: .semibold))
+                        .foregroundColor(TVTheme.textPrimary)
+                }
+            }
+            Text(label)
+                .font(.system(size: TVTheme.TextSize.caption))
+                .foregroundColor(TVTheme.textSecondary)
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(TVTheme.surfaceDim))
+    }
+
+    // MARK: - 播放 / 推荐
+
+    private var playbackGroup: some View {
+        TVSettingGroup(title: "播放") {
+            TVToggleRow(title: "播完自动连播下一集", isOn: $autoAdvance)
+            TVSettingDivider()
+            TVValueRow(title: "清晰度", value: Self.qualityLabel(preferredQuality)) {
+                activePicker = .quality
+            }
+            TVSettingDivider()
+            TVValueRow(title: "播放倍速", value: String(format: "%.2fx", playbackSpeed)) {
+                activePicker = .speed
+            }
+            TVSettingDivider()
+            TVToggleRow(title: "弹幕", isOn: $danmakuEnabled)
+            TVSettingDivider()
+            TVToggleRow(title: "播放诊断", isOn: $diagnosticsEnabled)
+            TVSettingDivider()
+            note("清晰度在下一次打开剧集时生效；倍速也可在播放时从控件里实时调整。")
+        }
+    }
+
+    private var heroGroup: some View {
+        TVSettingGroup(title: "推荐") {
+            TVToggleRow(title: "进入推荐页自动播放", isOn: $heroAutoplay)
+            TVSettingDivider()
+            note(heroAutoplay ? "进入推荐页就开始播放（有声）。" : "推荐页先显示封面，按播放键或「播放」才开始。")
+        }
+    }
+
+    // MARK: - 追剧
+
+    private var followGroup: some View {
+        TVSettingGroup(title: "追剧") {
+            TVValueRow(title: "检查追剧更新", value: followCheckLabel) {
+                checker.checkIfDue(store: store, force: true)
+            }
+            TVSettingDivider()
             TVValueRow(title: "清除观看记录", value: store.recentHistory.isEmpty ? "暂无记录" : "") {
                 confirmClearHistory = true
             }
         }
     }
 
-    // MARK: - 站源
+    private var followCheckLabel: String {
+        if checker.isChecking { return "正在检查…" }
+        let updated = store.updatedFollowCount
+        if updated > 0 { return FollowUpdate.summary(updatedCount: updated) }
+        return checker.lastFinished == nil ? "" : "刚刚检查"
+    }
+
+    // MARK: - 站源（全部站源的版本才有多个可选）
 
     private var sourceGroup: some View {
         TVSettingGroup(title: "站源") {
@@ -130,64 +220,47 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - 播放
+    // MARK: - 存储与关于
 
-    private var playbackGroup: some View {
-        TVSettingGroup(title: "播放") {
-            TVToggleRow(title: "弹幕", isOn: $danmakuEnabled)
+    private var storageAboutGroup: some View {
+        TVSettingGroup(title: "存储与关于") {
+            infoRow("已用空间", storageBytes.map { StorageSize.label(bytes: $0) } ?? "正在计算…")
             TVSettingDivider()
-            TVToggleRow(title: "播完自动连播下一集", isOn: $autoAdvance)
+            infoRow("站源", SourceSite.available(allSources: appState.allSources)
+                .first { $0.id == appState.selectedSource }?.name ?? appState.selectedSource)
             TVSettingDivider()
-            TVToggleRow(title: "播放诊断", isOn: $diagnosticsEnabled)
+            infoRow("版本", appVersion)
             TVSettingDivider()
-            TVValueRow(title: "清晰度", value: Self.qualityLabel(preferredQuality)) {
-                activePicker = .quality
-            }
+            infoRow("核心", coreRevision)
             TVSettingDivider()
-            TVValueRow(title: "播放倍速", value: String(format: "%.2fx", playbackSpeed)) {
-                activePicker = .speed
-            }
-            TVSettingDivider()
-            Text("清晰度在下一次打开剧集时生效；倍速也可在播放时从控件里实时调整。")
-                .font(.system(size: TVTheme.TextSize.caption2))
-                .foregroundColor(TVTheme.textTertiary)
-                .padding(.horizontal, 28)
-                .padding(.vertical, 18)
+            note("原生 tvOS 应用 · Go 核心 · MPV 播放")
+            note("在海报上按播放键直接播放；继续观看卡片长按可查看详情或移除")
+            note("播放时点按或按 ↑↓ 调出控件：倍速、选集；← → 快退 / 快进 10 秒")
+            note("追剧与观看进度存在 Caches，系统空间不足时可能被清理。")
         }
     }
 
-    // MARK: - 关于
-
-    private var aboutGroup: some View {
-        TVSettingGroup(title: "关于") {
-            HStack {
-                Text("版本")
-                    .font(.system(size: TVTheme.TextSize.body, weight: .medium))
-                Spacer()
-                Text(appVersion)
-                    .font(.system(size: TVTheme.TextSize.caption))
-                    .foregroundColor(TVTheme.textSecondary)
-            }
-            .padding(.horizontal, 28)
-            .padding(.vertical, 22)
-            aboutNote("原生 tvOS 应用 · Go 核心 · MPV 播放")
-            aboutNote("在海报上按播放键直接播放")
-            aboutNote("继续观看卡片长按可查看详情或移除")
-            aboutNote("播放时点按或按 ↑↓ 调出控件：倍速、画面、选集；← → 快退 / 快进 10 秒")
-            aboutNote("追剧与观看进度存在 Caches，系统空间不足时可能被清理。")
+    /// 只显示、不可操作的一行（标题 + 右侧值）。
+    private func infoRow(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: TVTheme.TextSize.body, weight: .medium))
+            Spacer()
+            Text(value)
+                .font(.system(size: TVTheme.TextSize.caption))
+                .foregroundColor(TVTheme.textSecondary)
         }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 22)
     }
 
-    private func aboutNote(_ text: String) -> some View {
+    private func note(_ text: String) -> some View {
         Text(text)
             .font(.system(size: TVTheme.TextSize.caption2))
             .foregroundColor(TVTheme.textTertiary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 28)
             .padding(.vertical, 14)
-            .overlay(alignment: .top) {
-                TVSettingDivider()
-            }
     }
 
     // MARK: - 选项弹窗
@@ -210,10 +283,40 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - 版本信息
+
     private var appVersion: String {
         let info = Bundle.main.infoDictionary
         let short = info?["CFBundleShortVersionString"] as? String ?? ""
         let build = info?["CFBundleVersion"] as? String ?? ""
         return short.isEmpty ? build : "\(short) (\(build))"
+    }
+
+    /// 构建时写进 Info.plist 的 upstream 短哈希；没有（本地调试构建）时显示「—」。
+    private var coreRevision: String {
+        let revision = Bundle.main.object(forInfoDictionaryKey: "GUOAppCoreRevision") as? String ?? ""
+        return revision.isEmpty ? "—" : revision
+    }
+
+    /// Caches 文件夹（核心数据、封面、观看记录都在这里）占用的空间，在后台线程里算。
+    private static func cachesSize() async -> Int64 {
+        await Task.detached(priority: .utility) { directorySize(of: cachesDirectory) }.value
+    }
+
+    private nonisolated static var cachesDirectory: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+    }
+
+    private nonisolated static func directorySize(of directory: URL) -> Int64 {
+        let keys: Set<URLResourceKey> = [.isRegularFileKey, .totalFileAllocatedSizeKey, .fileSizeKey]
+        guard let enumerator = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: Array(keys)) else {
+            return 0
+        }
+        var total: Int64 = 0
+        while let url = enumerator.nextObject() as? URL {
+            guard let values = try? url.resourceValues(forKeys: keys), values.isRegularFile == true else { continue }
+            total += Int64(values.totalFileAllocatedSize ?? values.fileSize ?? 0)
+        }
+        return total
     }
 }
