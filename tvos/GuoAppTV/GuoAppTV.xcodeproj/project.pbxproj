@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000097 /* Skeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000098 /* Skeleton.swift */; };
+		A10000000000000000000095 /* Shimmer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000096 /* Shimmer.swift */; };
 		A10000000000000000000093 /* ImageDownsampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000094 /* ImageDownsampler.swift */; };
 		A10000000000000000000091 /* NativeSearchContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000092 /* NativeSearchContainer.swift */; };
 		A1000000000000000000008F /* SearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000090 /* SearchModel.swift */; };
@@ -57,6 +59,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A10000000000000000000098 /* Skeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skeleton.swift; sourceTree = "<group>"; };
+		A10000000000000000000096 /* Shimmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/Shimmer.swift; sourceTree = "<group>"; };
 		A10000000000000000000094 /* ImageDownsampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/ImageDownsampler.swift; sourceTree = "<group>"; };
 		A10000000000000000000092 /* NativeSearchContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSearchContainer.swift; sourceTree = "<group>"; };
 		A10000000000000000000090 /* SearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModel.swift; sourceTree = "<group>"; };
@@ -166,6 +170,7 @@
 				A1000000000000000000008C /* ResumeAction.swift */,
 				A1000000000000000000008E /* LiveSearch.swift */,
 				A10000000000000000000094 /* ImageDownsampler.swift */,
+				A10000000000000000000096 /* Shimmer.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -199,6 +204,7 @@
 				A1000000000000000000008A /* FeaturedBanner.swift */,
 				A10000000000000000000090 /* SearchModel.swift */,
 				A10000000000000000000092 /* NativeSearchContainer.swift */,
+				A10000000000000000000098 /* Skeleton.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -329,6 +335,8 @@
 				A1000000000000000000008F /* SearchModel.swift in Sources */,
 				A10000000000000000000091 /* NativeSearchContainer.swift in Sources */,
 				A10000000000000000000093 /* ImageDownsampler.swift in Sources */,
+				A10000000000000000000095 /* Shimmer.swift in Sources */,
+				A10000000000000000000097 /* Skeleton.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

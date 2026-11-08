@@ -97,8 +97,7 @@ struct HomeView: View {
     @ViewBuilder
     private var catalogContent: some View {
         if loading && items.isEmpty {
-            TVLoadingView("正在加载…")
-                .padding(.vertical, 160)
+            TheaterSkeleton()
         } else if let error, items.isEmpty {
             VStack(spacing: 26) {
                 TVStatusView(

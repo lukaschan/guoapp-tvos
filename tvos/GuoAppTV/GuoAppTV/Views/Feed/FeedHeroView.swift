@@ -217,7 +217,7 @@ extension Notification.Name {
     static let feedHeroTogglePlayback = Notification.Name("guoapp.feedHeroTogglePlayback")
 }
 
-/// 推荐页骨架（灰块；闪光动效在第三阶段加）：左侧信息栏各行 + 右侧竖屏面板。
+/// 推荐页骨架：左侧信息栏各行 + 右侧竖屏面板，整体扫光（见 Skeleton.swift）。
 private struct FeedSkeleton: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -243,6 +243,7 @@ private struct FeedSkeleton: View {
             .padding(.top, 250)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .shimmering()
     }
 
     private func block(width: CGFloat, height: CGFloat) -> some View {
