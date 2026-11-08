@@ -55,6 +55,9 @@ struct HomeView: View {
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
             }
+            .navigationDestination(for: ProducerRoute.self) { route in
+                ProducerView(drama: route.drama)
+            }
             .onAppear {
                 // 首次进入首页且为红果站源时，默认展开榜单，不用每次手动点。
                 if !didApplyDefaultRanking, appState.selectedSource == "hongguo" {

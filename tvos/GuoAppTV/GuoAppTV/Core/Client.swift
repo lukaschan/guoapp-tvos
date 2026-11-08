@@ -36,6 +36,7 @@ actor CoreClient {
     private var categoriesCache: [String: CacheEntry<[Category]>] = [:]
     private var rankingBoardsCache: CacheEntry<[RankingBoard]>?
     private var rankingsCache: [String: CacheEntry<RankingPage>] = [:]
+    private var producerCache: [String: CacheEntry<ProducerWorks>] = [:]
 
     private func isFresh(_ timestamp: Date) -> Bool {
         Date().timeIntervalSince(timestamp) < Self.cacheTTL
@@ -49,6 +50,7 @@ actor CoreClient {
             rankingBoardsCache = nil
         }
         rankingsCache = rankingsCache.filter { isFresh($0.value.timestamp) }
+        producerCache = producerCache.filter { isFresh($0.value.timestamp) }
     }
 
     /// 清空首页目录缓存（首页按播放/暂停键手动刷新时调用，强制重新拉取）。
@@ -191,8 +193,16 @@ actor CoreClient {
     /// 出品方剧作：点入详情页的出品方入口后才调用，核心先按剧名定出品方，
     /// 再拉该出品方的全部剧作（已补上线日期，供按最新/最热排序）。
     func producerWorks(drama: Drama) async throws -> ProducerWorks {
+        // 出品方检索要几十秒，结果按剧缓存（同目录缓存 TTL）：页面重建或
+        // 返回时直接用缓存，不再重复检索。
+        if let entry = producerCache[drama.id], isFresh(entry.timestamp) {
+            return entry.value
+        }
         let data = try await call(["action": "producerWorks", "drama": drama.requestJSON()])
-        return ProducerWorks(dict: data)
+        let result = ProducerWorks(dict: data)
+        purgeExpiredCache()
+        producerCache[drama.id] = CacheEntry(value: result, timestamp: Date())
+        return result
     }
 
     func resolve(drama: Drama, episode: Episode, quality: Int = 0) async throws -> PlaybackPlan {

@@ -90,9 +90,11 @@ struct DetailView: View {
                     store.toggleFollow(drama)
                 }
                 if displayDrama.source == "hongguo" {
-                    TVSecondaryLink(title: "出品方", icon: "building.2") {
-                        ProducerView(drama: displayDrama)
-                    }
+                    TVSecondaryLink(
+                        title: "出品方",
+                        icon: "building.2",
+                        value: ProducerRoute(drama: displayDrama)
+                    )
                 }
             }
             if let progress = store.latestProgress(for: drama.id) {

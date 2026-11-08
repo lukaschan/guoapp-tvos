@@ -129,6 +129,13 @@ struct DramaDetail {
     }
 }
 
+/// 出品方页的导航路由值：与 Drama 一样走值链接 + navigationDestination
+/// 注册。不要用闭包目标链接跳出品方页——tvOS 16 上它会被父视图重绘
+/// 重复触发，把出品方页再盖到目标页上面。
+struct ProducerRoute: Hashable {
+    let drama: Drama
+}
+
 struct ProducerWorks {
     let producer: String
     let items: [Drama]

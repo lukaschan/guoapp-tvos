@@ -214,15 +214,17 @@ struct TVSecondaryButton: View {
 }
 
 /// 次操作导航链接：外观与 TVSecondaryButton 完全一致，用于跳页型操作。
-struct TVSecondaryLink<Destination: View>: View {
+/// 走值链接（与全 App 的 Drama 跳转同一机制），不要用闭包目标链接：
+/// tvOS 16 上闭包链接会被父视图重绘重复触发，把目标页盖住。
+struct TVSecondaryLink<Value: Hashable>: View {
     let title: String
     var icon: String? = nil
-    @ViewBuilder let destination: () -> Destination
+    let value: Value
 
     @FocusState private var focused: Bool
 
     var body: some View {
-        NavigationLink(destination: destination) {
+        NavigationLink(value: value) {
             HStack(spacing: 12) {
                 if let icon {
                     Image(systemName: icon)

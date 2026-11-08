@@ -42,6 +42,9 @@ struct HistoryView: View {
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
             }
+            .navigationDestination(for: ProducerRoute.self) { route in
+                ProducerView(drama: route.drama)
+            }
             .confirmationDialog(
                 "删除观看记录",
                 isPresented: Binding(
