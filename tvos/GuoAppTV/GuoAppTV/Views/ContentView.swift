@@ -67,11 +67,12 @@ struct KeepAliveTabView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UITabBarController {
         let tabBarController = UITabBarController()
         tabBarController.viewControllers = [
-            // redfruit 标签结构；推荐（首页大图）在第二阶段加入并成为默认页。
-            hosting(HomeView(), title: "剧场", image: "film.stack", tag: 0),
-            hosting(MyListView(), title: "追剧", image: "heart", tag: 1),
-            hosting(SearchView(), title: "搜索", image: "magnifyingglass", tag: 2),
-            hosting(SettingsView(), title: "我的", image: "person.crop.circle", tag: 3),
+            // redfruit 标签结构：推荐（整屏 hero，默认页）· 剧场 · 追剧 · 搜索 · 我的。
+            hosting(FeedHeroView(), title: "推荐", image: "sparkles", tag: 0),
+            hosting(HomeView(), title: "剧场", image: "film.stack", tag: 1),
+            hosting(MyListView(), title: "追剧", image: "heart", tag: 2),
+            hosting(SearchView(), title: "搜索", image: "magnifyingglass", tag: 3),
+            hosting(SettingsView(), title: "我的", image: "person.crop.circle", tag: 4),
         ]
         return tabBarController
     }
