@@ -45,6 +45,8 @@ final class SearchModel: ObservableObject {
                 popular = Array(batch.dramas.prefix(SearchCopy.popularCount))
                 // 一部都没取到：下次进页面再试（页面上有提示和重试）。
                 if popular.isEmpty { popularSource = nil }
+            } catch is CancellationError {
+                popularSource = nil
             } catch {
                 guard !Task.isCancelled else { return }
                 popularError = UserFacingError.message(for: error)
@@ -97,7 +99,7 @@ final class SearchModel: ObservableObject {
         loading = true
         error = nil
         do {
-            let result = try await CoreClient.shared.catalog(source: source, query: key)
+            let result = try await CoreClient.shared.catalog(source: source, query: key, session: "search")
             // 输入已经变了：这次的结果作废（新的一次会自己更新状态）。
             guard !Task.isCancelled else { return }
             results = result.items
@@ -106,6 +108,9 @@ final class SearchModel: ObservableObject {
             for case .series(let group) in SeriesGrouping.group(result.items, title: \.title, source: \.source) {
                 await SeriesLookup.shared.remember(group)
             }
+        } catch is CancellationError {
+            // 被更新的关键词取代（核心取消了这次）：新的那次会自己更新状态。
+            return
         } catch {
             guard !Task.isCancelled else { return }
             self.error = UserFacingError.message(for: error)

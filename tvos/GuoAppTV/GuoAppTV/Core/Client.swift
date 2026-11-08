@@ -15,14 +15,23 @@ enum CoreError: LocalizedError {
 /// Go 核心的 Swift 客户端（见 upstream/native/core/app_runtime.go 的 NativeRequest）。
 ///
 /// 协议就是一层 JSON：请求 `{action, ...}`，响应 `{ok, data, error, code}`。
-/// 核心调用是阻塞的（站源请求最长 60 秒），所以统一走一条专用串行队列，
-/// 绝不在主线程或 Swift 协作线程池里阻塞；actor 保证调用之间不交错。
+/// 核心调用是阻塞的（站源请求最长 60 秒），绝不在主线程或 Swift 协作线程池里阻塞，分两条通道（CoreRoute）：
+/// - 播放类（初始化、起播、换线路、释放、取消播放）：一条串行队列，与以前一样——
+///   核心里较新的播放请求会取消进行中的那个，不能并发；
+/// - 读（封面、片库、详情、搜索、推荐、弹幕……）：并发队列，最多 4 个一起跑（AsyncLimiter），
+///   封面和列表不再排成一队。搜索、联想词、弹幕、补全信息带核心的读会话（session + sequence）：
+///   同一会话里新的请求会让核心取消旧的，被取消的那个抛 CancellationError，不当作出错显示。
+/// 内存缓存（片库、分类、榜单）不变。
 actor CoreClient {
     static let shared = CoreClient()
 
     private let queue = DispatchQueue(label: "app.duanju.core", qos: .userInitiated)
+    private let readQueue = DispatchQueue(label: "app.duanju.core.read", qos: .userInitiated, attributes: .concurrent)
+    private let readLimiter = AsyncLimiter(limit: 4)
     private var initialized = false
     private var playbackSequence = 0
+    /// 读会话的序号：同一会话里越新越大（核心按它判断哪个是最新的）。
+    private var readSequence: Int64 = 0
 
     /// 首页目录缓存：切标签回来时直接用缓存，避免每次重新联网拉取。
     /// 带 TTL（30 分钟），过期后重新拉取，保证内容新鲜。
@@ -59,17 +68,29 @@ actor CoreClient {
         rankingsCache.removeAll()
     }
 
-    private func call(_ payload: [String: Any]) async throws -> [String: Any] {
+    /// session：核心读会话的键（只用于读请求）；给了就带上 session 与递增的 sequence。
+    private func call(_ payload: [String: Any], session: String? = nil) async throws -> [String: Any] {
+        var payload = payload
+        if let session {
+            readSequence += 1
+            payload["session"] = session
+            payload["sequence"] = readSequence
+        }
         let data = try JSONSerialization.data(withJSONObject: payload)
         let text = String(decoding: data, as: UTF8.self)
-        let responseText = try await withCheckedThrowingContinuation { continuation in
-            queue.async {
-                do {
-                    continuation.resume(returning: try DuanjuBridge.request(text))
-                } catch {
-                    continuation.resume(throwing: error)
-                }
+        let responseText: String
+        switch CoreRoute.lane(for: payload["action"] as? String ?? "") {
+        case .playback:
+            responseText = try await Self.perform(text, on: queue)
+        case .read:
+            await readLimiter.acquire()
+            do {
+                responseText = try await Self.perform(text, on: readQueue)
+            } catch {
+                await readLimiter.release()
+                throw error
             }
+            await readLimiter.release()
         }
         guard
             let responseData = responseText.data(using: .utf8),
@@ -78,9 +99,25 @@ actor CoreClient {
             throw CoreError.transport("本地核心返回了无效数据")
         }
         guard envelope["ok"] as? Bool == true else {
-            throw CoreError.message(envelope["error"] as? String ?? "读取失败，请重试")
+            let message = envelope["error"] as? String ?? "读取失败，请重试"
+            // 被同一会话里更新的请求取消：不是失败。
+            if CoreRoute.isCancellation(message: message) { throw CancellationError() }
+            throw CoreError.message(message)
         }
         return envelope["data"] as? [String: Any] ?? [:]
+    }
+
+    /// 在给定队列上阻塞调用核心（不占用 Swift 协作线程池）。
+    private static func perform(_ text: String, on queue: DispatchQueue) async throws -> String {
+        try await withCheckedThrowingContinuation { continuation in
+            queue.async {
+                do {
+                    continuation.resume(returning: try DuanjuBridge.request(text))
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
     }
 
     private func nextSequence() -> Int {
@@ -156,8 +193,10 @@ actor CoreClient {
         return CatalogPage(dict: data)
     }
 
+    /// session：搜索页传 "search"，让新的关键词取消旧的；系列查找等其它调用不传。
     func catalog(
-        source: String, page: Int = 1, query: String = "", category: String = "", force: Bool = false
+        source: String, page: Int = 1, query: String = "", category: String = "", force: Bool = false,
+        session: String? = nil
     ) async throws -> CatalogPage {
         // 只缓存浏览（query 为空），搜索结果不缓存，保证搜索实时。
         let cacheKey: String? = query.isEmpty ? "\(source)|\(page)|\(category)" : nil
@@ -171,7 +210,7 @@ actor CoreClient {
             "query": query,
             "category": category,
             "force": force,
-        ])
+        ], session: session)
         let result = CatalogPage(dict: data)
         if let key = cacheKey {
             purgeExpiredCache()
@@ -181,7 +220,7 @@ actor CoreClient {
     }
 
     func suggestions(query: String) async throws -> [String] {
-        let data = try await call(["action": "suggestions", "query": query])
+        let data = try await call(["action": "suggestions", "query": query], session: "suggestions")
         return (data["items"] as? [Any] ?? []).compactMap { $0 as? String }
     }
 
@@ -222,12 +261,14 @@ actor CoreClient {
     }
 
     func danmaku(plan: PlaybackPlan, startMs: Int, durationMs: Int) async throws -> DanmakuPage {
+        // 核心要求弹幕请求带读会话（session + sequence），否则一律拒绝（「请求标记无效」）——
+        // 这就是弹幕一直不出来的原因（与上游 Dart 侧 _read('danmaku', …) 一致）。
         let data = try await call([
             "action": "danmaku",
             "playbackSession": plan.session,
             "startMs": startMs,
             "durationMs": durationMs,
-        ])
+        ], session: "danmaku")
         return DanmakuPage(dict: data)
     }
 

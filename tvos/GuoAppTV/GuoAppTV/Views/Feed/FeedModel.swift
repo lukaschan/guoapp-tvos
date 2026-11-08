@@ -48,6 +48,9 @@ final class FeedModel: ObservableObject {
             emptyBatches = 0
             nextCatalogPage = 2
             loadMoreIfNeeded()
+        } catch is CancellationError {
+            // 被取消（离开页面或被更新的请求取代）：不是失败，不改状态。
+            return
         } catch {
             guard !Task.isCancelled else { return }
             // 已有剧单时保留（重新加载失败不打断正在看的）；否则显示错误与重试。
