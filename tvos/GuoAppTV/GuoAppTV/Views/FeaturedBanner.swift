@@ -44,6 +44,8 @@ struct FeaturedBanner: View {
         .background(TVTheme.surfaceDim)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .focusSection()
+        // 与海报一致：焦点在横幅按钮上时按播放键直接播。
+        .onPlayPauseCommand(perform: onPlay)
     }
 
     private var metadata: String {

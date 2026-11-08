@@ -21,6 +21,8 @@ struct FeedHeroView: View {
     @State private var upNextFreeze = UpNextFreeze()
     @State private var loadedSource: String?
     @State private var heroTask: Task<Void, Never>?
+    /// hero 还在加载时按了「全屏观看」：会话一建好就转全屏。
+    @State private var pendingFullScreen = false
     @State private var dwellTask: Task<Void, Never>?
     @Namespace private var focusScope
 
@@ -69,13 +71,20 @@ struct FeedHeroView: View {
         }
         .onDisappear {
             isVisible = false
+            pendingFullScreen = false
             dwellTask?.cancel()
             stopHero()
+        }
+        .onReceive(hero.$session) { session in
+            guard pendingFullScreen, session != nil else { return }
+            // 等这一轮发布结束、hero.session 已经赋值后再转全屏。
+            DispatchQueue.main.async { watchFullScreen() }
         }
         .onChange(of: feed.current?.id) { id in
             if let id { selection.commit(id) }
         }
         .onChange(of: selection.heroID) { _ in
+            pendingFullScreen = false
             startHero()
         }
         .onPlayPauseCommand {
@@ -191,7 +200,12 @@ struct FeedHeroView: View {
     }
 
     private func watchFullScreen() {
-        guard let presentation = hero.fullScreenPresentation else { return }
+        guard let presentation = hero.fullScreenPresentation else {
+            // 详情还没取回：记下来，会话建好后再转（不默默吞掉这次按键）。
+            pendingFullScreen = true
+            return
+        }
+        pendingFullScreen = false
         stopHero()
         fullScreen = presentation
     }

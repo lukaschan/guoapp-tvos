@@ -37,10 +37,11 @@ final class HeroPlayback: ObservableObject {
             let detail = try await CoreClient.shared.detail(drama: drama)
             guard !Task.isCancelled else { return }
             let latest = store.latestProgress(for: drama.id)
-            guard let target = ResumeTarget.resolve(
+            guard let target = ResumeTarget.playbackStart(
                 episodeNumbers: detail.episodes.map(\.number),
                 latestEpisode: latest?.episode,
-                position: latest?.position ?? 0
+                position: latest?.position ?? 0,
+                duration: latest?.duration ?? 0
             ) else {
                 fail("暂无可播放的分集")
                 return
