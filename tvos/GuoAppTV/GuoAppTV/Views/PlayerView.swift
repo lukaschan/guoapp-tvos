@@ -124,6 +124,8 @@ final class PlayerHostContainerView: UIView {
     override class var layerClass: AnyClass { MetalLayer.self }
 
     var metalLayer: CAMetalLayer { layer as! CAMetalLayer }
+    /// 画面尺寸变了（推荐页 hero 竖屏 / 横屏面板切换时）：交给播放器决定要不要重画。
+    var onResize: (() -> Void)?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -141,7 +143,10 @@ final class PlayerHostContainerView: UIView {
         super.layoutSubviews()
         let scale = window?.screen.scale ?? 1.0
         metalLayer.contentsScale = scale
-        metalLayer.drawableSize = CGSize(width: bounds.width * scale, height: bounds.height * scale)
+        let size = CGSize(width: bounds.width * scale, height: bounds.height * scale)
+        guard size != metalLayer.drawableSize else { return }
+        metalLayer.drawableSize = size
+        onResize?()
     }
 }
 

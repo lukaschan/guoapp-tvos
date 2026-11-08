@@ -98,6 +98,7 @@ final class PlayerController: NSObject, ObservableObject {
             destroyMpv()
         }
         metalLayer = newLayer
+        container.onResize = { [weak self] in self?.redrawIfPaused() }
         if !overlayAttached {
             overlay.frame = container.bounds
             overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -162,6 +163,13 @@ final class PlayerController: NSObject, ObservableObject {
         setFlag("pause", paused)
         isPaused = getFlag("pause")
         updateIdleTimer()
+    }
+
+    /// 画面尺寸变了：暂停中的 mpv 不会自己重画（Metal 层只在出新帧时才按新尺寸渲染），
+    /// 留着旧尺寸的那一帧会错位、露出黑块；原地精确跳转一次，让它按新尺寸重画当前帧。播放中下一帧自然会重画。
+    private func redrawIfPaused() {
+        guard mpv != nil, getFlag("pause") else { return }
+        command(["seek", "0", "relative+exact"])
     }
 
     /// 手动选集时先停掉当前句柄：旧集不再上报进度（否则会记到新集名下），
@@ -331,6 +339,11 @@ final class PlayerController: NSObject, ObservableObject {
             guard let event = mpv_wait_event(handle, 0) else { return }
             let eventId = event.pointee.event_id
             if eventId == MPV_EVENT_NONE || eventId == MPV_EVENT_SHUTDOWN { return }
+            // 文件打开 / 开始出画面时立刻刷新一次进度（时长、画面尺寸），不等每秒一次的计时器：
+            // 推荐页 hero 靠「时长已知」才撤掉封面，否则画面已经在播，封面还要多盖最多 1 秒。
+            if eventId == MPV_EVENT_FILE_LOADED || eventId == MPV_EVENT_PLAYBACK_RESTART {
+                Task { @MainActor [weak self] in self?.tick() }
+            }
             if eventId == MPV_EVENT_END_FILE {
                 let endFile = event.pointee.data
                     .assumingMemoryBound(to: mpv_event_end_file.self).pointee
