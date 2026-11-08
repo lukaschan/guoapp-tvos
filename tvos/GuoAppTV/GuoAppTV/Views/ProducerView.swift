@@ -25,7 +25,7 @@ struct ProducerView: View {
     // MARK: - 头部
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 28) {
+        VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 10) {
                 Text(works?.producer.isEmpty == false ? works!.producer : "出品方")
                     .font(.system(size: 40, weight: .bold))
@@ -36,7 +36,8 @@ struct ProducerView: View {
                         .foregroundColor(TVTheme.textSecondary)
                 }
             }
-            Spacer()
+            // 排序按钮放左侧、与海报网格首列同侧：放右侧时结果只有 1-2 部，
+            // 遥控器从按钮往下找不到正下方的卡片，焦点会卡死。
             HStack(spacing: 14) {
                 sortButton("最新", selected: newest) { newest = true }
                 sortButton("最热", selected: !newest) { newest = false }
@@ -53,6 +54,12 @@ struct ProducerView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
                 .background(Capsule().fill(selected ? TVTheme.accent : TVTheme.surface))
+                .overlay(
+                    Capsule().strokeBorder(
+                        Color.white.opacity(selected ? 0.95 : 0),
+                        lineWidth: 3
+                    )
+                )
         }
         .buttonStyle(TVPressButtonStyle())
     }
@@ -97,6 +104,7 @@ struct ProducerView: View {
                     }
                 }
             )
+            .focusSection()
         }
     }
 
