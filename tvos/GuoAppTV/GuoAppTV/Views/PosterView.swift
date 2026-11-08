@@ -97,39 +97,50 @@ struct TVPosterCard: View {
     var linkValue: Drama? = nil
     /// 按播放键后正在取详情：海报上叠加载圈。
     var isLoading = false
+    /// 设置时点按调用它而不是导航链接：卡片放在独立的 UIHostingController 里（如搜索结果）时，
+    /// 那里没有外层的 NavigationStack，导航链接点了没反应，由调用方自己推详情页。
+    var onSelect: (() -> Void)? = nil
 
     @FocusState private var focused: Bool
 
     var body: some View {
-        NavigationLink(value: linkValue ?? drama) {
-            VStack(alignment: .leading, spacing: 12) {
-                poster
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title ?? drama.title)
-                        .font(.system(size: TVTheme.TextSize.caption, weight: .bold))
-                        .foregroundColor(TVTheme.textPrimary)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
-                    if let subtitle, !subtitle.isEmpty {
-                        Text(subtitle)
-                            .font(.system(size: TVTheme.TextSize.caption2))
-                            .foregroundColor(TVTheme.textSecondary)
-                            .lineLimit(1)
-                    }
-                    if let progress, progress > 0.005 {
-                        TVProgressBar(fraction: progress)
-                            .frame(height: 5)
-                            .padding(.top, 2)
-                    } else if subtitle != nil {
-                        Color.clear.frame(height: 7)
-                    }
-                }
+        Group {
+            if let onSelect {
+                Button(action: onSelect) { card }
+            } else {
+                NavigationLink(value: linkValue ?? drama) { card }
             }
         }
         .buttonStyle(TVPressButtonStyle())
         .focused($focused)
         .tvFocusEffect(focused: focused, scale: TVTheme.focusScale, cornerRadius: TVTheme.posterRadius, stroke: false)
         .zIndex(focused ? 1 : 0)
+    }
+
+    private var card: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            poster
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title ?? drama.title)
+                    .font(.system(size: TVTheme.TextSize.caption, weight: .bold))
+                    .foregroundColor(TVTheme.textPrimary)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.system(size: TVTheme.TextSize.caption2))
+                        .foregroundColor(TVTheme.textSecondary)
+                        .lineLimit(1)
+                }
+                if let progress, progress > 0.005 {
+                    TVProgressBar(fraction: progress)
+                        .frame(height: 5)
+                        .padding(.top, 2)
+                } else if subtitle != nil {
+                    Color.clear.frame(height: 7)
+                }
+            }
+        }
     }
 
     private var poster: some View {
