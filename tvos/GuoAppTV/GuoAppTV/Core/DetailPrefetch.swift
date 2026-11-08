@@ -26,12 +26,15 @@ final class DetailPrefetch {
         }
     }
 
-    /// 推荐页「接下来」一出现就把这一排的详情逐个取好（一次一个，不挤占读请求的并发名额；
-    /// 已缓存的立刻跳过），焦点停上去、开始预告时不用再等详情。任务取消（这一排换了）就停。
+    /// 推荐页「接下来」一出现就把这一排的详情在核心里逐个取好，焦点停上去、开始预告时不用再等详情。
+    /// 走 followCheck 而不是 detail：核心对同一站点的请求一次只发一个、间隔 250 ms，followCheck 是低优先级，
+    /// 只在没有别的请求排队时才发，不会挡住正要起播的那部（实测电视上取地址被挡到 3.5 秒）；它和 detail
+    /// 共用核心 5 分钟的详情缓存，之后 detail 直接命中。一次一个；任务取消（这一排换了）就停。
     func warm(_ dramas: [Drama]) async {
         for drama in dramas {
             guard !Task.isCancelled else { return }
-            _ = try? await detail(for: drama)
+            if await cache.cachedValue(for: drama.id) != nil { continue }
+            _ = try? await CoreClient.shared.followCheck(drama: drama)
         }
     }
 
