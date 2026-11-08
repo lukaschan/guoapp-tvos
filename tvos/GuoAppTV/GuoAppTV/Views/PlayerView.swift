@@ -176,7 +176,6 @@ private struct PlayerScreen: View {
     @EnvironmentObject private var store: Store
     @AppStorage("playbackDiagnostics") private var diagnosticsEnabled = false
     @AppStorage("playbackSpeed") private var playbackSpeed = 1.0
-    @AppStorage("playerScreenMode") private var screenModeRaw = PlayerScreenMode.fit.rawValue
 
     /// 播放控件（进度条 / 倍速 / 画面 / 选集）的显示与自动隐藏，见 PlayerControlsView.swift。
     @StateObject private var controls = PlayerControlsState()
@@ -220,7 +219,6 @@ private struct PlayerScreen: View {
                         progress: controller.progress,
                         isPaused: controller.isPaused,
                         speed: playbackSpeed,
-                        screenMode: screenMode,
                         showsEpisodes: episodes.count > 1,
                         focus: $focus,
                         onSeek: seek(by:),
@@ -283,7 +281,6 @@ private struct PlayerScreen: View {
             playerSheet(sheet)
         }
         .task {
-            controller.setScreenMode(screenMode)
             session.onReachedEnd = { dismiss() }
             session.start()
         }
@@ -306,9 +303,6 @@ private struct PlayerScreen: View {
         .onChange(of: playbackSpeed) { speed in
             controller.setSpeed(speed)
         }
-        .onChange(of: screenModeRaw) { _ in
-            controller.setScreenMode(screenMode)
-        }
         .onChange(of: controller.endedToken) { token in
             guard token > 0 else { return }
             session.handleEnded()
@@ -326,10 +320,6 @@ private struct PlayerScreen: View {
     }
 
     // MARK: - 播放控件
-
-    private var screenMode: PlayerScreenMode {
-        PlayerScreenMode(rawValue: screenModeRaw) ?? .fit
-    }
 
     private var episodeSubtitle: String {
         guard episodes.indices.contains(session.currentIndex) else { return "" }
@@ -365,12 +355,6 @@ private struct PlayerScreen: View {
                 title: "播放倍速",
                 options: Self.speedOptions.map { TVOption(value: $0, label: String(format: "%.2fx", $0)) },
                 selection: $playbackSpeed
-            )
-        case .screenMode:
-            TVOptionSheet(
-                title: "画面",
-                options: PlayerScreenMode.allCases.map { TVOption(value: $0.rawValue, label: $0.optionLabel) },
-                selection: $screenModeRaw
             )
         case .episodes:
             PlayerEpisodeSheet(

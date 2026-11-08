@@ -1,49 +1,19 @@
 import SwiftUI
 
-// 播放控件（Apple TV 系统播放器风格）：标题、按钮行（倍速 / 画面 / 选集）、进度条与时间。
+// 播放控件（Apple TV 系统播放器风格）：标题、按钮行（倍速 / 选集）、进度条与时间。
+// 画面始终按 mpv 默认的等比适应显示（原「画面：适应 / 填充 / 拉伸」已按 owner 要求删除）。
 // 只是画在 mpv 画面上的一层界面：播放、解析、预取、缓存逻辑都在 PlayerController / PlayerView，
 // 这里不碰。遥控器：控件隐藏时点按 = 暂停 / 播放，← → = 快退 / 快进 10 秒，↑ ↓ = 调出控件；
 // 控件显示时 ↑ 到按钮行、↓ 回进度条，Menu 先收起控件、再按退出播放。
 
-// MARK: - 画面模式
-
-/// 画面模式：只改 mpv 的显示属性（keepaspect / panscan），不影响解码与播放。
-enum PlayerScreenMode: String, CaseIterable, Identifiable {
-    case fit, fill, stretch
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .fit: return "适应"
-        case .fill: return "填充"
-        case .stretch: return "拉伸"
-        }
-    }
-
-    /// 选项弹窗里的完整说明。
-    var optionLabel: String {
-        switch self {
-        case .fit: return "适应（完整画面，留黑边）"
-        case .fill: return "填充（铺满屏幕，裁掉边缘）"
-        case .stretch: return "拉伸（铺满屏幕，画面变形）"
-        }
-    }
-
-    /// keepaspect = no 时画面拉伸铺满。
-    var keepAspect: Bool { self != .stretch }
-    /// panscan = 1 时等比放大裁边铺满。
-    var panscan: Double { self == .fill ? 1 : 0 }
-}
-
 // MARK: - 焦点与弹窗
 
 enum PlayerFocus: Hashable {
-    case surface, scrubber, speed, screenMode, episodes
+    case surface, scrubber, speed, episodes
 }
 
 enum PlayerSheet: String, Identifiable {
-    case speed, screenMode, episodes
+    case speed, episodes
 
     var id: String { rawValue }
 }
@@ -85,7 +55,6 @@ struct PlayerControlsOverlay: View {
     let progress: PlaybackProgress
     let isPaused: Bool
     let speed: Double
-    let screenMode: PlayerScreenMode
     let showsEpisodes: Bool
     let focus: FocusState<PlayerFocus?>.Binding
     let onSeek: (Double) -> Void
@@ -110,10 +79,6 @@ struct PlayerControlsOverlay: View {
                         onOpen(.speed)
                     }
                     .focused(focus, equals: .speed)
-                    PlayerControlButton(icon: "aspectratio", title: "画面 " + screenMode.label) {
-                        onOpen(.screenMode)
-                    }
-                    .focused(focus, equals: .screenMode)
                     if showsEpisodes {
                         PlayerControlButton(icon: "list.number", title: "选集") {
                             onOpen(.episodes)

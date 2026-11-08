@@ -3,9 +3,9 @@ import QuartzCore
 import SwiftUI
 import UIKit
 
-// mpv 播放控制器（从 PlayerView.swift 原样拆出，另加 isPaused、halt()、画面模式、停止后不再起播，
+// mpv 播放控制器（从 PlayerView.swift 原样拆出，另加 isPaused、halt()、停止后不再起播，
 // 以及推荐页 hero 用的 pause() / resume() / videoSize）：
-// 句柄生命周期、事件泵、进度、倍速、画面模式、后台 / 前台处理。
+// 句柄生命周期、事件泵、进度、倍速、后台 / 前台处理。
 
 // MARK: - mpv 事件
 
@@ -80,7 +80,6 @@ final class PlayerController: NSObject, ObservableObject {
     private var backgroundObservers: [NSObjectProtocol] = []
     private var backgroundObserversInstalled = false
     private var wasPlayingBeforeBackground = false
-    private var screenMode: PlayerScreenMode = .fit
     /// stop()（退出播放页）之后不再起播：仍在解析中的异步加载晚回来时直接忽略，
     /// 避免已离开的页面在后台起一个没人管、也没人销毁的 mpv 句柄。
     private var stopped = false
@@ -171,18 +170,6 @@ final class PlayerController: NSObject, ObservableObject {
         videoSize = nil
         danmaku.reset()
         overlay.clear()
-    }
-
-    /// 画面模式（适应 / 填充 / 拉伸）：记下来，每次新建句柄都套用；正在播放时立即生效。
-    func setScreenMode(_ mode: PlayerScreenMode) {
-        screenMode = mode
-        guard let handle = mpv else { return }
-        applyScreenMode(to: handle)
-    }
-
-    private func applyScreenMode(to handle: OpaquePointer) {
-        _ = mpv_set_property_string(handle, "keepaspect", screenMode.keepAspect ? "yes" : "no")
-        _ = mpv_set_property_string(handle, "panscan", String(screenMode.panscan))
     }
 
     /// 正在播放时禁止系统空闲计时器，避免 tvOS 屏保在看剧时弹出；
@@ -293,7 +280,6 @@ final class PlayerController: NSObject, ObservableObject {
             destroyMpv()
             return
         }
-        applyScreenMode(to: handle)
         let contextPointer = UnsafeMutablePointer<MpvWakeupContext>.allocate(capacity: 1)
         contextPointer.initialize(to: MpvWakeupContext(
             controller: Unmanaged.passUnretained(self), handle: MpvHandle(raw: handle)
