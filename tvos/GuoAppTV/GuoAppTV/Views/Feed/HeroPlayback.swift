@@ -233,6 +233,8 @@ final class HeroSlot {
     private var teaser: Teaser?
     private var store: Store?
     private var releaseTask: Task<Void, Never>?
+    /// 这次起播的计时：开始放、详情取回的时间；出画面时写一行到 HeroTimingLog。
+    private var timing: (title: String, start: Date, detail: Date?, paused: Bool)?
 
     /// 这次预告：放的是哪一集、看过时的续播目标、播到的位置与画面尺寸。
     private struct Teaser {
@@ -274,10 +276,12 @@ final class HeroSlot {
         dramaID = drama.id
         wantsPaused = paused
         self.store = store
+        timing = (drama.title, Date(), nil, paused)
         refreshStatus()
         do {
             let detail = try await DetailPrefetch.shared.detail(for: drama)
             guard !Task.isCancelled, dramaID == drama.id else { return }
+            timing?.detail = Date()
             let latest = store.latestProgress(for: drama.id)
             let numbers = detail.episodes.map(\.number)
             let releaseStatus = detail.drama.releaseStatus
@@ -346,6 +350,7 @@ final class HeroSlot {
         wantsPaused = false
         isFinished = false
         teaser = nil
+        timing = nil
         loadError = nil
         refreshStatus()
     }
@@ -429,7 +434,15 @@ final class HeroSlot {
     }
 
     private func progressed(_ progress: PlaybackProgress) {
-        guard progress.duration > 0, HeroTeaser.isFinished(position: progress.position, ended: false) else { return }
+        guard progress.duration > 0 else { return }
+        if let timing, let session {
+            HeroTimingLog.record(
+                title: timing.title, start: timing.start, detail: timing.detail,
+                playerStarted: session.controller.startedAt, paused: timing.paused
+            )
+            self.timing = nil
+        }
+        guard HeroTeaser.isFinished(position: progress.position, ended: false) else { return }
         finish()
     }
 
@@ -459,5 +472,29 @@ final class HeroSlot {
         guard next != status else { return }
         status = next
         onChange?()
+    }
+}
+
+/// 推荐页预告的起播耗时，一部一行写到 Caches/hero-timing.log（排查「预览出画面慢」用，可从电视上拷出来）：
+/// 详情多久取回、多久开始起播（解析地址 + 挂上画面）、起播后多久出画面（mpv 初始化 + 取流 + 解码）。
+@MainActor
+enum HeroTimingLog {
+    private static let maxBytes = 64 * 1024
+
+    static func record(title: String, start: Date, detail: Date?, playerStarted: Date?, paused: Bool) {
+        let now = Date()
+        func ms(_ from: Date?, _ to: Date?) -> String {
+            guard let from, let to else { return "-" }
+            return String(Int(to.timeIntervalSince(from) * 1000))
+        }
+        let stamp = ISO8601DateFormatter().string(from: now)
+        let line = "\(stamp) detail=\(ms(start, detail))ms start=\(ms(detail, playerStarted))ms "
+            + "video=\(ms(playerStarted, now))ms total=\(ms(start, now))ms \(paused ? "preloaded" : "visible") \(title)\n"
+        guard let url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("hero-timing.log") else { return }
+        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        text += line
+        if text.utf8.count > maxBytes { text = String(text.suffix(maxBytes / 2)) }
+        try? text.write(to: url, atomically: true, encoding: .utf8)
     }
 }

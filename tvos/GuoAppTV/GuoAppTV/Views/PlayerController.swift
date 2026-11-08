@@ -65,6 +65,8 @@ final class PlayerController: NSObject, ObservableObject {
     var startsPaused = false
     /// 最多预读多少字节（mpv demuxer-max-bytes）；nil 为 mpv 默认（会把整集下完）。推荐页 hero 的预告用，全屏播放不设。
     var readAheadBytes: Int?
+    /// 最近一次真正创建 mpv 起播的时间（推荐页 hero 记录起播耗时用）。
+    private(set) var startedAt: Date?
 
     /// 事件队列：mpv 事件泵跑在这里；销毁时同步等它排空，避免句柄悬空。
     nonisolated let eventQueue = DispatchQueue(label: "com.duanju.guoapp.tv.mpv-events")
@@ -243,6 +245,7 @@ final class PlayerController: NSObject, ObservableObject {
             return
         }
         mpv = handle
+        startedAt = Date()
         // wid 是 int64，内容为 CAMetalLayer 的对象地址（mpv 不持有引用；
         // 本控制器的 metalLayer 强引用该图层，句柄销毁前图层一直有效）。
         var wid = Int64(Int(bitPattern: Unmanaged.passUnretained(layer).toOpaque()))
