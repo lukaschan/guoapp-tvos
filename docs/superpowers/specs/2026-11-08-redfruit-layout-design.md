@@ -204,6 +204,9 @@ there.
   the device. This is the one sanctioned exception to "don't touch playback logic"; mpv, `PlayerController`
   internals and caching stay as they are.
 
+- 2026-11-08: a fully watched drama with no next part shows **重新观看** and starts again from episode 1
+  (instead of resuming the last second).
+
 ## Builder's calls already made
 
 - `CoreClient` keeps its single serial queue in phase 2. If hero previews feel slow on the device, revisit

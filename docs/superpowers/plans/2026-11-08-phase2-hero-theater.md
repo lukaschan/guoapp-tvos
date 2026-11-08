@@ -353,7 +353,32 @@ established the logic package, `PlaybackLauncher`, `EpisodeNumberGrid` and the t
 - [ ] **Step 2:** `check.sh`.
 - [ ] **Step 3:** Commit: `feat: 推荐 tab first`.
 
-### Task 10: Docs, deploy and owner check
+### Task 10: 重新观看 for finished dramas (owner decision 2026-11-08)
+
+**Files:**
+- Create: `tvos/GuoAppTV/GuoAppTV/Core/Logic/ResumeAction.swift`, `tvos/LogicTests/ResumeActionTests.swift`
+- Modify: `tvos/GuoAppTV/GuoAppTV/Views/DetailView.swift` (`resumeLabel` / `playResume` use `ResumeAction`)
+
+**Interfaces:**
+- Produces: `enum ResumeAction: Equatable, Sendable { case start, resume(episode: Int), nextPart, restart }`
+  - `static func make(target: ResumeTarget?, episodeNumbers: [Int], isFinished: Bool, hasNextPart: Bool) -> ResumeAction`
+    - finished with a next part → `.nextPart`
+    - finished with none → `.restart`
+    - a saved point (`index > 0 || position > 0`) → `.resume(episode:)`
+    - otherwise → `.start`
+  - `var title: String`: "立即观看", "继续观看 第 N 集", "观看下一部", "重新观看"
+
+- [ ] **Step 1:** Write the tests:
+  - `finishedWithNext` → `.nextPart`
+  - `finishedNoNext` → `.restart`, title "重新观看"
+  - `resumeMidway`: target (2, 30) over [1, 2, 3] → `.resume(episode: 3)`
+  - `freshStart`: nil target → `.start`
+- [ ] **Step 2:** Run. Expected: FAIL.
+- [ ] **Step 3:** Implement. In `DetailView`, `.restart` presents from index 0 at 0 s.
+- [ ] **Step 4:** Run (PASS) and `check.sh`.
+- [ ] **Step 5:** Commit: `feat: 重新观看 for fully watched dramas without a next part`.
+
+### Task 11: Docs, deploy and owner check
 
 - [ ] **Step 1:** README (功能) and CHANGELOG (`## 未发布`).
 - [ ] **Step 2:** `python3 scripts/deploy_tvos.py` → "完成。".
