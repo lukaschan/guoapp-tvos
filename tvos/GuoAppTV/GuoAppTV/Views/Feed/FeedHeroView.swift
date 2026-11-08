@@ -18,6 +18,7 @@ struct FeedHeroView: View {
     @State private var fullScreen: PlaybackPresentation?
     @State private var isVisible = false
     @State private var rowFocused = false
+    @State private var upNextFreeze = UpNextFreeze()
     @State private var loadedSource: String?
     @State private var heroTask: Task<Void, Never>?
     @State private var dwellTask: Task<Void, Never>?
@@ -118,8 +119,8 @@ struct FeedHeroView: View {
                     onEpisodes: { path.append(shown) }
                 )
                 .opacity(rowFocused ? 0.55 : 1)
-                if !feed.upNext.isEmpty {
-                    UpNextRow(dramas: feed.upNext, onFocus: focusUpNext, onCommit: commit)
+                if !upNextDramas.isEmpty {
+                    UpNextRow(dramas: upNextDramas, onFocus: focusUpNext, onCommit: commit)
                 }
             }
             .padding(.leading, 80)
@@ -136,7 +137,7 @@ struct FeedHeroView: View {
     /// 整列的纵向偏移：有「接下来」时海报底部压在屏幕下缘外 70 pt（行内上下各留 20 pt 给焦点放大），
     /// 有焦点时上移 40 pt；没有「接下来」时信息栏停在底部安全区（60 pt）之上。
     private var columnOffset: CGFloat {
-        guard !feed.upNext.isEmpty else { return -80 }
+        guard !upNextDramas.isEmpty else { return -80 }
         return rowFocused ? 50 : 90
     }
 
@@ -151,6 +152,13 @@ struct FeedHeroView: View {
     }
 
     // MARK: - 状态
+
+    /// 「接下来」实际显示的剧：行有焦点时是进入时的那一组（见 UpNextFreeze）。
+    private var upNextDramas: [Drama] {
+        let current = feed.upNext
+        let ids = upNextFreeze.visibleIDs(current: current.map(\.id))
+        return ids.compactMap { id in feed.dramas.first { $0.id == id } }
+    }
 
     /// hero 现在放的剧：在预览就是预览的那部，否则是推荐流当前这部。
     private var heroDrama: Drama? {
@@ -186,6 +194,7 @@ struct FeedHeroView: View {
 
     private func focusUpNext(_ id: String?) {
         rowFocused = id != nil
+        upNextFreeze.rowFocusChanged(isFocused: id != nil, currentIDs: feed.upNext.map(\.id))
         selection.focus(id)
         dwellTask?.cancel()
         guard let id else { return }
