@@ -15,15 +15,26 @@ struct ResumeTarget: Equatable, Sendable {
     }
 
     /// 直接播放（海报上按播放键、继续观看卡片、推荐页 hero）从哪里开始：
-    /// 整部剧已看完（最后一集看到 99 %）时从第 1 集开头（与详情页「重新观看」一致），否则同 resolve。
-    static func playbackStart(episodeNumbers: [Int], latestEpisode: Int?, position: Double, duration: Double) -> ResumeTarget? {
+    /// - 看到了最后一集的结尾、且这部剧已完结（releaseStatus 为 finished / completed）：从第 1 集开头
+    ///  （与详情页「重新观看」一致）；
+    /// - 看到了最新一集的结尾、但还在连载或不知道是否完结：打开最后一集、从头播，不跳回第 1 集丢掉进度；
+    /// - 其余同 resolve。
+    static func playbackStart(
+        episodeNumbers: [Int], latestEpisode: Int?, position: Double, duration: Double, releaseStatus: String = ""
+    ) -> ResumeTarget? {
         guard !episodeNumbers.isEmpty else { return nil }
-        let finished = WatchStatus(
+        let caughtUp = WatchStatus(
             latestEpisode: latestEpisode, position: position, duration: duration, totalEpisodes: episodeNumbers.count
         ).isFinished
-        if finished { return ResumeTarget(index: 0, position: 0) }
-        return resolve(episodeNumbers: episodeNumbers, latestEpisode: latestEpisode, position: position)
+        guard caughtUp else {
+            return resolve(episodeNumbers: episodeNumbers, latestEpisode: latestEpisode, position: position)
+        }
+        if completedStatuses.contains(releaseStatus) { return ResumeTarget(index: 0, position: 0) }
+        return ResumeTarget(index: episodeNumbers.count - 1, position: 0)
     }
+
+    /// 核心标记完结的取值（与 Drama.releaseLabel 的「已完结」一致）。
+    private static let completedStatuses: Set<String> = ["finished", "completed"]
 }
 
 /// 「播这部剧」的防重入：正在取详情或已经弹出播放页时，再按不重复发起。

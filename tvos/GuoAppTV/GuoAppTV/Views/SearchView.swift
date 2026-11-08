@@ -93,7 +93,8 @@ private struct SearchResultsView: View {
     /// 还没输入：「大家都在看」（推荐流前 14 部）；加载中是骨架，失败可重试。
     @ViewBuilder
     private var popularSection: some View {
-        if !model.popular.isEmpty {
+        switch PopularState.make(count: model.popular.count, loading: model.popularLoading, error: model.popularError) {
+        case .posters:
             VStack(alignment: .leading, spacing: 24) {
                 sectionTitle(SearchCopy.popularTitle)
                 LazyVGrid(columns: TVTheme.posterColumns(), spacing: 32) {
@@ -105,13 +106,22 @@ private struct SearchResultsView: View {
                 .prefetchesOnPosterFocus(model.popular)
             }
             .padding(.top, 12)
-        } else if model.popularLoading {
+        case .loading:
             PosterGridSkeleton()
                 .padding(.top, 12)
-        } else if let error = model.popularError {
+        case .failed(let error):
             TVFailureView(message: error) {
                 model.loadPopular(force: true)
             }
+            .padding(.vertical, 100)
+        case .empty:
+            VStack(spacing: 28) {
+                TVStatusView(icon: "sparkles", title: SearchCopy.popularEmptyTitle, message: SearchCopy.popularEmptyHint, expands: false)
+                TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
+                    model.loadPopular(force: true)
+                }
+            }
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 100)
         }
     }

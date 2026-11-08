@@ -41,7 +41,8 @@ final class HeroPlayback: ObservableObject {
                 episodeNumbers: detail.episodes.map(\.number),
                 latestEpisode: latest?.episode,
                 position: latest?.position ?? 0,
-                duration: latest?.duration ?? 0
+                duration: latest?.duration ?? 0,
+                releaseStatus: detail.drama.releaseStatus
             ) else {
                 fail("暂无可播放的分集")
                 return

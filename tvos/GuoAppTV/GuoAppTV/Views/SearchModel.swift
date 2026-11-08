@@ -40,9 +40,11 @@ final class SearchModel: ObservableObject {
         popularError = nil
         popularTask = Task {
             do {
-                let dramas = try await FeedLoader.dramas(source: source, target: SearchCopy.popularCount)
+                let batch = try await FeedLoader.dramas(source: source, target: SearchCopy.popularCount)
                 guard !Task.isCancelled else { return }
-                popular = Array(dramas.prefix(SearchCopy.popularCount))
+                popular = Array(batch.dramas.prefix(SearchCopy.popularCount))
+                // 一部都没取到：下次进页面再试（页面上有提示和重试）。
+                if popular.isEmpty { popularSource = nil }
             } catch {
                 guard !Task.isCancelled else { return }
                 popularError = UserFacingError.message(for: error)

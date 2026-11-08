@@ -29,8 +29,9 @@ struct ResumeTargetTests {
 
     /// 看完了的剧（重新观看）：从第 1 集开头。
     @Test func finishedRestartsFromFirstEpisode() {
-        #expect(ResumeTarget.playbackStart(episodeNumbers: [1, 2, 3], latestEpisode: 3, position: 99.5, duration: 100)
-            == ResumeTarget(index: 0, position: 0))
+        #expect(ResumeTarget.playbackStart(
+            episodeNumbers: [1, 2, 3], latestEpisode: 3, position: 99.5, duration: 100, releaseStatus: "finished"
+        ) == ResumeTarget(index: 0, position: 0))
     }
 
     @Test func midwayResumes() {
@@ -50,5 +51,21 @@ struct ResumeTargetTests {
 
     @Test func playbackStartWithoutEpisodes() {
         #expect(ResumeTarget.playbackStart(episodeNumbers: [], latestEpisode: 1, position: 10, duration: 100) == nil)
+    }
+
+    /// 连载中（或不知道是否完结）的剧追到了最新一集：不从第 1 集重来，打开最后一集（从头），不丢进度。
+    @Test func caughtUpOngoingDramaOpensLastEpisode() {
+        #expect(ResumeTarget.playbackStart(
+            episodeNumbers: [1, 2, 3], latestEpisode: 3, position: 99.5, duration: 100, releaseStatus: "ongoing"
+        ) == ResumeTarget(index: 2, position: 0))
+        #expect(ResumeTarget.playbackStart(
+            episodeNumbers: [1, 2, 3], latestEpisode: 3, position: 99.5, duration: 100, releaseStatus: ""
+        ) == ResumeTarget(index: 2, position: 0))
+    }
+
+    @Test func completedDramaRestarts() {
+        #expect(ResumeTarget.playbackStart(
+            episodeNumbers: [1, 2, 3], latestEpisode: 3, position: 99.5, duration: 100, releaseStatus: "completed"
+        ) == ResumeTarget(index: 0, position: 0))
     }
 }

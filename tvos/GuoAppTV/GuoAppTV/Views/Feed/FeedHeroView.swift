@@ -182,7 +182,8 @@ struct FeedHeroView: View {
         let source = appState.selectedSource
         // 切回本页时 .task 会再跑一次：同一站源已加载过就不再请求。
         guard force || loadedSource != source || feed.dramas.isEmpty else { return }
-        await feed.load(source: source)
+        // 这次启动第一次加载这个站源（或点了重试）时让核心取一份新的推荐，不再是上次存下的那一批。
+        await feed.load(source: source, force: force || loadedSource != source)
         loadedSource = source
     }
 
