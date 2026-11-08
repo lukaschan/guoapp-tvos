@@ -106,6 +106,54 @@ struct PosterView: View {
     }
 }
 
+// MARK: - 焦点预取
+
+/// 海报获得焦点时调用（网格据此预取后面的封面和这部剧的详情）。按 key 判等，
+/// 内容不变时海报不会因为这个环境值重绘。
+struct PosterFocusAction: Equatable, Sendable {
+    let key: Int
+    let perform: @MainActor @Sendable (Drama) -> Void
+
+    static func == (lhs: PosterFocusAction, rhs: PosterFocusAction) -> Bool {
+        lhs.key == rhs.key
+    }
+}
+
+private struct PosterFocusActionKey: EnvironmentKey {
+    static let defaultValue: PosterFocusAction? = nil
+}
+
+extension EnvironmentValues {
+    var onPosterFocus: PosterFocusAction? {
+        get { self[PosterFocusActionKey.self] }
+        set { self[PosterFocusActionKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// 里面的海报获得焦点时：预取它后面几张的封面，焦点停住后预取这部剧的详情（DetailPrefetch）。
+    func prefetchesOnPosterFocus(_ items: [Drama]) -> some View {
+        modifier(PosterFocusPrefetch(items: items))
+    }
+}
+
+private struct PosterFocusPrefetch: ViewModifier {
+    let items: [Drama]
+    @Environment(\.displayScale) private var displayScale
+
+    func body(content: Content) -> some View {
+        let items = items
+        let scale = displayScale
+        return content.environment(\.onPosterFocus, PosterFocusAction(key: items.map(\.id).hashValue) { drama in
+            DetailPrefetch.shared.focused(
+                drama,
+                nearby: PosterPrefetchPlan.items(after: drama.id, in: items, id: \.id),
+                scale: scale
+            )
+        })
+    }
+}
+
 // MARK: - 海报卡片
 
 /// 焦点海报卡：整卡可聚焦，进入详情页。
@@ -130,6 +178,7 @@ struct TVPosterCard: View {
     var onSelect: (() -> Void)? = nil
 
     @FocusState private var focused: Bool
+    @Environment(\.onPosterFocus) private var onPosterFocus
 
     var body: some View {
         Group {
@@ -143,6 +192,10 @@ struct TVPosterCard: View {
         .focused($focused)
         .tvFocusEffect(focused: focused, scale: TVTheme.focusScale, cornerRadius: TVTheme.posterRadius, stroke: false)
         .zIndex(focused ? 1 : 0)
+        .onChange(of: focused) { isFocused in
+            // 系列卡片预取的是点进去的那一部。
+            if isFocused { onPosterFocus?.perform(linkValue ?? drama) }
+        }
     }
 
     private var card: some View {
@@ -260,5 +313,6 @@ struct TVPosterGrid: View {
                 .onPlayPauseCommand(perform: onPlay.map { play in { play(drama) } })
             }
         }
+        .prefetchesOnPosterFocus(items)
     }
 }

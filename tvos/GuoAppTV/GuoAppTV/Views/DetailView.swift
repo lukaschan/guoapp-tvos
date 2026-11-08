@@ -231,7 +231,8 @@ struct DetailView: View {
         loading = true
         error = nil
         do {
-            detail = try await CoreClient.shared.detail(drama: drama)
+            // 海报上停过焦点时已预取（DetailPrefetch，3 分钟内有效），这里直接命中。
+            detail = try await DetailPrefetch.shared.detail(for: drama)
         } catch {
             self.error = UserFacingError.message(for: error)
         }

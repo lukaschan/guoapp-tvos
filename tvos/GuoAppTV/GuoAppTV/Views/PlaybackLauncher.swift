@@ -24,7 +24,7 @@ final class PlaybackLauncher: ObservableObject {
         Task {
             defer { loadingDramaID = nil }
             do {
-                let detail = try await CoreClient.shared.detail(drama: drama)
+                let detail = try await DetailPrefetch.shared.detail(for: drama)
                 let latest = store.latestProgress(for: drama.id)
                 guard let target = ResumeTarget.resolve(
                     episodeNumbers: detail.episodes.map(\.number),

@@ -105,6 +105,7 @@ private struct SearchResultsView: View {
                 }
             }
         }
+        .prefetchesOnPosterFocus(model.results)
     }
 
     /// 系列卡片进入 / 播放哪一部：最近看过的那部，没看过就第一部。

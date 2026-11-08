@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1000000000000000000009F /* DetailPrefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A0 /* DetailPrefetch.swift */; };
+		A1000000000000000000009D /* Prefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000009E /* Prefetch.swift */; };
+		A1000000000000000000009B /* TimedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000009C /* TimedCache.swift */; };
 		A10000000000000000000099 /* UserFacingError.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000009A /* UserFacingError.swift */; };
 		A10000000000000000000097 /* Skeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000098 /* Skeleton.swift */; };
 		A10000000000000000000095 /* Shimmer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000096 /* Shimmer.swift */; };
@@ -60,6 +63,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A100000000000000000000A0 /* DetailPrefetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailPrefetch.swift; sourceTree = "<group>"; };
+		A1000000000000000000009E /* Prefetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/Prefetch.swift; sourceTree = "<group>"; };
+		A1000000000000000000009C /* TimedCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/TimedCache.swift; sourceTree = "<group>"; };
 		A1000000000000000000009A /* UserFacingError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/UserFacingError.swift; sourceTree = "<group>"; };
 		A10000000000000000000098 /* Skeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skeleton.swift; sourceTree = "<group>"; };
 		A10000000000000000000096 /* Shimmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/Shimmer.swift; sourceTree = "<group>"; };
@@ -174,6 +180,9 @@
 				A10000000000000000000094 /* ImageDownsampler.swift */,
 				A10000000000000000000096 /* Shimmer.swift */,
 				A1000000000000000000009A /* UserFacingError.swift */,
+				A1000000000000000000009C /* TimedCache.swift */,
+				A1000000000000000000009E /* Prefetch.swift */,
+				A100000000000000000000A0 /* DetailPrefetch.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -341,6 +350,9 @@
 				A10000000000000000000095 /* Shimmer.swift in Sources */,
 				A10000000000000000000097 /* Skeleton.swift in Sources */,
 				A10000000000000000000099 /* UserFacingError.swift in Sources */,
+				A1000000000000000000009B /* TimedCache.swift in Sources */,
+				A1000000000000000000009D /* Prefetch.swift in Sources */,
+				A1000000000000000000009F /* DetailPrefetch.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
