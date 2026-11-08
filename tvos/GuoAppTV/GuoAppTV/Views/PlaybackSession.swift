@@ -23,6 +23,13 @@ final class PlaybackSession: ObservableObject {
     var saveGate: (Double) -> Bool = { _ in true }
     /// 最后一集播完（或关了自动连播）时调用；全屏播放页传 dismiss。
     var onReachedEnd: (() -> Void)?
+    /// 是否允许弹幕（再与设置里的开关相与）；推荐页 hero 的小画面不放弹幕。
+    var allowsDanmaku = true
+
+    /// 当前播放位置：已出画面时取播放器的进度，否则是本集的起播位置（转到全屏播放时用）。
+    var currentPosition: Double {
+        controller.progress.duration > 0 ? controller.progress.position : startPosition
+    }
 
     private var startPosition: Double
     private var lastSavedPosition = -1.0
@@ -47,7 +54,7 @@ final class PlaybackSession: ObservableObject {
     // MARK: - 偏好（与设置页的 @AppStorage 同键同默认值，调用时读取）
 
     private var autoAdvance: Bool { Self.preference("autoAdvance", default: true) }
-    private var danmakuEnabled: Bool { Self.preference("danmakuEnabled", default: true) }
+    private var danmakuEnabled: Bool { allowsDanmaku && Self.preference("danmakuEnabled", default: true) }
     private var preferredQuality: Int { Self.preference("preferredQuality", default: 0) }
     private var playbackSpeed: Double { Self.preference("playbackSpeed", default: 1.0) }
 

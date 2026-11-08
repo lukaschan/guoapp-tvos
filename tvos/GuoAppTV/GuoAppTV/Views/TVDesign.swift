@@ -38,6 +38,8 @@ enum TVTheme {
 
     // 字号：tvOS HIG 文字样式（pt），正文不小于 body 29，从沙发上也看得清
     enum TextSize {
+        /// 推荐页 hero 的剧名（比 title1 更大，从沙发上一眼看清）。
+        static let hero: CGFloat = 84
         static let title1: CGFloat = 76
         static let title2: CGFloat = 57
         static let headline: CGFloat = 38

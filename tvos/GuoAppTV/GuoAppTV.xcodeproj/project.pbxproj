@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000087 /* FeedHeroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000088 /* FeedHeroView.swift */; };
+		A10000000000000000000085 /* UpNextRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000086 /* UpNextRow.swift */; };
+		A10000000000000000000083 /* HeroInfoPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000084 /* HeroInfoPanel.swift */; };
+		A10000000000000000000081 /* HeroVideoPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000082 /* HeroVideoPanel.swift */; };
+		A1000000000000000000007F /* HeroPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000080 /* HeroPlayback.swift */; };
 		A1000000000000000000007D /* PreviewSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007E /* PreviewSelection.swift */; };
 		A1000000000000000000007B /* HeroLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007C /* HeroLayout.swift */; };
 		A10000000000000000000079 /* FeedModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007A /* FeedModel.swift */; };
@@ -46,6 +51,11 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A10000000000000000000088 /* FeedHeroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/FeedHeroView.swift; sourceTree = "<group>"; };
+		A10000000000000000000086 /* UpNextRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/UpNextRow.swift; sourceTree = "<group>"; };
+		A10000000000000000000084 /* HeroInfoPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/HeroInfoPanel.swift; sourceTree = "<group>"; };
+		A10000000000000000000082 /* HeroVideoPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/HeroVideoPanel.swift; sourceTree = "<group>"; };
+		A10000000000000000000080 /* HeroPlayback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/HeroPlayback.swift; sourceTree = "<group>"; };
 		A1000000000000000000007E /* PreviewSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/PreviewSelection.swift; sourceTree = "<group>"; };
 		A1000000000000000000007C /* HeroLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/HeroLayout.swift; sourceTree = "<group>"; };
 		A1000000000000000000007A /* FeedModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/FeedModel.swift; sourceTree = "<group>"; };
@@ -166,6 +176,11 @@
 				A10000000000000000000072 /* PlaybackSession.swift */,
 				A10000000000000000000074 /* PlayerHostView.swift */,
 				A1000000000000000000007A /* FeedModel.swift */,
+				A10000000000000000000080 /* HeroPlayback.swift */,
+				A10000000000000000000082 /* HeroVideoPanel.swift */,
+				A10000000000000000000084 /* HeroInfoPanel.swift */,
+				A10000000000000000000086 /* UpNextRow.swift */,
+				A10000000000000000000088 /* FeedHeroView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -285,6 +300,11 @@
 				A10000000000000000000079 /* FeedModel.swift in Sources */,
 				A1000000000000000000007B /* HeroLayout.swift in Sources */,
 				A1000000000000000000007D /* PreviewSelection.swift in Sources */,
+				A1000000000000000000007F /* HeroPlayback.swift in Sources */,
+				A10000000000000000000081 /* HeroVideoPanel.swift in Sources */,
+				A10000000000000000000083 /* HeroInfoPanel.swift in Sources */,
+				A10000000000000000000085 /* UpNextRow.swift in Sources */,
+				A10000000000000000000087 /* FeedHeroView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

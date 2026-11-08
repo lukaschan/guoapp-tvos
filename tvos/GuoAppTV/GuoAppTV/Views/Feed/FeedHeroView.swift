@@ -1,0 +1,224 @@
+import SwiftUI
+
+/// 推荐页（redfruit 的 FeedHeroScreen）：整屏 hero 播放推荐流里的剧，左侧信息栏，底部「接下来」。
+/// - 进页面 / 换剧时从观看记录续播；离开页面（切标签、进详情、转全屏）就停掉，回来再按观看记录重新起播，
+///   全屏播放里看的进度不会被 hero 回退；
+/// - hero 只有真正看满 30 秒才存进度（HeroPlayback）；
+/// - 播放键在本页任何位置都是 hero 的暂停 / 继续。
+struct FeedHeroView: View {
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var store: Store
+    @AppStorage("autoAdvance") private var autoAdvance = true
+
+    @StateObject private var feed = FeedModel()
+    @StateObject private var hero = HeroPlayback()
+
+    @State private var selection = PreviewSelection(committedID: "")
+    @State private var path: [Drama] = []
+    @State private var fullScreen: PlaybackPresentation?
+    @State private var isVisible = false
+    @State private var rowFocused = false
+    @State private var loadedSource: String?
+    @State private var heroTask: Task<Void, Never>?
+    @State private var dwellTask: Task<Void, Never>?
+    @Namespace private var focusScope
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            screen
+                .navigationDestination(for: Drama.self) { drama in
+                    DetailView(drama: drama)
+                }
+        }
+    }
+
+    private var screen: some View {
+        ZStack(alignment: .topLeading) {
+            TVTheme.background.ignoresSafeArea()
+            switch feed.state {
+            case .loading:
+                FeedSkeleton()
+            case .empty:
+                TVStatusView(icon: "sparkles", title: "暂时没有可播放的短剧", message: "稍后再来看看吧")
+            case .failed(let message):
+                failure(message)
+            case .loaded:
+                if let drama = heroDrama {
+                    stage(drama)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .ignoresSafeArea()
+        .focusScope(focusScope)
+        .task(id: appState.selectedSource) {
+            await loadFeed(force: false)
+        }
+        .onAppear {
+            isVisible = true
+            // 这部剧最后一集播完：推荐流换下一部（selection 跟着 commit，hero 随之换剧）。
+            hero.onReachedEnd = { [feed] in feed.advance() }
+            startHero()
+        }
+        .onDisappear {
+            isVisible = false
+            dwellTask?.cancel()
+            stopHero()
+        }
+        .onChange(of: feed.current?.id) { id in
+            if let id { selection.commit(id) }
+        }
+        .onChange(of: selection.heroID) { _ in
+            startHero()
+        }
+        .onPlayPauseCommand {
+            hero.togglePause()
+        }
+        .fullScreenCover(item: $fullScreen, onDismiss: startHero) { presentation in
+            PlayerView(
+                drama: presentation.drama,
+                episodes: presentation.episodes,
+                startIndex: presentation.startIndex,
+                startPosition: presentation.startPosition,
+                store: store
+            )
+        }
+    }
+
+    // MARK: - 布局
+
+    private func stage(_ drama: Drama) -> some View {
+        let shown = hero.session?.drama.id == drama.id ? hero.session?.drama ?? drama : drama
+        let layout = HeroLayout.panel(videoSize: hero.status.videoSize)
+        return ZStack(alignment: .topLeading) {
+            HeroVideoPanel(drama: drama, videoSize: hero.status.videoSize, showsVideo: hero.status.showsVideo) {
+                if let controller = hero.controller {
+                    PlayerHostView(controller: controller)
+                        .id(ObjectIdentifier(controller))
+                }
+            }
+            HeroInfoPanel(
+                drama: shown,
+                isPreview: selection.previewID != nil,
+                status: hero.status,
+                autoAdvance: autoAdvance,
+                width: HeroLayout.infoWidth(vertical: layout.vertical),
+                isFollowing: store.isFollowing(shown),
+                defaultFocus: focusScope,
+                onWatch: watchFullScreen,
+                onFollow: { store.toggleFollow(shown) },
+                onEpisodes: { path.append(shown) }
+            )
+            .padding(.leading, 80)
+            .padding(.top, 250)
+            .opacity(rowFocused ? 0.55 : 1)
+            .animation(.easeOut(duration: 0.3), value: rowFocused)
+            if !feed.upNext.isEmpty {
+                UpNextRow(dramas: feed.upNext, onFocus: focusUpNext, onCommit: commit)
+                    .padding(.leading, 80)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    // 平时露出一截、海报底部压在屏幕下缘外 70 pt；有焦点时上移 40 pt。
+                    .offset(y: rowFocused ? 50 : 90)
+                    .animation(.easeOut(duration: 0.3), value: rowFocused)
+            }
+        }
+        .frame(width: HeroVideoPanel<EmptyView>.canvas.width, height: HeroVideoPanel<EmptyView>.canvas.height, alignment: .topLeading)
+    }
+
+    private func failure(_ message: String) -> some View {
+        VStack(spacing: 28) {
+            TVStatusView(icon: "exclamationmark.triangle.fill", title: "推荐加载失败", message: message, expands: false)
+            TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
+                Task { await loadFeed(force: true) }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - 状态
+
+    /// hero 现在放的剧：在预览就是预览的那部，否则是推荐流当前这部。
+    private var heroDrama: Drama? {
+        feed.dramas.first { $0.id == selection.heroID } ?? feed.current
+    }
+
+    private func loadFeed(force: Bool) async {
+        let source = appState.selectedSource
+        // 切回本页时 .task 会再跑一次：同一站源已加载过就不再请求。
+        guard force || loadedSource != source || feed.dramas.isEmpty else { return }
+        await feed.load(source: source)
+        loadedSource = source
+    }
+
+    private func startHero() {
+        heroTask?.cancel()
+        heroTask = nil
+        guard isVisible, fullScreen == nil, let drama = heroDrama else { return }
+        heroTask = Task { await hero.play(drama, store: store) }
+    }
+
+    private func stopHero() {
+        heroTask?.cancel()
+        heroTask = nil
+        hero.stop()
+    }
+
+    private func watchFullScreen() {
+        guard let presentation = hero.fullScreenPresentation else { return }
+        stopHero()
+        fullScreen = presentation
+    }
+
+    private func focusUpNext(_ id: String?) {
+        rowFocused = id != nil
+        selection.focus(id)
+        dwellTask?.cancel()
+        guard let id else { return }
+        dwellTask = Task {
+            try? await Task.sleep(for: PreviewSelection.dwell)
+            guard !Task.isCancelled else { return }
+            selection.dwellElapsed(for: id)
+        }
+    }
+
+    private func commit(_ drama: Drama) {
+        dwellTask?.cancel()
+        selection.commit(drama.id)
+        feed.select(drama)
+    }
+}
+
+/// 推荐页骨架（灰块；闪光动效在第三阶段加）：左侧信息栏各行 + 右侧竖屏面板。
+private struct FeedSkeleton: View {
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(TVTheme.surfaceDim)
+                .frame(width: HeroLayout.verticalPanel.width, height: HeroLayout.verticalPanel.height)
+                .offset(x: HeroLayout.verticalPanel.minX, y: HeroLayout.verticalPanel.minY)
+            VStack(alignment: .leading, spacing: 22) {
+                block(width: 96, height: 34)
+                block(width: 420, height: 28)
+                block(width: 860, height: 84)
+                block(width: 620, height: 84)
+                block(width: 900, height: 28)
+                block(width: 700, height: 28)
+                HStack(spacing: 24) {
+                    block(width: 250, height: 72)
+                    block(width: 170, height: 72)
+                    block(width: 160, height: 72)
+                }
+                .padding(.top, 8)
+            }
+            .padding(.leading, 80)
+            .padding(.top, 250)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func block(width: CGFloat, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(TVTheme.surface)
+            .frame(width: width, height: height)
+    }
+}
