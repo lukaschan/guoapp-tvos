@@ -1,49 +1,19 @@
 import SwiftUI
 
-// 播放控件（Apple TV 系统播放器风格）：标题、按钮行（倍速 / 画面 / 选集）、进度条与时间。
+// 播放控件（Apple TV 系统播放器风格）：标题、按钮行（倍速 / 选集）、进度条与时间。
+// 画面始终按 mpv 默认的等比适应显示（原「画面：适应 / 填充 / 拉伸」已按 owner 要求删除）。
 // 只是画在 mpv 画面上的一层界面：播放、解析、预取、缓存逻辑都在 PlayerController / PlayerView，
 // 这里不碰。遥控器：控件隐藏时点按 = 暂停 / 播放，← → = 快退 / 快进 10 秒，↑ ↓ = 调出控件；
 // 控件显示时 ↑ 到按钮行、↓ 回进度条，Menu 先收起控件、再按退出播放。
 
-// MARK: - 画面模式
-
-/// 画面模式：只改 mpv 的显示属性（keepaspect / panscan），不影响解码与播放。
-enum PlayerScreenMode: String, CaseIterable, Identifiable {
-    case fit, fill, stretch
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .fit: return "适应"
-        case .fill: return "填充"
-        case .stretch: return "拉伸"
-        }
-    }
-
-    /// 选项弹窗里的完整说明。
-    var optionLabel: String {
-        switch self {
-        case .fit: return "适应（完整画面，留黑边）"
-        case .fill: return "填充（铺满屏幕，裁掉边缘）"
-        case .stretch: return "拉伸（铺满屏幕，画面变形）"
-        }
-    }
-
-    /// keepaspect = no 时画面拉伸铺满。
-    var keepAspect: Bool { self != .stretch }
-    /// panscan = 1 时等比放大裁边铺满。
-    var panscan: Double { self == .fill ? 1 : 0 }
-}
-
 // MARK: - 焦点与弹窗
 
 enum PlayerFocus: Hashable {
-    case surface, scrubber, speed, screenMode, episodes
+    case surface, scrubber, speed, episodes
 }
 
 enum PlayerSheet: String, Identifiable {
-    case speed, screenMode, episodes
+    case speed, episodes
 
     var id: String { rawValue }
 }
@@ -85,7 +55,6 @@ struct PlayerControlsOverlay: View {
     let progress: PlaybackProgress
     let isPaused: Bool
     let speed: Double
-    let screenMode: PlayerScreenMode
     let showsEpisodes: Bool
     let focus: FocusState<PlayerFocus?>.Binding
     let onSeek: (Double) -> Void
@@ -98,10 +67,10 @@ struct PlayerControlsOverlay: View {
             HStack(alignment: .bottom, spacing: 40) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(title)
-                        .font(.system(size: 38, weight: .semibold))
+                        .font(.system(size: TVTheme.TextSize.headline, weight: .semibold))
                         .lineLimit(1)
                     Text(subtitle)
-                        .font(.system(size: 29))
+                        .font(.system(size: TVTheme.TextSize.body))
                         .foregroundColor(TVTheme.textSecondary)
                 }
                 Spacer(minLength: 0)
@@ -110,10 +79,6 @@ struct PlayerControlsOverlay: View {
                         onOpen(.speed)
                     }
                     .focused(focus, equals: .speed)
-                    PlayerControlButton(icon: "aspectratio", title: "画面 " + screenMode.label) {
-                        onOpen(.screenMode)
-                    }
-                    .focused(focus, equals: .screenMode)
                     if showsEpisodes {
                         PlayerControlButton(icon: "list.number", title: "选集") {
                             onOpen(.episodes)
@@ -140,7 +105,7 @@ struct PlayerControlsOverlay: View {
                 Spacer()
                 Text("-" + tvTimecode(max(0, progress.duration - progress.position)))
             }
-            .font(.system(size: 26, weight: .medium).monospacedDigit())
+            .font(.system(size: TVTheme.TextSize.caption, weight: .medium).monospacedDigit())
             .foregroundColor(TVTheme.textSecondary)
         }
         // 安全区：左右 80、上下 60（tvOS HIG）
@@ -170,12 +135,12 @@ private struct PlayerScrubber: View {
             let barHeight: CGFloat = focused ? 12 : 7
             let knob: CGFloat = 26
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.28))
+                Capsule().fill(TVTheme.textPrimary.opacity(0.28))
                 Capsule()
-                    .fill(Color.white)
+                    .fill(TVTheme.textPrimary)
                     .frame(width: geometry.size.width * fraction)
                 Circle()
-                    .fill(Color.white)
+                    .fill(TVTheme.textPrimary)
                     .frame(width: knob, height: knob)
                     .shadow(color: .black.opacity(0.5), radius: 6)
                     .offset(x: geometry.size.width * fraction - knob / 2)
@@ -200,22 +165,23 @@ private struct PlayerControlButton: View {
     var body: some View {
         Button(action: action) {
             Label(title, systemImage: icon)
-                .font(.system(size: 26, weight: .medium))
+                .font(.system(size: TVTheme.TextSize.body, weight: .medium))
                 .padding(.horizontal, 26)
                 .padding(.vertical, 14)
-                .foregroundColor(focused ? .black : .white)
-                .background(Capsule().fill(focused ? Color.white : TVTheme.surfaceBright))
+                .foregroundColor(focused ? TVTheme.ink : TVTheme.textPrimary)
+                .background(Capsule().fill(focused ? TVTheme.textPrimary : TVTheme.surfaceBright))
         }
         .buttonStyle(TVPressButtonStyle())
         .focused($focused)
-        .scaleEffect(focused ? TVTheme.chipScale : 1)
+        .scaleEffect(focused ? TVTheme.buttonScale : 1)
+        .shadow(color: .black.opacity(focused ? 0.5 : 0), radius: focused ? 20 : 0, y: focused ? 16 : 0)
         .animation(TVTheme.focusAnimation, value: focused)
     }
 }
 
 // MARK: - 选集弹窗
 
-/// 播放中选集：网格列出全部分集，默认聚焦正在看的一集；选中后由调用方换集。
+/// 播放中选集：与详情页同一套分段集数网格，默认停在正在看的那集所在分段并聚焦它；选中后由调用方换集。
 struct PlayerEpisodeSheet: View {
     let episodes: [Episode]
     let currentIndex: Int
@@ -223,60 +189,23 @@ struct PlayerEpisodeSheet: View {
     let onSelect: (Int) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Namespace private var scope
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 28) {
-            Text("选集")
-                .font(.system(size: 38, weight: .semibold))
-            ScrollViewReader { proxy in
-                ScrollView {
-                    // 非惰性网格（分集一般不过百）：正在看的那集格子从一开始就存在，
-                    // 默认焦点才能可靠落在它上面；LazyVGrid 里靠后的格子此时可能还没创建。
-                    VStack(alignment: .leading, spacing: 18) {
-                        ForEach(rows, id: \.self) { row in
-                            HStack(spacing: 16) {
-                                ForEach(row, id: \.self) { index in
-                                    cell(index)
-                                }
-                                ForEach(row.count..<Self.columns, id: \.self) { _ in
-                                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
-                                }
-                            }
-                        }
-                    }
-                    // 给焦点放大留出空间
-                    .padding(24)
-                }
-                .onAppear { proxy.scrollTo(currentIndex, anchor: .center) }
+        ScrollView {
+            EpisodeNumberGrid(
+                episodes: episodes,
+                currentEpisode: episodes.indices.contains(currentIndex) ? episodes[currentIndex].number : nil,
+                progress: progress,
+                columns: 10,
+                trailing: "共 \(episodes.count) 集"
+            ) { index in
+                dismiss()
+                onSelect(index)
             }
-            .focusScope(scope)
+            // 给焦点放大留出空间
+            .padding(24)
         }
         .padding(48)
         .frame(width: 1500, height: 820)
-    }
-
-    private static let columns = 5
-
-    private var rows: [[Int]] {
-        stride(from: 0, to: episodes.count, by: Self.columns).map { start in
-            Array(start..<min(start + Self.columns, episodes.count))
-        }
-    }
-
-    private func cell(_ index: Int) -> some View {
-        let episode = episodes[index]
-        return TVEpisodeButton(
-            title: episode.title,
-            vip: episode.vip,
-            progress: progress(episode),
-            isCurrent: index == currentIndex
-        ) {
-            dismiss()
-            onSelect(index)
-        }
-        .frame(maxWidth: .infinity)
-        .prefersDefaultFocus(index == currentIndex, in: scope)
-        .id(index)
     }
 }

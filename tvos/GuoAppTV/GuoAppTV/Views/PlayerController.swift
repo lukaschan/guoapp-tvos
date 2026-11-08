@@ -3,8 +3,9 @@ import QuartzCore
 import SwiftUI
 import UIKit
 
-// mpv 播放控制器（从 PlayerView.swift 原样拆出，另加 isPaused、halt()、画面模式与停止后不再起播）：
-// 句柄生命周期、事件泵、进度、倍速、画面模式、后台 / 前台处理。
+// mpv 播放控制器（从 PlayerView.swift 原样拆出，另加 isPaused、halt()、停止后不再起播，
+// 以及推荐页 hero 用的 pause() / resume() / videoSize）：
+// 句柄生命周期、事件泵、进度、倍速、后台 / 前台处理。
 
 // MARK: - mpv 事件
 
@@ -53,6 +54,19 @@ final class PlayerController: NSObject, ObservableObject {
     @Published var debugInfo = ""
     /// 是否已暂停（播放控件显示暂停 / 播放图标、暂停时不自动隐藏控件）。
     @Published private(set) var isPaused = false
+    /// 视频画面的像素尺寸（video-params/w、h）；推荐页 hero 按它选竖屏 / 横屏版式。
+    /// 只在变化时发布，起播与停止时清空。
+    @Published private(set) var videoSize: CGSize?
+    /// 播放中是否不让屏保出现。全屏播放页保持默认 true；推荐页 hero 设为 false，
+    /// 屏保按电视的设置出现（App 失去活跃时 enterBackground 会暂停，醒来再续播）。
+    var keepsScreenAwake = true
+    /// 起播时（含换集、出错重试、画面重建后的重启）先停在第一帧、不出声。推荐页 hero 用：用户暂停后
+    /// 预览别的剧，或在加载途中按了暂停，加载完也停着。由调用方维护（hero 暂停 / 继续时一起改）；全屏播放不用。
+    var startsPaused = false
+    /// 按视频尺寸给出 mpv 的画面摆放选项（nil 尺寸 = 还不知道）。推荐页 hero 用：mpv 起播后不跟随图层尺寸变化，
+    /// 所以 hero 的图层固定铺满画布、从不改尺寸，由这里给的边距把画面摆到面板上（HeroLayout.mpvMargins）。
+    /// 起播前按 nil 设一次，mpv 报告视频参数（VIDEO_RECONFIG）后按实际尺寸再设。全屏播放不设。
+    var framing: ((CGSize?) -> [String: String])?
 
     /// 事件队列：mpv 事件泵跑在这里；销毁时同步等它排空，避免句柄悬空。
     nonisolated let eventQueue = DispatchQueue(label: "com.duanju.guoapp.tv.mpv-events")
@@ -73,7 +87,6 @@ final class PlayerController: NSObject, ObservableObject {
     private var backgroundObservers: [NSObjectProtocol] = []
     private var backgroundObserversInstalled = false
     private var wasPlayingBeforeBackground = false
-    private var screenMode: PlayerScreenMode = .fit
     /// stop()（退出播放页）之后不再起播：仍在解析中的异步加载晚回来时直接忽略，
     /// 避免已离开的页面在后台起一个没人管、也没人销毁的 mpv 句柄。
     private var stopped = false
@@ -137,6 +150,35 @@ final class PlayerController: NSObject, ObservableObject {
         updateIdleTimer()
     }
 
+    /// 明确暂停 / 继续（推荐页 hero 切走或回来时用；不像 togglePause 依赖当前状态）。
+    func pause() {
+        setPaused(true)
+    }
+
+    func resume() {
+        setPaused(false)
+    }
+
+    private func setPaused(_ paused: Bool) {
+        guard mpv != nil else { return }
+        setFlag("pause", paused)
+        isPaused = getFlag("pause")
+        updateIdleTimer()
+    }
+
+    /// 视频参数出来了（出第一帧前）：按实际尺寸摆放画面（framing），并立刻更新画面尺寸（不等每秒的计时器）。
+    private func videoReconfigured() {
+        guard let handle = mpv else { return }
+        let width = getInt64("video-params/w")
+        let height = getInt64("video-params/h")
+        guard width > 0, height > 0 else { return }
+        let size = CGSize(width: Double(width), height: Double(height))
+        for (name, value) in framing?(size) ?? [:] {
+            _ = mpv_set_property_string(handle, name, value)
+        }
+        if size != videoSize { videoSize = size }
+    }
+
     /// 手动选集时先停掉当前句柄：旧集不再上报进度（否则会记到新集名下），
     /// 新集地址解析好后照常 play()。不动后台观察者与弹幕浮层。
     func halt() {
@@ -145,27 +187,18 @@ final class PlayerController: NSObject, ObservableObject {
         pendingPlay = nil
         progress = PlaybackProgress(position: 0, duration: 0)
         isPaused = false
+        videoSize = nil
         danmaku.reset()
         overlay.clear()
-    }
-
-    /// 画面模式（适应 / 填充 / 拉伸）：记下来，每次新建句柄都套用；正在播放时立即生效。
-    func setScreenMode(_ mode: PlayerScreenMode) {
-        screenMode = mode
-        guard let handle = mpv else { return }
-        applyScreenMode(to: handle)
-    }
-
-    private func applyScreenMode(to handle: OpaquePointer) {
-        _ = mpv_set_property_string(handle, "keepaspect", screenMode.keepAspect ? "yes" : "no")
-        _ = mpv_set_property_string(handle, "panscan", String(screenMode.panscan))
     }
 
     /// 正在播放时禁止系统空闲计时器，避免 tvOS 屏保在看剧时弹出；
     /// 暂停 / 停止 / 切后台时恢复，屏保才能正常出现。
     /// 注意：mpv 不是 AVPlayer，系统不知道在播视频，必须手动关空闲计时器。
     private func updateIdleTimer() {
-        UIApplication.shared.isIdleTimerDisabled = mpv != nil && !getFlag("pause")
+        UIApplication.shared.isIdleTimerDisabled = PlaybackRules.disablesIdleTimer(
+            hasPlayer: mpv != nil, paused: getFlag("pause"), keepsScreenAwake: keepsScreenAwake
+        )
     }
 
     func seek(by seconds: Double) {
@@ -208,6 +241,7 @@ final class PlayerController: NSObject, ObservableObject {
         activePlan = plan
         activeDanmakuEnabled = danmakuEnabled
         progress = PlaybackProgress(position: 0, duration: 0)
+        videoSize = nil
         debugInfo = "正在加载…"
 
         guard let handle = mpv_create() else {
@@ -258,6 +292,12 @@ final class PlayerController: NSObject, ObservableObject {
             let fields = plan.headers.map { "\($0.key): \($0.value)" }.joined(separator: ",")
             _ = mpv_set_option_string(handle, "http-header-fields", fields)
         }
+        if startsPaused {
+            _ = mpv_set_option_string(handle, "pause", "yes")
+        }
+        for (name, value) in framing?(nil) ?? [:] {
+            _ = mpv_set_option_string(handle, name, value)
+        }
         _ = mpv_request_log_messages(handle, "no")
         let initStatus = mpv_initialize(handle)
         guard initStatus >= 0 else {
@@ -266,7 +306,6 @@ final class PlayerController: NSObject, ObservableObject {
             destroyMpv()
             return
         }
-        applyScreenMode(to: handle)
         let contextPointer = UnsafeMutablePointer<MpvWakeupContext>.allocate(capacity: 1)
         contextPointer.initialize(to: MpvWakeupContext(
             controller: Unmanaged.passUnretained(self), handle: MpvHandle(raw: handle)
@@ -274,6 +313,7 @@ final class PlayerController: NSObject, ObservableObject {
         wakeupContext = contextPointer
         mpv_set_wakeup_callback(handle, mpvWakeup, contextPointer)
         command(["loadfile", url.absoluteString, "replace"])
+        isPaused = getFlag("pause")
         startProgressTimer()
         updateIdleTimer()
     }
@@ -306,6 +346,9 @@ final class PlayerController: NSObject, ObservableObject {
             guard let event = mpv_wait_event(handle, 0) else { return }
             let eventId = event.pointee.event_id
             if eventId == MPV_EVENT_NONE || eventId == MPV_EVENT_SHUTDOWN { return }
+            if eventId == MPV_EVENT_VIDEO_RECONFIG {
+                Task { @MainActor [weak self] in self?.videoReconfigured() }
+            }
             if eventId == MPV_EVENT_END_FILE {
                 let endFile = event.pointee.data
                     .assumingMemoryBound(to: mpv_event_end_file.self).pointee
@@ -338,6 +381,12 @@ final class PlayerController: NSObject, ObservableObject {
         let duration = getDouble("duration")
         let paused = getFlag("pause")
         if paused != isPaused { isPaused = paused }
+        let width = getInt64("video-params/w")
+        let height = getInt64("video-params/h")
+        if width > 0, height > 0 {
+            let size = CGSize(width: Double(width), height: Double(height))
+            if size != videoSize { videoSize = size }
+        }
         progress = PlaybackProgress(
             position: position.isFinite ? position : 0,
             duration: duration.isFinite ? duration : 0
@@ -435,6 +484,13 @@ final class PlayerController: NSObject, ObservableObject {
         guard let handle = mpv else { return 0 }
         var value = Double(0)
         let status = mpv_get_property(handle, name, MPV_FORMAT_DOUBLE, &value)
+        return status >= 0 ? value : 0
+    }
+
+    private func getInt64(_ name: String) -> Int64 {
+        guard let handle = mpv else { return 0 }
+        var value = Int64(0)
+        let status = mpv_get_property(handle, name, MPV_FORMAT_INT64, &value)
         return status >= 0 ? value : 0
     }
 

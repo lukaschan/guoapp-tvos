@@ -12,6 +12,8 @@
 	<string>6.0</string>
 	<key>CFBundleDisplayName</key>
 	<string>$(GUOAPP_DISPLAY_NAME)</string>
+	<key>GUOAppCoreRevision</key>
+	<string>$(GUOAPP_CORE_REVISION)</string>
 	<key>CFBundleName</key>
 	<string>GuoAppTV</string>
 	<key>CFBundleShortVersionString</key>

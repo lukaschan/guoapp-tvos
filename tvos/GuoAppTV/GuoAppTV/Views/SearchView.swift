@@ -1,278 +1,169 @@
 import SwiftUI
-import UIKit
 
-/// 搜索页：大屏搜索。
-///
-/// 顶部为醒目的搜索框（进入页面自动聚焦，拉起系统键盘）；
-/// 输入中给出联想词；确认后展示统一的海报网格。
-/// 加载中 / 失败 / 无结果均有清晰状态。
+/// 搜索页：tvOS 原生搜索界面（键盘在上、结果在下，与 Apple TV App 的搜索一致），边输入边出结果。
+/// 搜索框由 NativeSearchContainer（UIKit）提供，避免 SwiftUI 回写文字打断 iPhone 的中文输入；
+/// 搜索逻辑在 SearchModel（核心 catalog 的关键词搜索 + 系列归组，与原版一致）。
+/// 切到本页时焦点留在标签栏，向下才进入键盘。
 struct SearchView: View {
     @EnvironmentObject private var appState: AppState
-    @State private var query = ""
-    @State private var suggestions: [String] = []
-    @State private var results: [Drama] = []
-    @State private var searched = false
-    @State private var loading = false
-    @State private var error: String?
-    /// 搜索栏容器是否聚焦（只控制放大镜图标亮度，不触发布键盘）。
-    @FocusState private var searchBarFocused: Bool
-    /// 是否正在输入（键盘是否弹出），由 TVSearchTextField 驱动。
-    @State private var isEditing = false
+    @EnvironmentObject private var store: Store
+    @StateObject private var model = SearchModel()
+    @StateObject private var launcher = PlaybackLauncher()
+    @State private var path: [Drama] = []
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    searchField
-                    if !searched, !suggestions.isEmpty {
-                        suggestionList
-                    }
-                    resultSection
+        NavigationStack(path: $path) {
+            NativeSearchContainer(model: model, suggestions: model.suggestions, prompt: "输入剧名、演员或关键词") {
+                // 结果放在搜索控制器自己的 UIHostingController 里：环境要显式传，导航用回调推到外层的 NavigationStack。
+                SearchResultsView(model: model, launcher: launcher) { drama in
+                    path.append(drama)
                 }
-                .padding(.horizontal, TVTheme.posterPageInset)
-                .padding(.top, 24)
-                .padding(.bottom, 56)
+                .environmentObject(appState)
+                .environmentObject(store)
             }
+            .ignoresSafeArea()
             .navigationDestination(for: Drama.self) { drama in
                 DetailView(drama: drama)
             }
-        }
-    }
-
-    // MARK: - 搜索框
-
-    private var searchField: some View {
-        // 可见搜索栏只是深黑底 + 白字的展示层，本身是一个可聚焦容器，
-        // 点按时通过 TVSearchTextField 直接拉起键盘。
-        // 不用 SwiftUI TextField：tvOS 会在焦点层给它画一个白框，
-        // 焦点层在所有 App 视图之上，任何遮罩都盖不住。
-        HStack(spacing: 14) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 25, weight: .medium))
-                .foregroundColor(searchBarFocused ? TVTheme.textPrimary : TVTheme.textTertiary)
-            Text(query.isEmpty ? "输入剧名、演员或关键词" : query)
-                .font(.system(size: 26))
-                .foregroundColor(.white)
-                .lineLimit(1)
-            Spacer(minLength: 0)
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(TVTheme.textTertiary)
-                }
-                .buttonStyle(TVPressButtonStyle())
-            }
-        }
-        .padding(.horizontal, 26)
-        .padding(.vertical, 20)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(white: 0.10))
-        )
-        .focusable()
-        .focused($searchBarFocused)
-        .onTapGesture { isEditing = true }
-        .background {
-            // 真正的输入框：1x1 透明 UITextField，永不参与焦点导航。
-            TVSearchTextField(
-                text: $query,
-                isEditing: $isEditing,
-                onSubmit: { Task { await search() } }
-            )
-            .frame(width: 1, height: 1)
-        }
-        .onChange(of: query) { newValue in
-            if newValue.isEmpty {
-                suggestions = []
-                results = []
-                searched = false
-            } else {
-                searched = false
-            }
-        }
-        .task(id: query) {
-            guard !query.isEmpty else { return }
-            try? await Task.sleep(nanoseconds: 300_000_000)
-            guard !Task.isCancelled else { return }
-            suggestions = (try? await CoreClient.shared.suggestions(query: query)) ?? []
+            .playbackLauncher(launcher)
         }
         .onAppear {
-            // 进入搜索页默认聚焦搜索框；从详情页返回时不打扰已结果状态。
-            if !searched {
-                DispatchQueue.main.async { searchBarFocused = true }
-            }
+            model.source = appState.selectedSource
+            model.loadPopular()
+        }
+        .onChange(of: appState.selectedSource) { source in
+            model.source = source
+            model.loadPopular()
         }
     }
+}
 
-    // MARK: - 联想词
+/// 搜索结果与状态：没输入时「大家都在看」；输入后「找到 N 部短剧」+ 网格 / 加载骨架 / 没有找到 / 失败重试。
+private struct SearchResultsView: View {
+    @ObservedObject var model: SearchModel
+    @ObservedObject var launcher: PlaybackLauncher
+    let onOpen: (Drama) -> Void
 
-    private var suggestionList: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(suggestions.prefix(8), id: \.self) { suggestion in
-                TVSuggestionRow(title: suggestion) {
-                    query = suggestion
-                    Task { await search() }
-                }
+    @EnvironmentObject private var store: Store
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                resultSection
             }
+            .padding(.horizontal, TVTheme.posterPageInset)
+            .padding(.top, 24)
+            .padding(.bottom, 56)
         }
     }
-
-    // MARK: - 结果与状态
 
     @ViewBuilder
     private var resultSection: some View {
-        if loading {
-            TVLoadingView("正在搜索…")
-                .padding(.vertical, 160)
-        } else if let error {
-            VStack(spacing: 26) {
-                TVStatusView(
-                    icon: "exclamationmark.triangle",
-                    title: "搜索失败",
-                    message: error,
-                    expands: false
-                )
-                TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
-                    Task { await search() }
-                }
+        if let error = model.error {
+            TVFailureView(message: error) {
+                model.retry()
             }
             .padding(.vertical, 100)
-        } else if searched, results.isEmpty {
+        } else if LiveSearch.query(from: model.query) == nil {
+            popularSection
+        } else if model.results.isEmpty, model.isAwaitingResults {
+            PosterGridSkeleton(showsTitle: false)
+                .padding(.top, 12)
+        } else if model.results.isEmpty {
             TVStatusView(
                 icon: "magnifyingglass",
-                title: "没有找到相关内容",
-                message: "换个关键词试试。",
+                title: SearchCopy.notFound(model.searchedQuery ?? model.query),
+                message: SearchCopy.notFoundHint,
                 expands: false
             )
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 100)
-        } else if !results.isEmpty {
-            // 搜索海报往下挪：单独给海报加顶部间距，只动海报、不动搜索框。
-            TVPosterGrid(items: results)
-                .padding(.top, 12)
-        }
-    }
-
-    // MARK: - 搜索（业务逻辑与原版一致）
-
-    private func search() async {
-        guard !query.isEmpty else { return }
-        suggestions = []
-        searched = true
-        loading = true
-        error = nil
-        do {
-            let result = try await CoreClient.shared.catalog(
-                source: appState.selectedSource, query: query
-            )
-            results = result.items
-        } catch {
-            self.error = error.localizedDescription
-        }
-        loading = false
-    }
-}
-
-/// 搜索推荐词条行：可聚焦，焦点时放大 + 投影（与海报卡一致的焦点视觉），
-/// 遥控器划过时能看清当前选中哪条。
-private struct TVSuggestionRow: View {
-    let title: String
-    let action: () -> Void
-
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 14) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 20))
-                    .foregroundColor(TVTheme.textTertiary)
-                Text(title)
-                    .font(.system(size: 23))
-                    .foregroundColor(TVTheme.textPrimary)
-                    .lineLimit(1)
-                Spacer()
+        } else {
+            // 换关键词时旧结果先变暗，新结果回来再替换，不闪成整块加载。
+            VStack(alignment: .leading, spacing: 24) {
+                sectionTitle(SearchCopy.found(model.results.count))
+                resultGrid
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(TVTheme.surfaceDim)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(TVPressButtonStyle())
-        .focused($focused)
-        .tvFocusEffect(focused: focused, scale: TVTheme.focusScale, cornerRadius: 14, stroke: false)
-        .zIndex(focused ? 1 : 0)
-    }
-}
-
-/// tvOS 搜索输入框（UIKit 封装）。
-///
-/// SwiftUI TextField 在 tvOS 聚焦时，系统会在焦点层画一个白框，
-/// 焦点层在所有 App 视图之上，任何 SwiftUI 遮罩都盖不住。
-/// 这里用 UITextField 子类（canBecomeFocused = false），
-/// 永不参与焦点导航、永不画白框；由外部点按直接调 becomeFirstResponder()
-/// 拉起键盘，只负责收输入与回车搜索。
-private struct TVSearchTextField: UIViewRepresentable {
-    @Binding var text: String
-    @Binding var isEditing: Bool
-    var onSubmit: () -> Void
-
-    func makeUIView(context: Context) -> _TVSearchField {
-        let field = _TVSearchField()
-        field.backgroundColor = .clear
-        field.borderStyle = .none
-        field.textColor = .clear
-        field.tintColor = .clear
-        field.returnKeyType = .search
-        field.autocorrectionType = .no
-        field.spellCheckingType = .no
-        field.autocapitalizationType = .none
-        field.delegate = context.coordinator
-        field.addTarget(context.coordinator, action: #selector(Coordinator.editingChanged(_:)), for: .editingChanged)
-        return field
-    }
-
-    func updateUIView(_ uiView: _TVSearchField, context: Context) {
-        if uiView.text != text {
-            uiView.text = text
-        }
-        if isEditing && !uiView.isFirstResponder {
-            uiView.becomeFirstResponder()
-        } else if !isEditing && uiView.isFirstResponder {
-            uiView.resignFirstResponder()
+            .padding(.top, 12)
+            .opacity(model.isAwaitingResults ? 0.5 : 1)
+            .animation(.easeInOut(duration: 0.2), value: model.isAwaitingResults)
         }
     }
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
+    /// 还没输入：「大家都在看」（推荐流前 14 部）；加载中是骨架，失败可重试。
+    @ViewBuilder
+    private var popularSection: some View {
+        switch PopularState.make(count: model.popular.count, loading: model.popularLoading, error: model.popularError) {
+        case .posters:
+            VStack(alignment: .leading, spacing: 24) {
+                sectionTitle(SearchCopy.popularTitle)
+                LazyVGrid(columns: TVTheme.posterColumns(), spacing: 32) {
+                    ForEach(model.popular) { drama in
+                        TVPosterCard(drama: drama, isLoading: launcher.loadingDramaID == drama.id, onSelect: { onOpen(drama) })
+                            .onPlayPauseCommand { launcher.play(drama, store: store) }
+                    }
+                }
+                .prefetchesOnPosterFocus(model.popular)
+            }
+            .padding(.top, 12)
+        case .loading:
+            PosterGridSkeleton()
+                .padding(.top, 12)
+        case .failed(let error):
+            TVFailureView(message: error) {
+                model.loadPopular(force: true)
+            }
+            .padding(.vertical, 100)
+        case .empty:
+            VStack(spacing: 28) {
+                TVStatusView(icon: "sparkles", title: SearchCopy.popularEmptyTitle, message: SearchCopy.popularEmptyHint, expands: false)
+                TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
+                    model.loadPopular(force: true)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 100)
+        }
     }
 
-    final class Coordinator: NSObject, UITextFieldDelegate {
-        private let parent: TVSearchTextField
-        init(_ parent: TVSearchTextField) { self.parent = parent }
-
-        @objc func editingChanged(_ field: UITextField) {
-            parent.text = field.text ?? ""
-        }
-
-        func textFieldShouldReturn(_ field: UITextField) -> Bool {
-            parent.onSubmit()
-            parent.isEditing = false
-            return true
-        }
-
-        func textFieldDidEndEditing(_ field: UITextField) {
-            parent.isEditing = false
-        }
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: TVTheme.TextSize.callout, weight: .bold))
+            .foregroundColor(TVTheme.textPrimary)
     }
-}
 
-/// 永不参与 tvOS 焦点导航的 UITextField（避免系统给它画白框）。
-private final class _TVSearchField: UITextField {
-    override var canBecomeFocused: Bool { false }
+    /// 搜索结果：同一系列的各部合成一张卡片（「共 N 部」），其余单部剧原样显示。
+    private var resultGrid: some View {
+        let entries = SeriesGrouping.group(model.results, title: \.title, source: \.source)
+        return LazyVGrid(columns: TVTheme.posterColumns(), spacing: 32) {
+            ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
+                switch entry {
+                case .single(let drama):
+                    TVPosterCard(drama: drama, isLoading: launcher.loadingDramaID == drama.id, onSelect: { onOpen(drama) })
+                        .onPlayPauseCommand { launcher.play(drama, store: store) }
+                case .series(let group):
+                    let target = seriesTarget(group)
+                    TVPosterCard(
+                        drama: group.parts[0].item,
+                        title: group.base,
+                        subtitle: SeriesGrouping.partsLabel(group.partNumbers, unit: group.unit),
+                        badge: "共 \(group.parts.count) \(group.unit)",
+                        linkValue: target,
+                        isLoading: launcher.loadingDramaID == target.id,
+                        onSelect: { onOpen(target) }
+                    )
+                    .onPlayPauseCommand { launcher.play(target, store: store) }
+                }
+            }
+        }
+        .prefetchesOnPosterFocus(model.results)
+    }
+
+    /// 系列卡片进入 / 播放哪一部：最近看过的那部，没看过就第一部。
+    private func seriesTarget(_ group: SeriesGroup<Drama>) -> Drama {
+        let watched = group.parts.compactMap { part in
+            store.latestProgress(for: part.item.id).map { (part.item, $0.updatedAt) }
+        }
+        return watched.max { $0.1 < $1.1 }?.0 ?? group.parts[0].item
+    }
 }

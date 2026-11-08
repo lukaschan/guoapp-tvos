@@ -145,75 +145,57 @@ final class PlayerHostContainerView: UIView {
     }
 }
 
-private struct PlayerHostView: UIViewRepresentable {
-    let controller: PlayerController
-
-    func makeUIView(context: Context) -> PlayerHostContainerView {
-        let view = PlayerHostContainerView()
-        controller.attach(to: view)
-        return view
-    }
-
-    func updateUIView(_ uiView: PlayerHostContainerView, context: Context) {}
-}
-
 // MARK: - 播放页
 
+/// 全屏播放页：持有这次播放的 PlaybackSession（分集逻辑）与其 PlayerController（mpv）。
+/// 界面在 PlayerScreen 里，它同时观察会话与控制器。
 struct PlayerView: View {
-    let drama: Drama
-    let episodes: [Episode]
-    let startIndex: Int
-    let startPosition: Double
+    @StateObject private var session: PlaybackSession
+
+    init(drama: Drama, episodes: [Episode], startIndex: Int, startPosition: Double, store: Store) {
+        _session = StateObject(wrappedValue: PlaybackSession(
+            drama: drama,
+            episodes: episodes,
+            startIndex: startIndex,
+            startPosition: startPosition,
+            store: store,
+            controller: PlayerController()
+        ))
+    }
+
+    var body: some View {
+        PlayerScreen(session: session, controller: session.controller)
+    }
+}
+
+private struct PlayerScreen: View {
+    @ObservedObject var session: PlaybackSession
+    @ObservedObject var controller: PlayerController
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: Store
-    @AppStorage("danmakuEnabled") private var danmakuEnabled = true
-    @AppStorage("autoAdvance") private var autoAdvance = true
     @AppStorage("playbackDiagnostics") private var diagnosticsEnabled = false
-    @AppStorage("preferredQuality") private var preferredQuality = 0
     @AppStorage("playbackSpeed") private var playbackSpeed = 1.0
 
-    @AppStorage("playerScreenMode") private var screenModeRaw = PlayerScreenMode.fit.rawValue
-
-    @StateObject private var controller = PlayerController()
     /// 播放控件（进度条 / 倍速 / 画面 / 选集）的显示与自动隐藏，见 PlayerControlsView.swift。
     @StateObject private var controls = PlayerControlsState()
     @FocusState private var focus: PlayerFocus?
     @State private var activeSheet: PlayerSheet?
-    @State private var currentIndex: Int
-    @State private var start: Double
-    @State private var plan: PlaybackPlan?
-    @State private var error: String?
-    @State private var lastSavedPosition = -1.0
 
     /// 倍速档位：与设置页 speedOptions 一致，改动时两边同步。
     private static let speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0]
-    /// 下一集预取好的播放计划（还剩 10 秒时后台解析好，切集时直接用）。
-    @State private var prefetchedPlan: PlaybackPlan?
-    /// 预取针对的分集下标（成功或失败都记录，避免失败后反复重试刷接口）。
-    @State private var prefetchedIndex: Int?
-    @State private var prefetchTask: Task<Void, Never>?
-    /// 当前这次换集 / 重试的加载：新的加载开始或离开页面时取消旧的，
-    /// 只让最后一次加载起播（load() 在解析返回后检查取消）。
-    @State private var loadTask: Task<Void, Never>?
 
-    init(drama: Drama, episodes: [Episode], startIndex: Int, startPosition: Double) {
-        self.drama = drama
-        self.episodes = episodes
-        self.startIndex = startIndex
-        self.startPosition = startPosition
-        _currentIndex = State(initialValue: startIndex)
-        _start = State(initialValue: startPosition)
-    }
+    private var drama: Drama { session.drama }
+    private var episodes: [Episode] { session.episodes }
 
     var body: some View {
         ZStack {
-            if plan != nil {
+            if session.plan != nil {
                 PlayerHostView(controller: controller)
                     .ignoresSafeArea()
                     // 遥控器按键的前提：播放画面必须是可聚焦且已获得焦点。
                     // 控件显示时画面让出焦点（焦点在进度条 / 按钮行），隐藏后再拿回。
-                    .focusable(!controls.visible && error == nil)
+                    .focusable(!controls.visible && session.error == nil)
                     .focused($focus, equals: .surface)
                     .onAppear { focus = .surface }
                     .onMoveCommand { direction in
@@ -226,18 +208,17 @@ struct PlayerView: View {
                     }
                     // 遥控器点按（Select）切暂停，并显示控件。
                     .onTapGesture { togglePause() }
-                if controller.progress.duration <= 0 && error == nil {
+                if controller.progress.duration <= 0 && session.error == nil {
                     ProgressView()
                         .allowsHitTesting(false)
                 }
-                if controls.visible && error == nil {
+                if controls.visible && session.error == nil {
                     PlayerControlsOverlay(
                         title: drama.title,
                         subtitle: episodeSubtitle,
                         progress: controller.progress,
                         isPaused: controller.isPaused,
                         speed: playbackSpeed,
-                        screenMode: screenMode,
                         showsEpisodes: episodes.count > 1,
                         focus: $focus,
                         onSeek: seek(by:),
@@ -248,7 +229,7 @@ struct PlayerView: View {
                 }
                 if diagnosticsEnabled && !controller.debugInfo.isEmpty {
                     Text(controller.debugInfo)
-                        .font(.system(size: 22))
+                        .font(.system(size: TVTheme.TextSize.caption2))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.leading)
                         .padding(16)
@@ -260,17 +241,17 @@ struct PlayerView: View {
                 }
             }
             // 出错时盖在画面之上（播放中换集 / 换线路失败也能看到并重试），不拆掉播放视图。
-            if let error {
+            if let error = session.error {
                 VStack(spacing: 28) {
                     TVStatusView(
                         icon: "exclamationmark.triangle.fill",
                         title: "播放失败",
-                        message: error,
+                        message: UserFacingError.message(for: error),
                         expands: false
                     )
                     HStack(spacing: 20) {
                         TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
-                            startLoad()
+                            session.retry()
                         }
                         TVSecondaryButton(title: "返回", icon: "chevron.left") {
                             dismiss()
@@ -279,8 +260,8 @@ struct PlayerView: View {
                 }
                 .padding(60)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black.ignoresSafeArea())
-            } else if plan == nil {
+                .background(TVTheme.background.ignoresSafeArea())
+            } else if session.plan == nil {
                 TVLoadingView("正在解析播放地址…")
             }
         }
@@ -290,7 +271,7 @@ struct PlayerView: View {
         .onPlayPauseCommand { togglePause() }
         .onExitCommand {
             // Menu：先收起控件，再按一次才退出播放。
-            if controls.visible && error == nil {
+            if controls.visible && session.error == nil {
                 controls.hide()
             } else {
                 dismiss()
@@ -300,8 +281,8 @@ struct PlayerView: View {
             playerSheet(sheet)
         }
         .task {
-            controller.setScreenMode(screenMode)
-            await load()
+            session.onReachedEnd = { dismiss() }
+            session.start()
         }
         .onChange(of: controls.visible) { visible in
             // 控件出现时焦点落到进度条；隐藏时还给画面（下一轮再设，等可聚焦状态生效）。
@@ -314,61 +295,40 @@ struct PlayerView: View {
         .onChange(of: controller.isPaused) { _ in
             if controls.visible { revealControls() }
         }
-        .onChange(of: error) { value in
-            // 出错时收起控件并停掉句柄：恢复屏保（避免错误页常亮），重试时照常 load() → play()。
+        .onChange(of: session.error) { value in
+            // 出错时收起控件（句柄由会话在出错时停掉）。
             guard value != nil else { return }
             controls.hide()
-            controller.halt()
         }
         .onChange(of: playbackSpeed) { speed in
             controller.setSpeed(speed)
         }
-        .onChange(of: screenModeRaw) { _ in
-            controller.setScreenMode(screenMode)
-        }
         .onChange(of: controller.endedToken) { token in
             guard token > 0 else { return }
-            handleEnded()
+            session.handleEnded()
         }
         .onChange(of: controller.failedToken) { token in
             guard token > 0 else { return }
-            Task { await handleFailed() }
+            Task { await session.handleFailed() }
         }
         .onChange(of: controller.progress) { value in
-            handleProgress(position: value.position, duration: value.duration)
+            session.handleProgress(position: value.position, duration: value.duration)
         }
         .onDisappear {
-            saveProgress()
-            controller.stop()
-            prefetchTask?.cancel()
-            prefetchTask = nil
-            loadTask?.cancel()
-            loadTask = nil
-            Task {
-                if let plan {
-                    try? await CoreClient.shared.release(session: plan.session)
-                }
-                if let prefetchedPlan {
-                    try? await CoreClient.shared.release(session: prefetchedPlan.session)
-                }
-            }
+            session.stop()
         }
     }
 
     // MARK: - 播放控件
 
-    private var screenMode: PlayerScreenMode {
-        PlayerScreenMode(rawValue: screenModeRaw) ?? .fit
-    }
-
     private var episodeSubtitle: String {
-        guard episodes.indices.contains(currentIndex) else { return "" }
-        return "第 \(episodes[currentIndex].number) 集 · 共 \(episodes.count) 集"
+        guard episodes.indices.contains(session.currentIndex) else { return "" }
+        return "第 \(episodes[session.currentIndex].number) 集 · 共 \(episodes.count) 集"
     }
 
     /// 显示控件并重新计时；暂停或开着弹窗时不自动隐藏。
     private func revealControls() {
-        guard error == nil else { return }
+        guard session.error == nil else { return }
         controls.show(autoHide: !controller.isPaused && activeSheet == nil)
     }
 
@@ -396,18 +356,12 @@ struct PlayerView: View {
                 options: Self.speedOptions.map { TVOption(value: $0, label: String(format: "%.2fx", $0)) },
                 selection: $playbackSpeed
             )
-        case .screenMode:
-            TVOptionSheet(
-                title: "画面",
-                options: PlayerScreenMode.allCases.map { TVOption(value: $0.rawValue, label: $0.optionLabel) },
-                selection: $screenModeRaw
-            )
         case .episodes:
             PlayerEpisodeSheet(
                 episodes: episodes,
-                currentIndex: currentIndex,
+                currentIndex: session.currentIndex,
                 progress: episodeProgress,
-                onSelect: playEpisode(at:)
+                onSelect: session.playEpisode(at:)
             )
         }
     }
@@ -418,138 +372,5 @@ struct PlayerView: View {
         }
         let fraction = saved.position / saved.duration
         return fraction > 0.005 ? min(fraction, 1) : nil
-    }
-
-    /// 播放中选集：与详情页点分集一致，从头播放。先存好旧集进度并停掉旧句柄；
-    /// 预取若不是为新位置（本集或下一集）准备的，释放掉，避免用到过期地址。
-    private func playEpisode(at index: Int) {
-        guard index != currentIndex, episodes.indices.contains(index) else { return }
-        saveProgress()
-        controller.halt()
-        if prefetchedIndex != index && prefetchedIndex != index + 1 {
-            if let stale = prefetchedPlan {
-                Task { try? await CoreClient.shared.release(session: stale.session) }
-            }
-            prefetchedPlan = nil
-            prefetchedIndex = nil
-        }
-        currentIndex = index
-        start = 0
-        lastSavedPosition = -1
-        startLoad()
-    }
-
-    private func startLoad() {
-        loadTask?.cancel()
-        loadTask = Task { await load() }
-    }
-
-    private func load() async {
-        guard currentIndex < episodes.count else {
-            dismiss()
-            return
-        }
-        error = nil
-        let episode = episodes[currentIndex]
-        // 优先用预取好的计划（上一集还剩 10 秒时已后台解析好），
-        // 切集时免去再等解析地址，是衔接卡顿的主因之一。
-        if prefetchedIndex == currentIndex {
-            let cached = prefetchedPlan
-            prefetchedPlan = nil
-            prefetchedIndex = nil
-            if let cached {
-                plan = cached
-                controller.play(plan: cached, start: start, danmakuEnabled: danmakuEnabled, speed: playbackSpeed)
-                return
-            }
-            // 预取失败过：直接走正常解析（不重试预取）。
-        }
-        do {
-            let resolved = try await CoreClient.shared.resolve(
-                drama: drama, episode: episode, quality: preferredQuality
-            )
-            guard !Task.isCancelled else { return }
-            plan = resolved
-            controller.play(plan: resolved, start: start, danmakuEnabled: danmakuEnabled, speed: playbackSpeed)
-        } catch {
-            guard !Task.isCancelled else { return }
-            self.error = error.localizedDescription
-        }
-    }
-
-    private func handleEnded() {
-        if autoAdvance, currentIndex + 1 < episodes.count {
-            currentIndex += 1
-            start = 0
-            lastSavedPosition = -1
-            startLoad()
-        } else {
-            dismiss()
-        }
-    }
-
-    private func handleFailed() async {
-        guard let plan else { return }
-        if plan.hasAlternative {
-            do {
-                let next = try await CoreClient.shared.fallback(plan: plan)
-                self.plan = next
-                controller.play(plan: next, start: 0, danmakuEnabled: danmakuEnabled, speed: playbackSpeed)
-            } catch {
-                self.error = error.localizedDescription
-            }
-        } else {
-            self.error = "播放失败，请返回重试"
-        }
-    }
-
-    private func handleProgress(position: Double, duration: Double) {
-        guard position > 0, duration > 0 else { return }
-        maybePrefetchNext(position: position, duration: duration)
-        // 与 Dart 侧一致：约每 5 秒落一次进度，避免频繁写盘。
-        guard abs(position - lastSavedPosition) >= 5 else { return }
-        lastSavedPosition = position
-        saveProgress(position: position, duration: duration)
-    }
-
-    /// 当前集还剩 10 秒时，后台解析下一集播放地址（预取）。
-    /// 切集时直接用预取好的计划，免去再等解析地址。
-    private func maybePrefetchNext(position: Double, duration: Double) {
-        let remaining = duration - position
-        guard remaining <= 10, remaining > 0 else { return }
-        let nextIndex = currentIndex + 1
-        guard nextIndex < episodes.count else { return }
-        guard prefetchedIndex != nextIndex, prefetchTask == nil else { return }
-        prefetchedIndex = nextIndex
-        let episode = episodes[nextIndex]
-        prefetchTask = Task {
-            defer { prefetchTask = nil }
-            guard let plan = try? await CoreClient.shared.resolve(
-                drama: drama, episode: episode, quality: preferredQuality
-            ) else { return }
-            // 解析完成时若用户已不在触发那集（已切集/已退出），
-            // 预取的计划用不上，释放其会话避免泄漏。
-            guard !Task.isCancelled, currentIndex + 1 == nextIndex else {
-                try? await CoreClient.shared.release(session: plan.session)
-                return
-            }
-            prefetchedPlan = plan
-        }
-    }
-
-    private func saveProgress(position: Double? = nil, duration: Double? = nil) {
-        guard currentIndex < episodes.count else { return }
-        let position = position ?? controller.progress.position
-        let duration = duration ?? controller.progress.duration
-        guard position > 0, duration > 0 else { return }
-        let episode = episodes[currentIndex]
-        store.saveProgress(WatchProgress(
-            drama: drama,
-            episode: episode.number,
-            episodeTitle: episode.title,
-            position: position,
-            duration: duration,
-            updatedAt: Date()
-        ))
     }
 }
