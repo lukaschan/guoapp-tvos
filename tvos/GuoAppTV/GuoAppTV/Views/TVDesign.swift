@@ -213,6 +213,37 @@ struct TVSecondaryButton: View {
     }
 }
 
+/// 次操作导航链接：外观与 TVSecondaryButton 完全一致，用于跳页型操作。
+struct TVSecondaryLink<Destination: View>: View {
+    let title: String
+    var icon: String? = nil
+    @ViewBuilder let destination: () -> Destination
+
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        NavigationLink(destination: destination) {
+            HStack(spacing: 12) {
+                if let icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 24, weight: .medium))
+                }
+                Text(title)
+                    .font(.system(size: 26, weight: .medium))
+            }
+            .padding(.horizontal, 36)
+            .padding(.vertical, 19)
+            .foregroundColor(TVTheme.textPrimary)
+            .background(Capsule().fill(focused ? TVTheme.surfaceBright : TVTheme.surface))
+            .overlay(Capsule().strokeBorder(Color.white.opacity(focused ? 0.85 : 0), lineWidth: 3))
+        }
+        .buttonStyle(TVPressButtonStyle())
+        .focused($focused)
+        .scaleEffect(focused ? 1.05 : 1)
+        .animation(TVTheme.focusAnimation, value: focused)
+    }
+}
+
 // MARK: - 分区标题
 
 /// 内容分区标题：图标 + 标题 + 可选的右侧补充信息。
