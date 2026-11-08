@@ -134,7 +134,8 @@ struct FeedHeroView: View {
     // MARK: - 布局
 
     private func stage(_ drama: Drama) -> some View {
-        let shown = hero.session?.drama.id == drama.id ? hero.session?.drama ?? drama : drama
+        // 详情补全过的剧（总集数等）；预告播完、播放器释放后也不变。
+        let shown = hero.shownDrama?.id == drama.id ? hero.shownDrama ?? drama : drama
         let layout = HeroLayout.panel(videoSize: hero.status.videoSize)
         return ZStack(alignment: .topLeading) {
             // 两个播放器（选定的这部、预览那部）的画面都一直挂着，只显示看得见的那个：

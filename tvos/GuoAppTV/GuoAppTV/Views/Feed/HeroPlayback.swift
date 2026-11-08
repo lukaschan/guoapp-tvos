@@ -43,6 +43,8 @@ final class HeroPlayback: ObservableObject {
     @Published private(set) var status = Status()
     @Published private(set) var hosts: [Host] = []
     @Published private(set) var isPreviewing = false
+    /// 可见那个槽详情补全后的剧（总集数等）；预告播完、播放器释放后也还在，信息栏不会跟着变。
+    @Published private(set) var shownDrama: Drama?
 
     private var main = HeroSlot()
     private var preview = HeroSlot()
@@ -115,9 +117,10 @@ final class HeroPlayback: ObservableObject {
     /// 按下正在预览（或已在后台加载）的那部：直接转正成 main（不重新加载）并播放。返回是否转正了。
     func promotePreview(dramaID: String) -> Bool {
         guard preview.dramaID == dramaID else { return false }
-        previewTask = nil
+        // 还在加载的那次交给 replayTask 管：之后 stop() / 换剧时照样能取消它。
         replayTask?.cancel()
-        replayTask = nil
+        replayTask = previewTask
+        previewTask = nil
         main.stop()
         let promoted = preview
         preview = main
@@ -197,6 +200,8 @@ final class HeroPlayback: ObservableObject {
         if session !== main.session { session = main.session }
         let visible = isPreviewing ? preview : main
         if visible.status != status { status = visible.status }
+        let drama = visible.resolvedDrama
+        if drama != shownDrama { shownDrama = drama }
         let nextHosts = [main, preview].compactMap { slot in
             slot.session.map { Host(controller: $0.controller, visible: slot === visible) }
         }
@@ -240,6 +245,9 @@ final class HeroSlot {
         var position: Double = 0
         var videoSize: CGSize?
     }
+
+    /// 详情补全后的剧（放预告期间与播完后都有）。
+    var resolvedDrama: Drama? { teaser?.resolved }
 
     /// 看起来停着：要它停着（含还在加载的），或播放器自己停着。
     var isPaused: Bool { wantsPaused || (session?.controller.isPaused ?? false) }
