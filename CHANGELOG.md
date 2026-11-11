@@ -26,6 +26,10 @@
 - 修复播放一会后 tvOS 屏保自动弹出：mpv 不是 AVPlayer，系统不知道在播视频；
   播放时禁止系统空闲计时器，暂停 / 停止 / 切后台时恢复。
 
+## 2.46
+
+- 同步上游核心到 Xanerix/guoapp `e8bebee`（docs: 黄果 AI 播放修复写入更新日志，并更新实机验证说明（#103，1.0.8+108））。本次仅更新 Go 核心（submodule 指针），tvOS 应用代码无改动。
+
 ## 2.45
 
 - 同步上游核心到 Xanerix/guoapp `fa7d948`（docs: #94 换集修复已在 Android 实机验证播放正常，更新日志注明 iPad 待验证）。本次仅更新 Go 核心（submodule 指针），tvOS 应用代码无改动。
