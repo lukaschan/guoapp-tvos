@@ -5,9 +5,9 @@
 ## 未发布
 
 - Go 核心改走 git submodule：删 vendored 快照 `native/`，上游仓库以 submodule
-  形式放在 `upstream/`，核心在 `upstream/native/`，指针指向 commit `283cd16`
+  形式放在 `upstream/`，核心在 `upstream/native/`，转换时指针指向 commit `283cd16`
   （`feat: 红果分集带出横竖屏标记`，相对旧快照 `d7e69fb` 仅新增 `Chapter.vertical`
-  可选字段，向后兼容）；构建脚本、CI、`.gitignore` 的核心路径改为
+  可选字段，向后兼容）；后续同步已移至 `fa7d948`（见 2.47 节）；构建脚本、CI、`.gitignore` 的核心路径改为
   `upstream/native`，CI 拉取时带 `submodules: recursive`；克隆须用
   `git clone --recurse-submodules`（下载 ZIP 不含子模块内容）。
   同步上游核心：见 README「与上游共享的部分」一节。
