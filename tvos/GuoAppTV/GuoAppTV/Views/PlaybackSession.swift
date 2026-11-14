@@ -74,12 +74,13 @@ final class PlaybackSession: ObservableObject {
         startLoad()
     }
 
-    /// 播放中选集：与详情页点分集一致，从头播放。先存好旧集进度并停掉旧句柄；
-    /// 预取若不是为新位置（本集或下一集）准备的，释放掉，避免用到过期地址。
+    /// 播放中选集：与详情页点分集一致，从头播放。先存好旧集进度并卸下旧集
+    /// （保留句柄，切集时复用）；预取若不是为新位置（本集或下一集）准备的，
+    /// 释放掉，避免用到过期地址。
     func playEpisode(at index: Int) {
         guard index != currentIndex, episodes.indices.contains(index) else { return }
         saveProgress()
-        controller.halt()
+        controller.unload()
         if !PlaybackRules.keepsPrefetch(prefetchedIndex: prefetchedIndex, target: index) {
             if let stale = prefetchedPlan {
                 Task { try? await CoreClient.shared.release(session: stale.session) }

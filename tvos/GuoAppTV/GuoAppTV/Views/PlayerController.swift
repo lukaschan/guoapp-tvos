@@ -43,8 +43,10 @@ private func mpvWakeup(_ rawContext: UnsafeMutableRawPointer?) {
 /// 持有 mpv 句柄，负责换集、进度上报、播完 / 失败通知、弹幕调度。
 /// 原版应用用 mpv + decryption_key 解密 CENC 播放；AVPlayer 没有传原始密钥
 /// 解密 CENC 的接口，所以这里直接用 MPVKit 的 libmpv，与原版一致。
-/// 每次 play() 都新建句柄：decryption-key 必须在 mpv_initialize 之前设置，
-/// 而密钥随内容变化，复用句柄无法换密钥。
+/// 句柄在一次观看内复用：换集只更新逐集选项（demuxer-lavf-o 含解密密钥、
+/// 请求头、起播点、倍速）再 loadfile——demuxer 在每次打开文件时按当前选项
+/// 创建，密钥因此随集生效；只有首次起播、图层更换、出错停掉后才新建句柄。
+/// （mpv 自带的 decryption-key 选项是另一条路，在此构建下不生效，见起播处注释。）
 @MainActor
 final class PlayerController: NSObject, ObservableObject {
     @Published var progress = PlaybackProgress(position: 0, duration: 0)
@@ -74,6 +76,8 @@ final class PlayerController: NSObject, ObservableObject {
     private var mpv: OpaquePointer?
     private var wakeupContext: UnsafeMutablePointer<MpvWakeupContext>?
     private var metalLayer: CAMetalLayer?
+    /// 当前句柄绑定的图层；与 metalLayer 不是同一个时句柄不可复用（须重建指向新层）。
+    private var handleLayer: CAMetalLayer?
     private var currentURL: URL?
     private var hasDecryptionKey = false
     /// 最近一次 mpv END_FILE 错误原文（失败页展示用，便于定位起播失败原因）。
@@ -180,8 +184,24 @@ final class PlayerController: NSObject, ObservableObject {
         if size != videoSize { videoSize = size }
     }
 
-    /// 手动选集时先停掉当前句柄：旧集不再上报进度（否则会记到新集名下），
-    /// 新集地址解析好后照常 play()。不动后台观察者与弹幕浮层。
+    /// 手动选集时卸下当前文件但保留句柄：旧集立刻停（不再上报进度、不会触发播完），
+    /// 新集解析好后 play() 复用句柄直接 loadfile，省掉销毁重建。
+    /// 与 halt() 的区别：halt 连句柄一起销毁，出错停掉与图层更换时用。
+    func unload() {
+        if mpv != nil {
+            command(["stop"])
+        }
+        activePlan = nil
+        pendingPlay = nil
+        progress = PlaybackProgress(position: 0, duration: 0)
+        isPaused = false
+        videoSize = nil
+        danmaku.reset()
+        overlay.clear()
+        updateIdleTimer()
+    }
+
+    /// 出错时停掉句柄：恢复屏保（避免错误页常亮），重试时照常 load() → play()。
     func halt() {
         destroyMpv()
         activePlan = nil
@@ -223,8 +243,41 @@ final class PlayerController: NSObject, ObservableObject {
 
     // MARK: - 播放启动
 
+    /// demuxer 的 libavformat 选项（重试、实验特性、扩展名、协议白名单、解密密钥），
+    /// 首次起播（初始化前）与换集复用句柄（loadfile 前）共用同一份。
+    private func lavfOptions(for plan: PlaybackPlan) -> [String] {
+        var options = [
+            "seg_max_retry=3",
+            "strict=experimental",
+            "allowed_extensions=ALL",
+            plan.local
+                ? "protocol_whitelist=[file,crypto,data]"
+                : "protocol_whitelist=[http,https,tcp,tls,crypto,data,file]",
+        ]
+        if !plan.decryptionKey.isEmpty {
+            options.append("decryption_key=\(plan.decryptionKey)")
+        }
+        return options
+    }
+
+    /// 换集时逐集不同的选项：复用句柄时在 loadfile 前更新。demuxer 在每次打开
+    /// 文件时按当前选项创建，解密密钥因此随集生效；请求头无则清空，避免上一集的
+    /// 头漏给下一集；暂停状态与重建句柄时一致（新集默认起播，hero 的
+    /// startsPaused 则停在第一帧）。
+    private func applyPerFileOptions(_ handle: OpaquePointer, plan: PlaybackPlan, start: Double, speed: Double) {
+        _ = mpv_set_option_string(handle, "demuxer-lavf-o", lavfOptions(for: plan).joined(separator: ","))
+        let fields = (!plan.local && !plan.headers.isEmpty)
+            ? plan.headers.map { "\($0.key): \($0.value)" }.joined(separator: ",")
+            : ""
+        _ = mpv_set_option_string(handle, "http-header-fields", fields)
+        // 每集都显式写起播点（含 0）：句柄是复用的，不清掉上一集的 start 会漏到下一集。
+        _ = mpv_set_option_string(handle, "start", "\(start)")
+        var speedValue = speed
+        _ = mpv_set_property(handle, "speed", MPV_FORMAT_DOUBLE, &speedValue)
+        setFlag("pause", startsPaused)
+    }
+
     private func startPlayback(plan: PlaybackPlan, start: Double, danmakuEnabled: Bool, speed: Double = 1.0) {
-        destroyMpv()
         danmaku.configure(plan: plan, enabled: danmakuEnabled)
         guard let url = URL(string: plan.url) else {
             debugInfo = "播放地址无效"
@@ -245,12 +298,24 @@ final class PlayerController: NSObject, ObservableObject {
         videoSize = nil
         debugInfo = "正在加载…"
 
+        if let handle = mpv, handleLayer === layer {
+            // 复用句柄换集：只更新逐集选项再 loadfile，跳过销毁与重新初始化
+            // （mpv_initialize 连带 gpu-next / 硬解 / 音频初始化，是切集卡顿的大头）。
+            applyPerFileOptions(handle, plan: plan, start: start, speed: speed)
+            command(["loadfile", url.absoluteString, "replace"])
+            isPaused = getFlag("pause")
+            updateIdleTimer()
+            return
+        }
+        destroyMpv()
+
         guard let handle = mpv_create() else {
             debugInfo = "创建播放器失败"
             failedToken += 1
             return
         }
         mpv = handle
+        handleLayer = layer
         // wid 是 int64，内容为 CAMetalLayer 的对象地址（mpv 不持有引用；
         // 本控制器的 metalLayer 强引用该图层，句柄销毁前图层一直有效）。
         var wid = Int64(Int(bitPattern: Unmanaged.passUnretained(layer).toOpaque()))
@@ -270,18 +335,7 @@ final class PlayerController: NSObject, ObservableObject {
         // 注意：不要用 mpv 自身的 decryption-key 选项——在此构建下它不生效
         // （时长能读出但时间一直停在 0、无画面无声）。iOS 端用的是下面
         // demuxer-lavf-o 这一路，把密钥作为 FFmpeg demuxer 选项直接传给 libavformat。
-        var lavfOptions = [
-            "seg_max_retry=3",
-            "strict=experimental",
-            "allowed_extensions=ALL",
-            plan.local
-                ? "protocol_whitelist=[file,crypto,data]"
-                : "protocol_whitelist=[http,https,tcp,tls,crypto,data,file]",
-        ]
-        if hasDecryptionKey {
-            lavfOptions.append("decryption_key=\(plan.decryptionKey)")
-        }
-        _ = mpv_set_option_string(handle, "demuxer-lavf-o", lavfOptions.joined(separator: ","))
+        _ = mpv_set_option_string(handle, "demuxer-lavf-o", lavfOptions(for: plan).joined(separator: ","))
         _ = mpv_set_option_string(handle, "network-timeout", "20")
         // 播放倍速：来自设置里的播放倍速，打开剧集时生效。
         if speed != 1.0 {
@@ -326,6 +380,7 @@ final class PlayerController: NSObject, ObservableObject {
         UIApplication.shared.isIdleTimerDisabled = false
         guard let handle = mpv else { return }
         mpv = nil
+        handleLayer = nil
         mpv_set_wakeup_callback(handle, nil, nil)
         // 同步等事件队列排空，保证没有 drain 正在用该句柄，再销毁。
         eventQueue.sync {
