@@ -33,11 +33,13 @@ final class PlaybackSession: ObservableObject {
 
     private var startPosition: Double
     private var lastSavedPosition = -1.0
-    /// 下一集预取好的播放计划（还剩 10 秒时后台解析好，切集时直接用）。
+    /// 下一集预取好的播放计划（还剩 60 秒时后台解析好，切集时直接用）。
     private var prefetchedPlan: PlaybackPlan?
     /// 预取针对的分集下标（成功或失败都记录，避免失败后反复重试刷接口）。
     private var prefetchedIndex: Int?
     private var prefetchTask: Task<Void, Never>?
+    /// 下一集媒体预热（拉播放列表与首个分片，让 CDN 边缘与代理连接先热起来）。
+    private var warmTask: Task<Void, Never>?
     /// 当前这次换集 / 重试的加载：新的加载开始或停止时取消旧的，
     /// 只让最后一次加载起播（load() 在解析返回后检查取消）。
     private var loadTask: Task<Void, Never>?
@@ -84,6 +86,8 @@ final class PlaybackSession: ObservableObject {
             }
             prefetchedPlan = nil
             prefetchedIndex = nil
+            warmTask?.cancel()
+            warmTask = nil
         }
         currentIndex = index
         startPosition = 0
@@ -97,6 +101,8 @@ final class PlaybackSession: ObservableObject {
         controller.stop()
         prefetchTask?.cancel()
         prefetchTask = nil
+        warmTask?.cancel()
+        warmTask = nil
         loadTask?.cancel()
         loadTask = nil
         let sessions = [plan?.session, prefetchedPlan?.session].compactMap { $0 }
@@ -121,12 +127,20 @@ final class PlaybackSession: ObservableObject {
         }
         error = nil
         let episode = episodes[currentIndex]
-        // 优先用预取好的计划（上一集还剩 10 秒时已后台解析好），
+        // 优先用预取好的计划（上一集还剩 60 秒时已后台解析好），
         // 切集时免去再等解析地址，是衔接卡顿的主因之一。
         if prefetchedIndex == currentIndex {
+            // 预取还在路上（解析慢于本集剩余时长）：等它回来再用，不要另起一次解析——
+            // 核心里新的播放请求会取消进行中的那个（见 CoreRoute），重发等于把等待再算一遍。
+            if prefetchedPlan == nil, let inFlight = prefetchTask {
+                await inFlight.value
+                guard !Task.isCancelled else { return }
+            }
             let cached = prefetchedPlan
             prefetchedPlan = nil
             prefetchedIndex = nil
+            warmTask?.cancel()
+            warmTask = nil
             if let cached {
                 plan = cached
                 controller.play(plan: cached, start: startPosition, danmakuEnabled: danmakuEnabled, speed: playbackSpeed)
@@ -185,7 +199,7 @@ final class PlaybackSession: ObservableObject {
         saveProgress(position: position, duration: duration)
     }
 
-    /// 当前集还剩 10 秒时，后台解析下一集播放地址（预取）。
+    /// 当前集还剩 60 秒时，后台解析下一集播放地址（预取），解析成功再预热媒体通道。
     /// 切集时直接用预取好的计划，免去再等解析地址。
     private func maybePrefetchNext(position: Double, duration: Double) {
         guard let nextIndex = PlaybackRules.prefetchIndex(
@@ -203,13 +217,15 @@ final class PlaybackSession: ObservableObject {
             guard let plan = try? await CoreClient.shared.resolve(
                 drama: drama, episode: episode, quality: preferredQuality
             ) else { return }
-            // 解析完成时若用户已不在触发那集（已切集/已退出），
-            // 预取的计划用不上，释放其会话避免泄漏。
-            guard !Task.isCancelled, currentIndex + 1 == nextIndex else {
+            // 解析完成时若用户已不在触发那集（已切走/已退出），
+            // 预取的计划用不上，释放其会话避免泄漏；
+            // 若已经自动切到这一集（load() 在等这份计划），同样算命中。
+            guard !Task.isCancelled, currentIndex + 1 == nextIndex || currentIndex == nextIndex else {
                 try? await CoreClient.shared.release(session: plan.session)
                 return
             }
             prefetchedPlan = plan
+            warmUpNextMedia(plan: plan)
         }
     }
 
@@ -227,5 +243,54 @@ final class PlaybackSession: ObservableObject {
             duration: duration,
             updatedAt: Date()
         ))
+    }
+
+    // MARK: - 下一集媒体预热
+
+    /// 预取解析成功后，把下一集的媒体通道先热起来：HLS 拉一遍播放列表并取首个分片的
+    /// 前 128KB，直链文件取最前面 2 字节。目的不是替播放器下载数据（播放器打开文件
+    /// 仍走自己的连接），而是让 DNS、CDN 边缘缓存（首分片回源）与本地代理的上游连接
+    /// 提前就绪，削掉切集打开文件时最冷的那一段。全程尽力而为，失败静默放弃。
+    private func warmUpNextMedia(plan: PlaybackPlan) {
+        warmTask?.cancel()
+        let urlString = plan.url
+        let headers = plan.local ? [:] : plan.headers
+        warmTask = Task.detached {
+            await Self.warmMedia(urlString: urlString, headers: headers)
+        }
+    }
+
+    nonisolated private static func warmMedia(urlString: String, headers: [String: String]) async {
+        guard let url = URL(string: urlString) else { return }
+        func request(_ target: URL, range: String?) -> URLRequest {
+            var req = URLRequest(url: target, timeoutInterval: 15)
+            for (key, value) in headers { req.setValue(value, forHTTPHeaderField: key) }
+            if let range { req.setValue(range, forHTTPHeaderField: "Range") }
+            return req
+        }
+        do {
+            if urlString.contains(".m3u8") {
+                var playlistURL = url
+                // 主列表 → 变体列表 → 媒体列表，最多跟两层。
+                for _ in 0..<2 {
+                    let (data, _) = try await URLSession.shared.data(for: request(playlistURL, range: nil))
+                    guard let text = String(data: data, encoding: .utf8) else { return }
+                    let firstURI = text.split(separator: "\n")
+                        .map { $0.trimmingCharacters(in: .whitespaces) }
+                        .first { !$0.isEmpty && !$0.hasPrefix("#") }
+                    guard let firstURI, let next = URL(string: firstURI, relativeTo: playlistURL)?.absoluteURL else { return }
+                    if text.contains("#EXT-X-STREAM-INF") {
+                        playlistURL = next
+                        continue
+                    }
+                    _ = try? await URLSession.shared.data(for: request(next, range: "bytes=0-131071"))
+                    return
+                }
+            } else {
+                _ = try? await URLSession.shared.data(for: request(url, range: "bytes=0-1"))
+            }
+        } catch {
+            // 预热失败不影响播放，静默放弃。
+        }
     }
 }

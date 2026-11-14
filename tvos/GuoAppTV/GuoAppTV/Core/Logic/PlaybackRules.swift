@@ -4,11 +4,13 @@ import Foundation
 /// 由 PlaybackSession 调用；抽出来是为了在 Mac 上单测。
 enum PlaybackRules {
     /// 距本集结束还剩多少秒时开始预取下一集。
-    static let prefetchLeadSeconds = 10.0
+    /// 60 秒：解析慢的站源在 10 秒内经常回不来，提前到一分钟让切集时计划必已就绪；
+    /// 签名地址的有效期通常以分钟计，提前一分钟不构成过期风险（真过期有失败换线路兜底）。
+    static let prefetchLeadSeconds = 60.0
     /// 进度落盘间隔（秒），与 Dart 侧一致。
     static let saveIntervalSeconds = 5.0
 
-    /// 还剩 10 秒（且大于 0）时返回要预取的下一集下标；最后一集、已预取过或正在预取时为 nil。
+    /// 还剩 60 秒内（且大于 0）时返回要预取的下一集下标；最后一集、已预取过或正在预取时为 nil。
     static func prefetchIndex(
         position: Double,
         duration: Double,

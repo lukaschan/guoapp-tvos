@@ -3,12 +3,12 @@ import Testing
 
 /// 播放规则的特征测试：锁住播放页现有行为（预取、进度节流、换集时预取是否保留）。
 struct PlaybackRulesTests {
-    @Test func prefetchTriggersTenSecondsBeforeEnd() {
+    @Test func prefetchTriggersSixtySecondsBeforeEnd() {
         #expect(PlaybackRules.prefetchIndex(
-            position: 90, duration: 100, currentIndex: 0, episodeCount: 3, prefetchedIndex: nil, prefetchInFlight: false
+            position: 50, duration: 100, currentIndex: 0, episodeCount: 3, prefetchedIndex: nil, prefetchInFlight: false
         ) == 1)
         #expect(PlaybackRules.prefetchIndex(
-            position: 85, duration: 100, currentIndex: 0, episodeCount: 3, prefetchedIndex: nil, prefetchInFlight: false
+            position: 30, duration: 100, currentIndex: 0, episodeCount: 3, prefetchedIndex: nil, prefetchInFlight: false
         ) == nil)
     }
 
