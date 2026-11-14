@@ -3,9 +3,10 @@ import UIKit
 
 // MARK: - 电视端设计规范（TV Design System）
 //
-// 全部电视端页面共用一套设计 token：纯黑沉浸背景、三档白色表面、
-// 单一品牌强调色、统一圆角与焦点动效。页面不要各自写死颜色和尺寸，
-// 一律从这里取值，保证整体设计语言一致。
+// 全部电视端页面共用一套设计 token（与 redfruit 设计一致）：暖近黑背景、暖白文字与三档表面、
+// 单一绯红强调色、tvOS HIG 字号阶梯（正文不小于 29）、统一圆角与焦点动效。
+// 页面不要各自写死颜色和尺寸，一律从这里取值，保证整体设计语言一致。
+// 例外：播放页的视频底色保持纯黑（黑边与 OLED 观感）。
 
 enum TVTheme {
     // 布局
@@ -16,26 +17,44 @@ enum TVTheme {
     static let posterColumnSpacing: CGFloat = 32 // 海报列间距（比 gridSpacing 大，海报之间更疏）
     static let posterRadius: CGFloat = 14     // 海报圆角
 
-    // 色彩：纯黑沉浸背景 + 三档白色表面 + 单一暖色强调（红果）
-    static let accent = Color(red: 1.00, green: 0.36, blue: 0.27)
+    // 色彩：暖近黑背景 #0E0B0C + 暖白文字 #F5F1EE + 单一绯红强调 #E8364A；
+    // 获得焦点的白色底板上用深色字 ink #120A0C。
+    static let background = Color(red: 14 / 255, green: 11 / 255, blue: 12 / 255)
+    static let accent = Color(red: 232 / 255, green: 54 / 255, blue: 74 / 255)
     static let accentGradient = LinearGradient(
         colors: [
-            Color(red: 1.00, green: 0.44, blue: 0.31),
-            Color(red: 0.97, green: 0.24, blue: 0.17),
+            Color(red: 240 / 255, green: 78 / 255, blue: 96 / 255),
+            Color(red: 214 / 255, green: 40 / 255, blue: 60 / 255),
         ],
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
-    static let surfaceDim = Color.white.opacity(0.05)
-    static let surface = Color.white.opacity(0.09)
-    static let surfaceBright = Color.white.opacity(0.16)
-    static let textPrimary = Color.white
-    static let textSecondary = Color.white.opacity(0.62)
-    static let textTertiary = Color.white.opacity(0.40)
+    static let textPrimary = Color(red: 245 / 255, green: 241 / 255, blue: 238 / 255)
+    static let ink = Color(red: 18 / 255, green: 10 / 255, blue: 12 / 255)
+    static let textSecondary = textPrimary.opacity(0.72)
+    static let textTertiary = textPrimary.opacity(0.55)
+    static let surfaceDim = textPrimary.opacity(0.06)
+    static let surface = textPrimary.opacity(0.10)
+    static let surfaceBright = textPrimary.opacity(0.18)
 
-    // 焦点动效：短促、克制的弹簧；不夸张、不弹跳
-    static let focusScale: CGFloat = 1.12     // 海报卡焦点放大
-    static let chipScale: CGFloat = 1.08      // 小胶囊焦点放大
-    static let focusAnimation = Animation.spring(response: 0.28, dampingFraction: 0.78)
+    // 字号：tvOS HIG 文字样式（pt），正文不小于 body 29，从沙发上也看得清
+    enum TextSize {
+        /// 推荐页 hero 的剧名（比 title1 更大，从沙发上一眼看清）。
+        static let hero: CGFloat = 84
+        static let title1: CGFloat = 76
+        static let title2: CGFloat = 57
+        static let headline: CGFloat = 38
+        static let callout: CGFloat = 31
+        static let body: CGFloat = 29
+        static let caption: CGFloat = 25
+        static let caption2: CGFloat = 23
+    }
+
+    // 焦点动效：海报 / 卡片放大 10%、胶囊 10%、按钮 6%；0.18 秒缓出，不弹跳
+    static let focusScale: CGFloat = 1.10     // 海报卡焦点放大
+    static let chipScale: CGFloat = 1.10      // 小胶囊焦点放大
+    static let buttonScale: CGFloat = 1.06    // 操作按钮焦点放大
+    static let focusRing: CGFloat = 4         // 海报焦点白环宽度（画在海报外侧）
+    static let focusAnimation = Animation.easeOut(duration: 0.18)
     static let pressAnimation = Animation.easeOut(duration: 0.12)
 
     // 海报网格：大屏横向约每行 7 张，随屏宽自适应
@@ -48,6 +67,9 @@ enum TVTheme {
         [GridItem(.adaptive(minimum: minimum, maximum: minimum * 1.4), spacing: 16)]
     }
 }
+
+/// 应用显示名（火龙果短剧 / 真果鉴，构建时由 GUOAPP_DISPLAY_NAME 写入 Info.plist）。
+let tvAppDisplayName: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "火龙果短剧"
 
 /// 秒 → "mm:ss" / "h:mm:ss"，货架、详情、历史共用。
 func tvTimecode(_ seconds: Double) -> String {
@@ -72,7 +94,7 @@ struct TVPressButtonStyle: ButtonStyle {
     }
 }
 
-/// 统一焦点视觉：轻微放大 + 白色描边 + 柔和投影。
+/// 统一焦点视觉：放大 + 海报外侧白环 + 抬升投影（白环随内容一起放大）。
 /// 描边可关闭（自带描边逻辑的组件，如选集按钮）。
 private struct TVFocusEffect: ViewModifier {
     var focused: Bool
@@ -82,13 +104,14 @@ private struct TVFocusEffect: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .scaleEffect(focused ? scale : 1)
             .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(focused && stroke ? 0.9 : 0), lineWidth: 4)
+                RoundedRectangle(cornerRadius: cornerRadius + TVTheme.focusRing, style: .continuous)
+                    .strokeBorder(TVTheme.textPrimary, lineWidth: TVTheme.focusRing)
+                    .padding(-TVTheme.focusRing)
+                    .opacity(focused && stroke ? 1 : 0)
             )
-            .shadow(color: .black.opacity(focused ? 0.5 : 0), radius: focused ? 30 : 0, y: focused ? 16 : 0)
-            .shadow(color: .white.opacity(focused ? 0.06 : 0), radius: focused ? 40 : 0)
+            .scaleEffect(focused ? scale : 1)
+            .shadow(color: .black.opacity(focused ? 0.7 : 0), radius: focused ? 25 : 0, y: focused ? 24 : 0)
             .animation(TVTheme.focusAnimation, value: focused)
     }
 }
@@ -121,12 +144,12 @@ struct TVChip: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: compact ? 19 : 22, weight: .medium))
-                .padding(.horizontal, compact ? 18 : 24)
-                .padding(.vertical, compact ? 9 : 12)
+                .font(.system(size: compact ? TVTheme.TextSize.caption : TVTheme.TextSize.body, weight: .medium))
+                .padding(.horizontal, compact ? 24 : 30)
+                .padding(.vertical, compact ? 8 : 12)
                 .foregroundColor(foregroundColor)
                 .background(Capsule().fill(backgroundColor))
-                .overlay(Capsule().strokeBorder(focused ? Color.white : .clear, lineWidth: 1.5))
+                .overlay(Capsule().strokeBorder(.clear, lineWidth: 0))
         }
         .buttonStyle(TVPressButtonStyle())
         .focused($focused)
@@ -136,14 +159,14 @@ struct TVChip: View {
     }
 
     private var backgroundColor: Color {
-        if focused { return .white }
+        if focused { return TVTheme.textPrimary }
         if isSelected { return TVTheme.accent }
         return TVTheme.surface
     }
 
     private var foregroundColor: Color {
-        if focused { return .black }
-        if isSelected { return .white }
+        if focused { return TVTheme.ink }
+        if isSelected { return TVTheme.textPrimary }
         return TVTheme.textSecondary
     }
 }
@@ -154,6 +177,8 @@ struct TVChip: View {
 struct TVPrimaryButton: View {
     let title: String
     var icon: String? = nil
+    /// 准备中：图标换成加载圈。
+    var isLoading = false
     let action: () -> Void
 
     @FocusState private var focused: Bool
@@ -161,28 +186,29 @@ struct TVPrimaryButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                if let icon {
+                if isLoading {
+                    ProgressView()
+                } else if let icon {
                     Image(systemName: icon)
-                        .font(.system(size: 25, weight: .semibold))
+                        .font(.system(size: TVTheme.TextSize.caption, weight: .semibold))
                 }
                 Text(title)
-                    .font(.system(size: 26, weight: .semibold))
+                    .font(.system(size: TVTheme.TextSize.body, weight: .semibold))
             }
             .padding(.horizontal, 40)
             .padding(.vertical, 19)
-            .foregroundColor(.white)
-            .background(Capsule().fill(TVTheme.accentGradient))
+            .foregroundColor(focused ? TVTheme.ink : TVTheme.textPrimary)
+            .background(Capsule().fill(focused ? AnyShapeStyle(TVTheme.textPrimary) : AnyShapeStyle(TVTheme.accentGradient)))
         }
         .buttonStyle(TVPressButtonStyle())
         .focused($focused)
-        .scaleEffect(focused ? 1.05 : 1)
-        .brightness(focused ? 0.08 : 0)
-        .shadow(color: TVTheme.accent.opacity(focused ? 0.35 : 0), radius: focused ? 26 : 0, y: focused ? 10 : 0)
+        .scaleEffect(focused ? TVTheme.buttonScale : 1)
+        .shadow(color: .black.opacity(focused ? 0.5 : 0), radius: focused ? 20 : 0, y: focused ? 16 : 0)
         .animation(TVTheme.focusAnimation, value: focused)
     }
 }
 
-/// 次操作按钮：低调表面色，焦点时提亮并描边。
+/// 次操作按钮：未聚焦为半透明表面，聚焦时白底深色字。
 struct TVSecondaryButton: View {
     let title: String
     var icon: String? = nil
@@ -195,20 +221,20 @@ struct TVSecondaryButton: View {
             HStack(spacing: 12) {
                 if let icon {
                     Image(systemName: icon)
-                        .font(.system(size: 24, weight: .medium))
+                        .font(.system(size: TVTheme.TextSize.caption, weight: .medium))
                 }
                 Text(title)
-                    .font(.system(size: 26, weight: .medium))
+                    .font(.system(size: TVTheme.TextSize.body, weight: .medium))
             }
             .padding(.horizontal, 36)
             .padding(.vertical, 19)
-            .foregroundColor(TVTheme.textPrimary)
-            .background(Capsule().fill(focused ? TVTheme.surfaceBright : TVTheme.surface))
-            .overlay(Capsule().strokeBorder(Color.white.opacity(focused ? 0.85 : 0), lineWidth: 3))
+            .foregroundColor(focused ? TVTheme.ink : TVTheme.textPrimary)
+            .background(Capsule().fill(focused ? TVTheme.textPrimary : TVTheme.surfaceBright))
         }
         .buttonStyle(TVPressButtonStyle())
         .focused($focused)
-        .scaleEffect(focused ? 1.05 : 1)
+        .scaleEffect(focused ? TVTheme.buttonScale : 1)
+        .shadow(color: .black.opacity(focused ? 0.5 : 0), radius: focused ? 20 : 0, y: focused ? 16 : 0)
         .animation(TVTheme.focusAnimation, value: focused)
     }
 }
@@ -258,15 +284,15 @@ struct TVSectionHeader: View {
         HStack(spacing: 12) {
             if let icon {
                 Image(systemName: icon)
-                    .font(.system(size: 25, weight: .semibold))
+                    .font(.system(size: TVTheme.TextSize.caption, weight: .semibold))
                     .foregroundColor(TVTheme.accent)
             }
             Text(title)
-                .font(.system(size: 30, weight: .semibold))
+                .font(.system(size: TVTheme.TextSize.callout, weight: .semibold))
             if let trailing {
                 Spacer(minLength: 16)
                 Text(trailing)
-                    .font(.system(size: 20))
+                    .font(.system(size: TVTheme.TextSize.caption2))
                     .foregroundColor(TVTheme.textTertiary)
             }
         }
@@ -282,7 +308,7 @@ struct TVProgressBar: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.14))
+                Capsule().fill(TVTheme.textPrimary.opacity(0.14))
                 Capsule()
                     .fill(TVTheme.accent)
                     .frame(width: max(0, min(1, fraction)) * geometry.size.width)
@@ -306,10 +332,29 @@ struct TVLoadingView: View {
         HStack(spacing: 14) {
             ProgressView()
             Text(label)
-                .font(.system(size: 22))
+                .font(.system(size: TVTheme.TextSize.body))
                 .foregroundColor(TVTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+}
+
+/// 加载失败（redfruit 的 MessageView.failure）：「出了点问题」+ 一句说明（经 UserFacingError 处理）+ 重试。
+struct TVFailureView: View {
+    let message: String
+    let retry: () -> Void
+
+    init(message: String, retry: @escaping () -> Void) {
+        self.message = message
+        self.retry = retry
+    }
+
+    var body: some View {
+        VStack(spacing: 28) {
+            TVStatusView(icon: "exclamationmark.triangle", title: "出了点问题", message: message, expands: false)
+            TVPrimaryButton(title: "重试", icon: "arrow.clockwise", action: retry)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -332,10 +377,10 @@ struct TVStatusView: View {
                     .foregroundColor(TVTheme.textSecondary)
             }
             Text(title)
-                .font(.system(size: 28, weight: .semibold))
+                .font(.system(size: TVTheme.TextSize.callout, weight: .semibold))
             if let message {
                 Text(message)
-                    .font(.system(size: 21))
+                    .font(.system(size: TVTheme.TextSize.body))
                     .foregroundColor(TVTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
@@ -372,16 +417,16 @@ struct TVEpisodeButton: View {
                             .frame(width: 10, height: 10)
                     }
                     Text(title)
-                        .font(.system(size: 22, weight: .medium))
+                        .font(.system(size: TVTheme.TextSize.caption, weight: .medium))
                         .lineLimit(1)
                     Spacer(minLength: 8)
                     if vip {
                         Text("VIP")
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.system(size: TVTheme.TextSize.caption2, weight: .bold))
                             .padding(.horizontal, 9)
                             .padding(.vertical, 3)
                             .background(Capsule().fill(TVTheme.accent))
-                            .foregroundColor(.white)
+                            .foregroundColor(TVTheme.textPrimary)
                     }
                 }
                 if let progress, progress > 0.005 {
@@ -394,13 +439,13 @@ struct TVEpisodeButton: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(focused ? Color.white : TVTheme.surface)
+                    .fill(focused ? TVTheme.textPrimary : TVTheme.surface)
             )
-            .foregroundColor(focused ? .black : .white)
+            .foregroundColor(focused ? TVTheme.ink : TVTheme.textPrimary)
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(
-                        focused ? Color.white : TVTheme.accent.opacity(isCurrent ? 0.85 : 0),
+                        focused ? TVTheme.textPrimary : TVTheme.accent.opacity(isCurrent ? 0.85 : 0),
                         lineWidth: focused ? 4 : 2
                     )
             )
@@ -422,7 +467,7 @@ struct TVSettingGroup<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title)
-                .font(.system(size: 26, weight: .semibold))
+                .font(.system(size: TVTheme.TextSize.callout, weight: .semibold))
                 .foregroundColor(TVTheme.textSecondary)
                 .padding(.leading, 6)
             VStack(spacing: 0) {
@@ -467,7 +512,7 @@ struct TVSettingRow<Label: View>: View {
 struct TVSettingDivider: View {
     var body: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.06))
+            .fill(TVTheme.textPrimary.opacity(0.06))
             .frame(height: 1)
             .padding(.leading, 28)
     }
@@ -480,10 +525,10 @@ struct TVSwitchMini: View {
     var body: some View {
         ZStack(alignment: .center) {
             Capsule()
-                .fill(isOn ? TVTheme.accent : Color.white.opacity(0.22))
+                .fill(isOn ? TVTheme.accent : TVTheme.textPrimary.opacity(0.22))
                 .frame(width: 58, height: 32)
             Circle()
-                .fill(Color.white)
+                .fill(TVTheme.textPrimary)
                 .frame(width: 26, height: 26)
                 .offset(x: isOn ? 13 : -13)
         }
@@ -500,13 +545,13 @@ struct TVValueRow: View {
         TVSettingRow(action: action) {
             HStack {
                 Text(title)
-                    .font(.system(size: 24, weight: .medium))
+                    .font(.system(size: TVTheme.TextSize.body, weight: .medium))
                 Spacer()
                 Text(value)
-                    .font(.system(size: 22))
+                    .font(.system(size: TVTheme.TextSize.body))
                     .foregroundColor(TVTheme.textSecondary)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 19, weight: .semibold))
+                    .font(.system(size: TVTheme.TextSize.caption2, weight: .semibold))
                     .foregroundColor(TVTheme.textTertiary)
             }
         }
@@ -524,7 +569,7 @@ struct TVToggleRow: View {
         } label: {
             HStack {
                 Text(title)
-                    .font(.system(size: 24, weight: .medium))
+                    .font(.system(size: TVTheme.TextSize.body, weight: .medium))
                 Spacer()
                 TVSwitchMini(isOn: isOn)
             }
@@ -554,7 +599,7 @@ struct TVOptionSheet<Value: Hashable>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.system(size: 30, weight: .semibold))
+                .font(.system(size: TVTheme.TextSize.headline, weight: .semibold))
                 .padding(.bottom, 16)
             ForEach(options) { option in
                 Button {
@@ -563,11 +608,11 @@ struct TVOptionSheet<Value: Hashable>: View {
                 } label: {
                     HStack {
                         Text(option.label)
-                            .font(.system(size: 24, weight: option.value == selection ? .semibold : .regular))
+                            .font(.system(size: TVTheme.TextSize.body, weight: option.value == selection ? .semibold : .regular))
                         Spacer()
                         if option.value == selection {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 22, weight: .semibold))
+                                .font(.system(size: TVTheme.TextSize.caption, weight: .semibold))
                                 .foregroundColor(TVTheme.accent)
                         }
                     }

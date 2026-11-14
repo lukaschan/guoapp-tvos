@@ -3,24 +3,24 @@ import UIKit
 
 /// 详情页：沉浸式影视详情。
 ///
-/// 上半部分：左侧海报、右侧标题 / 信息胶囊 / 简介 / 主次操作（标题与海报顶端齐平）；
-/// 下半部分为选集网格，已看分集带进度条，「上次看到」的分集用强调色标出。
+/// 上半部分（redfruit 样式）：左侧海报，右侧标题 / 信息胶囊 / 简介 / 主操作「继续观看 第 N 集」或「立即观看」与追剧；
+/// 下半部分为分段集数选集网格，已看的格子变暗，上次看到的那集为强调色。
 struct DetailView: View {
     let drama: Drama
     @EnvironmentObject private var store: Store
     @State private var detail: DramaDetail?
     @State private var loading = true
     @State private var error: String?
-    @State private var playTarget: PlayTarget?
-
-    private struct PlayTarget: Identifiable {
-        let episode: Episode
-        let position: Double
-        var id: String { "\(episode.number)" }
-    }
+    /// 同名剧的各部（第 N 部 / 季），后台查询；单部剧为 nil。
+    @State private var series: SeriesGroup<Drama>?
+    /// 本页所有播放（点分集、继续观看、观看下一部）都走同一个播放页，避免两个全屏页互相抢。
+    @StateObject private var launcher = PlaybackLauncher()
 
     /// 展示用的剧信息：详情接口返回的完整数据优先（简介 / 分类等更全），
     /// 详情未加载出来时回落到目录传来的剧信息。
+    /// 补全信息（核心的 metadata）：红果剧缺评分或上线日期时进详情补一次。
+    @State private var supplement: Drama?
+
     private var displayDrama: Drama { detail?.drama ?? drama }
 
     var body: some View {
@@ -31,16 +31,16 @@ struct DetailView: View {
             }
             .padding(.bottom, 56)
         }
-        .background(Color.black.ignoresSafeArea())
-        .task { await load() }
-        .fullScreenCover(item: $playTarget) { target in
-            PlayerView(
-                drama: detail?.drama ?? drama,
-                episodes: detail?.episodes ?? [],
-                startIndex: (detail?.episodes.firstIndex { $0.id == target.episode.id }) ?? 0,
-                startPosition: target.position
-            )
+        .background(TVTheme.background.ignoresSafeArea())
+        .task {
+            // 用户自己打开了这部剧：追剧更新的角标消失。
+            store.acknowledgeUpdate(dramaID: drama.id)
+            await load()
+            await loadSupplement()
+            // 详情到了再查本系列：搜索排在详情之后，不挡第一屏。
+            series = await SeriesLookup.shared.parts(of: drama)
         }
+        .playbackLauncher(launcher)
     }
 
     // MARK: - 头部
@@ -61,7 +61,7 @@ struct DetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                    .strokeBorder(TVTheme.textPrimary.opacity(0.12), lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.55), radius: 26, y: 14)
     }
@@ -69,25 +69,31 @@ struct DetailView: View {
     private var infoColumn: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text(displayDrama.title)
-                .font(.system(size: 46, weight: .bold))
-                .lineLimit(3)
+                .font(.system(size: TVTheme.TextSize.title2, weight: .heavy))
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
             metaPills
             if !displayDrama.description.isEmpty {
                 Text(displayDrama.description)
-                    .font(.system(size: 26))
+                    .font(.system(size: TVTheme.TextSize.body))
                     .foregroundColor(TVTheme.textSecondary)
                     .lineSpacing(8)
-                    .lineLimit(4)
+                    .lineLimit(3)
             }
             HStack(spacing: 20) {
-                TVPrimaryButton(title: resumeLabel, icon: "play.fill") {
+                TVPrimaryButton(
+                    title: launcher.loadingDramaID != nil ? "正在准备…" : resumeLabel,
+                    icon: "play.fill",
+                    isLoading: launcher.loadingDramaID != nil
+                ) {
                     playResume()
                 }
                 TVSecondaryButton(
                     title: store.isFollowing(drama) ? "已追剧" : "追剧",
                     icon: store.isFollowing(drama) ? "bookmark.fill" : "bookmark"
                 ) {
-                    store.toggleFollow(drama)
+                    // 详情里的分集数作为追剧更新的基准（与 followCheck 同一种计数）。
+                    store.toggleFollow(drama, knownEpisodes: detail?.episodes.count)
                 }
                 if displayDrama.source == "hongguo" {
                     TVSecondaryLink(
@@ -95,16 +101,6 @@ struct DetailView: View {
                         icon: "building.2",
                         value: ProducerRoute(drama: displayDrama)
                     )
-                }
-            }
-            if let progress = store.latestProgress(for: drama.id) {
-                HStack(spacing: 10) {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 19))
-                        .foregroundColor(TVTheme.textTertiary)
-                    Text("上次看到 第\(progress.episode)集 \(tvTimecode(progress.position))")
-                        .font(.system(size: 20))
-                        .foregroundColor(TVTheme.textTertiary)
                 }
             }
         }
@@ -118,7 +114,7 @@ struct DetailView: View {
                 HStack(spacing: 10) {
                     ForEach(parts, id: \.self) { part in
                         Text(part)
-                            .font(.system(size: 18))
+                            .font(.system(size: TVTheme.TextSize.caption2))
                             .foregroundColor(TVTheme.textSecondary)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 6)
@@ -134,12 +130,33 @@ struct DetailView: View {
         if !displayDrama.category.isEmpty { parts.append(displayDrama.category) }
         if !displayDrama.releaseLabel.isEmpty { parts.append(displayDrama.releaseLabel) }
         if displayDrama.episodes > 0 { parts.append("共 \(displayDrama.episodes) 集") }
-        if !displayDrama.heat.isEmpty { parts.append("热度 \(displayDrama.heat)") }
+        // 评分、上线月份、热度：优先用补全回来的（DramaMetadata，热度原始数字换成万 / 亿）。
+        let score = supplement?.score ?? displayDrama.score
+        let onlineDate = (supplement?.onlineDate).flatMap { $0.isEmpty ? nil : $0 } ?? displayDrama.onlineDate
+        let heat = (supplement?.heat).flatMap { $0.isEmpty ? nil : $0 } ?? displayDrama.heat
+        parts += DramaMetadata.headerParts(score: score, onlineDate: onlineDate, heat: heat)
         return parts
     }
 
-    private var resumeLabel: String {
-        store.latestProgress(for: drama.id) == nil ? "播放" : "继续播放"
+    /// 主操作文案：观看下一部 / 重新观看 / 继续观看 第 N 集 / 立即观看（见 ResumeAction）。
+    private var resumeLabel: String { resumeAction.title }
+
+    private var resumeAction: ResumeAction {
+        ResumeAction.make(
+            target: resumeTarget,
+            episodeNumbers: detail?.episodes.map(\.number) ?? [],
+            isFinished: isFinished,
+            hasNextPart: nextPart != nil
+        )
+    }
+
+    private var resumeTarget: ResumeTarget? {
+        let latest = store.latestProgress(for: drama.id)
+        return ResumeTarget.resolve(
+            episodeNumbers: detail?.episodes.map(\.number) ?? [],
+            latestEpisode: latest?.episode,
+            position: latest?.position ?? 0
+        )
     }
 
     // MARK: - 选集
@@ -150,18 +167,9 @@ struct DetailView: View {
             TVLoadingView("正在加载详情…")
                 .padding(.vertical, 80)
         } else if let error {
-            VStack(spacing: 26) {
-                TVStatusView(
-                    icon: "exclamationmark.triangle",
-                    title: "详情加载失败",
-                    message: error,
-                    expands: false
-                )
-                TVPrimaryButton(title: "重试", icon: "arrow.clockwise") {
-                    Task { await load() }
-                }
+            TVFailureView(message: error) {
+                Task { await load() }
             }
-            .frame(maxWidth: .infinity)
             .padding(.vertical, 60)
         } else if let detail {
             episodeSection(detail)
@@ -170,27 +178,23 @@ struct DetailView: View {
 
     private func episodeSection(_ detail: DramaDetail) -> some View {
         VStack(alignment: .leading, spacing: 24) {
-            TVSectionHeader(
-                title: "选集",
-                icon: "play.rectangle.on.rectangle",
-                trailing: "共 \(detail.episodes.count) 集"
-            )
             if !detail.warning.isEmpty {
                 Text(detail.warning)
-                    .font(.system(size: 19))
+                    .font(.system(size: TVTheme.TextSize.caption2))
                     .foregroundColor(TVTheme.textTertiary)
             }
-            LazyVGrid(columns: TVTheme.episodeColumns(), spacing: 16) {
-                ForEach(detail.episodes) { episode in
-                    TVEpisodeButton(
-                        title: episode.title,
-                        vip: episode.vip,
-                        progress: episodeProgress(episode),
-                        isCurrent: store.latestProgress(for: drama.id)?.episode == episode.number
-                    ) {
-                        playTarget = PlayTarget(episode: episode, position: 0)
-                    }
-                }
+            EpisodeNumberGrid(
+                episodes: detail.episodes,
+                currentEpisode: store.latestProgress(for: drama.id)?.episode,
+                progress: episodeProgress,
+                trailing: "共 \(detail.episodes.count) 集"
+            ) { index in
+                launcher.present(drama: displayDrama, episodes: detail.episodes, startIndex: index, startPosition: 0)
+            }
+            // 取下一部详情时（观看下一部）暂不响应分集点按，避免同时弹两个播放页。
+            .disabled(launcher.loadingDramaID != nil)
+            if let series {
+                SeriesShelf(group: series, currentID: drama.id)
             }
         }
         .padding(.horizontal, TVTheme.pageInset)
@@ -207,22 +211,57 @@ struct DetailView: View {
 
     // MARK: - 播放与加载（业务逻辑与原版一致）
 
+    /// 本系列里这一部之后的那一部（没有系列或已是最后一部时为 nil）。
+    private var nextPart: Drama? {
+        guard let series,
+              let current = series.parts.first(where: { $0.item.id == drama.id }),
+              let next = series.parts.first(where: { $0.part > current.part })
+        else { return nil }
+        return next.item
+    }
+
+    /// 这一部是否已看完（最后一集看到 99 %）。
+    private var isFinished: Bool {
+        guard let detail, let latest = store.latestProgress(for: drama.id) else { return false }
+        return WatchStatus(
+            latestEpisode: latest.episode,
+            position: latest.position,
+            duration: latest.duration,
+            totalEpisodes: detail.episodes.count
+        ).isFinished
+    }
+
     private func playResume() {
-        if let progress = store.latestProgress(for: drama.id),
-           let episode = detail?.episodes.first(where: { $0.number == progress.episode }) {
-            playTarget = PlayTarget(episode: episode, position: progress.position)
-        } else if let first = detail?.episodes.first {
-            playTarget = PlayTarget(episode: first, position: 0)
+        guard let episodes = detail?.episodes else { return }
+        switch resumeAction {
+        case .nextPart:
+            if let next = nextPart { launcher.play(next, store: store) }
+        case .restart:
+            // 看完了且没有下一部：从第 1 集开头重新看。
+            launcher.present(drama: displayDrama, episodes: episodes, startIndex: 0, startPosition: 0)
+        case .start, .resume:
+            guard let target = resumeTarget else { return }
+            launcher.present(drama: displayDrama, episodes: episodes, startIndex: target.index, startPosition: target.position)
         }
+    }
+
+    /// 列表里缺评分或上线日期的红果剧：补一次（失败或被取消就不显示，不影响详情）。
+    private func loadSupplement() async {
+        let shown = displayDrama
+        guard supplement == nil,
+              DramaMetadata.needsSupplement(source: shown.source, score: shown.score, onlineDate: shown.onlineDate)
+        else { return }
+        supplement = try? await CoreClient.shared.metadata(drama: shown)
     }
 
     private func load() async {
         loading = true
         error = nil
         do {
-            detail = try await CoreClient.shared.detail(drama: drama)
+            // 海报上停过焦点时已预取（DetailPrefetch，3 分钟内有效），这里直接命中。
+            detail = try await DetailPrefetch.shared.detail(for: drama)
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.message(for: error)
         }
         loading = false
     }

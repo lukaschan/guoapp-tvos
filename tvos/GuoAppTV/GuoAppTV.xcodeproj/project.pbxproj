@@ -7,6 +7,56 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A100000000000000000000BD /* WatchHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BE /* WatchHistoryView.swift */; };
+		A100000000000000000000BB /* LoadGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BC /* LoadGeneration.swift */; };
+		A100000000000000000000B9 /* HeroPauseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BA /* HeroPauseIntent.swift */; };
+		A100000000000000000000B7 /* ViewingStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B8 /* ViewingStats.swift */; };
+		A100000000000000000000B5 /* DramaMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B6 /* DramaMetadata.swift */; };
+		A100000000000000000000B3 /* FollowUpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B4 /* FollowUpdateChecker.swift */; };
+		A100000000000000000000B1 /* FollowUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B2 /* FollowUpdate.swift */; };
+		A100000000000000000000AF /* RankingSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000B0 /* RankingSnapshotStore.swift */; };
+		A100000000000000000000AD /* RankingSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000AE /* RankingSnapshot.swift */; };
+		A100000000000000000000AB /* FeedSplice.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000AC /* FeedSplice.swift */; };
+		A100000000000000000000A9 /* CoreRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000AA /* CoreRoute.swift */; };
+		A100000000000000000000A7 /* AsyncLimiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A8 /* AsyncLimiter.swift */; };
+		A100000000000000000000A5 /* FeedPaging.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A6 /* FeedPaging.swift */; };
+		A100000000000000000000A3 /* FeedLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A4 /* FeedLoader.swift */; };
+		A100000000000000000000A1 /* SearchCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A2 /* SearchCopy.swift */; };
+		A1000000000000000000009F /* DetailPrefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A0 /* DetailPrefetch.swift */; };
+		A1000000000000000000009D /* Prefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000009E /* Prefetch.swift */; };
+		A1000000000000000000009B /* TimedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000009C /* TimedCache.swift */; };
+		A10000000000000000000099 /* UserFacingError.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000009A /* UserFacingError.swift */; };
+		A10000000000000000000097 /* Skeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000098 /* Skeleton.swift */; };
+		A10000000000000000000095 /* Shimmer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000096 /* Shimmer.swift */; };
+		A10000000000000000000093 /* ImageDownsampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000094 /* ImageDownsampler.swift */; };
+		A10000000000000000000091 /* NativeSearchContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000092 /* NativeSearchContainer.swift */; };
+		A1000000000000000000008F /* SearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000090 /* SearchModel.swift */; };
+		A1000000000000000000008D /* LiveSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008E /* LiveSearch.swift */; };
+		A1000000000000000000008B /* ResumeAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008C /* ResumeAction.swift */; };
+		A10000000000000000000089 /* FeaturedBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008A /* FeaturedBanner.swift */; };
+		A10000000000000000000087 /* FeedHeroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000088 /* FeedHeroView.swift */; };
+		A10000000000000000000085 /* UpNextRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000086 /* UpNextRow.swift */; };
+		A10000000000000000000083 /* HeroInfoPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000084 /* HeroInfoPanel.swift */; };
+		A10000000000000000000081 /* HeroVideoPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000082 /* HeroVideoPanel.swift */; };
+		A1000000000000000000007F /* HeroPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000080 /* HeroPlayback.swift */; };
+		A1000000000000000000007D /* PreviewSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007E /* PreviewSelection.swift */; };
+		A1000000000000000000007B /* HeroLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007C /* HeroLayout.swift */; };
+		A10000000000000000000079 /* FeedModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007A /* FeedModel.swift */; };
+		A10000000000000000000077 /* UpNext.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000078 /* UpNext.swift */; };
+		A10000000000000000000073 /* PlayerHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000074 /* PlayerHostView.swift */; };
+		A10000000000000000000071 /* PlaybackSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000072 /* PlaybackSession.swift */; };
+		A1000000000000000000006F /* PlaybackRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000070 /* PlaybackRules.swift */; };
+		A1000000000000000000006D /* SeriesCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000006E /* SeriesCache.swift */; };
+		A1000000000000000000006B /* SeriesShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000006C /* SeriesShelf.swift */; };
+		A10000000000000000000069 /* SeriesLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000006A /* SeriesLookup.swift */; };
+		A10000000000000000000067 /* SeriesTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000068 /* SeriesTitle.swift */; };
+		A10000000000000000000065 /* MyListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000066 /* MyListView.swift */; };
+		A10000000000000000000063 /* ContinueWatchingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000064 /* ContinueWatchingCard.swift */; };
+		A10000000000000000000061 /* EpisodeNumberGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000062 /* EpisodeNumberGrid.swift */; };
+		A1000000000000000000005F /* PlaybackLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000060 /* PlaybackLauncher.swift */; };
+		A1000000000000000000005D /* ResumeTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005E /* ResumeTarget.swift */; };
+		A1000000000000000000005B /* WatchStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005C /* WatchStatus.swift */; };
+		A10000000000000000000059 /* EpisodeRanges.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005A /* EpisodeRanges.swift */; };
 		A10000000000000000000040 /* GuoAppTVApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000020 /* GuoAppTVApp.swift */; };
 		A10000000000000000000041 /* Bridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000021 /* Bridge.swift */; };
 		A10000000000000000000042 /* Client.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000022 /* Client.swift */; };
@@ -16,18 +66,68 @@
 		A10000000000000000000046 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000026 /* HomeView.swift */; };
 		A10000000000000000000047 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000027 /* SearchView.swift */; };
 		A10000000000000000000048 /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000028 /* DetailView.swift */; };
+		A100000000000000000000C0 /* ProducerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BF /* ProducerView.swift */; };
 		A10000000000000000000049 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000029 /* PlayerView.swift */; };
-		A1000000000000000000004A /* FollowingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002A /* FollowingView.swift */; };
-		A10000000000000000000056 /* ProducerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000055 /* ProducerView.swift */; };
 		A1000000000000000000004B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002B /* SettingsView.swift */; };
 		A1000000000000000000004C /* PosterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002C /* PosterView.swift */; };
-		A10000000000000000000052 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000051 /* HistoryView.swift */; };
 		A10000000000000000000053 /* TVDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000054 /* TVDesign.swift */; };
+		A10000000000000000000055 /* PlayerControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000056 /* PlayerControlsView.swift */; };
+		A10000000000000000000057 /* PlayerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000058 /* PlayerController.swift */; };
 		A1000000000000000000004D /* DuanjuCore.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000031 /* DuanjuCore.xcframework */; };
 		A10000000000000000000050 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002F /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A100000000000000000000BE /* WatchHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHistoryView.swift; sourceTree = "<group>"; };
+		A100000000000000000000BC /* LoadGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/LoadGeneration.swift; sourceTree = "<group>"; };
+		A100000000000000000000BA /* HeroPauseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/HeroPauseIntent.swift; sourceTree = "<group>"; };
+		A100000000000000000000B8 /* ViewingStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/ViewingStats.swift; sourceTree = "<group>"; };
+		A100000000000000000000B6 /* DramaMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/DramaMetadata.swift; sourceTree = "<group>"; };
+		A100000000000000000000B4 /* FollowUpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowUpdateChecker.swift; sourceTree = "<group>"; };
+		A100000000000000000000B2 /* FollowUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/FollowUpdate.swift; sourceTree = "<group>"; };
+		A100000000000000000000B0 /* RankingSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RankingSnapshotStore.swift; sourceTree = "<group>"; };
+		A100000000000000000000AE /* RankingSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/RankingSnapshot.swift; sourceTree = "<group>"; };
+		A100000000000000000000AC /* FeedSplice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/FeedSplice.swift; sourceTree = "<group>"; };
+		A100000000000000000000AA /* CoreRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/CoreRoute.swift; sourceTree = "<group>"; };
+		A100000000000000000000A8 /* AsyncLimiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/AsyncLimiter.swift; sourceTree = "<group>"; };
+		A100000000000000000000A6 /* FeedPaging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/FeedPaging.swift; sourceTree = "<group>"; };
+		A100000000000000000000A4 /* FeedLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/FeedLoader.swift; sourceTree = "<group>"; };
+		A100000000000000000000A2 /* SearchCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/SearchCopy.swift; sourceTree = "<group>"; };
+		A100000000000000000000A0 /* DetailPrefetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailPrefetch.swift; sourceTree = "<group>"; };
+		A1000000000000000000009E /* Prefetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/Prefetch.swift; sourceTree = "<group>"; };
+		A1000000000000000000009C /* TimedCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/TimedCache.swift; sourceTree = "<group>"; };
+		A1000000000000000000009A /* UserFacingError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/UserFacingError.swift; sourceTree = "<group>"; };
+		A10000000000000000000098 /* Skeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skeleton.swift; sourceTree = "<group>"; };
+		A10000000000000000000096 /* Shimmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/Shimmer.swift; sourceTree = "<group>"; };
+		A10000000000000000000094 /* ImageDownsampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/ImageDownsampler.swift; sourceTree = "<group>"; };
+		A10000000000000000000092 /* NativeSearchContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSearchContainer.swift; sourceTree = "<group>"; };
+		A10000000000000000000090 /* SearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModel.swift; sourceTree = "<group>"; };
+		A1000000000000000000008E /* LiveSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/LiveSearch.swift; sourceTree = "<group>"; };
+		A1000000000000000000008C /* ResumeAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/ResumeAction.swift; sourceTree = "<group>"; };
+		A1000000000000000000008A /* FeaturedBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeaturedBanner.swift; sourceTree = "<group>"; };
+		A10000000000000000000088 /* FeedHeroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/FeedHeroView.swift; sourceTree = "<group>"; };
+		A10000000000000000000086 /* UpNextRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/UpNextRow.swift; sourceTree = "<group>"; };
+		A10000000000000000000084 /* HeroInfoPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/HeroInfoPanel.swift; sourceTree = "<group>"; };
+		A10000000000000000000082 /* HeroVideoPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/HeroVideoPanel.swift; sourceTree = "<group>"; };
+		A10000000000000000000080 /* HeroPlayback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/HeroPlayback.swift; sourceTree = "<group>"; };
+		A1000000000000000000007E /* PreviewSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/PreviewSelection.swift; sourceTree = "<group>"; };
+		A1000000000000000000007C /* HeroLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/HeroLayout.swift; sourceTree = "<group>"; };
+		A1000000000000000000007A /* FeedModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feed/FeedModel.swift; sourceTree = "<group>"; };
+		A10000000000000000000078 /* UpNext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/UpNext.swift; sourceTree = "<group>"; };
+		A10000000000000000000074 /* PlayerHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerHostView.swift; sourceTree = "<group>"; };
+		A10000000000000000000072 /* PlaybackSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackSession.swift; sourceTree = "<group>"; };
+		A10000000000000000000070 /* PlaybackRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/PlaybackRules.swift; sourceTree = "<group>"; };
+		A1000000000000000000006E /* SeriesCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/SeriesCache.swift; sourceTree = "<group>"; };
+		A1000000000000000000006C /* SeriesShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesShelf.swift; sourceTree = "<group>"; };
+		A1000000000000000000006A /* SeriesLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesLookup.swift; sourceTree = "<group>"; };
+		A10000000000000000000068 /* SeriesTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/SeriesTitle.swift; sourceTree = "<group>"; };
+		A10000000000000000000066 /* MyListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyListView.swift; sourceTree = "<group>"; };
+		A10000000000000000000064 /* ContinueWatchingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueWatchingCard.swift; sourceTree = "<group>"; };
+		A10000000000000000000062 /* EpisodeNumberGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeNumberGrid.swift; sourceTree = "<group>"; };
+		A10000000000000000000060 /* PlaybackLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackLauncher.swift; sourceTree = "<group>"; };
+		A1000000000000000000005E /* ResumeTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/ResumeTarget.swift; sourceTree = "<group>"; };
+		A1000000000000000000005C /* WatchStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/WatchStatus.swift; sourceTree = "<group>"; };
+		A1000000000000000000005A /* EpisodeRanges.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/EpisodeRanges.swift; sourceTree = "<group>"; };
 		A10000000000000000000009 /* GuoAppTV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GuoAppTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000020 /* GuoAppTVApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuoAppTVApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000021 /* Bridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bridge.swift; sourceTree = "<group>"; };
@@ -38,13 +138,13 @@
 		A10000000000000000000026 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		A10000000000000000000027 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		A10000000000000000000028 /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
+		A100000000000000000000BF /* ProducerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProducerView.swift; sourceTree = "<group>"; };
 		A10000000000000000000029 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
-		A1000000000000000000002A /* FollowingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowingView.swift; sourceTree = "<group>"; };
-		A10000000000000000000055 /* ProducerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProducerView.swift; sourceTree = "<group>"; };
 		A1000000000000000000002B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A1000000000000000000002C /* PosterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PosterView.swift; sourceTree = "<group>"; };
-		A10000000000000000000051 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		A10000000000000000000054 /* TVDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVDesign.swift; sourceTree = "<group>"; };
+		A10000000000000000000056 /* PlayerControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerControlsView.swift; sourceTree = "<group>"; };
+		A10000000000000000000058 /* PlayerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerController.swift; sourceTree = "<group>"; };
 		A1000000000000000000002D /* GuoAppTV-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "GuoAppTV-Bridging-Header.h"; sourceTree = "<group>"; };
 		A1000000000000000000002E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1000000000000000000002F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -94,6 +194,37 @@
 				A10000000000000000000022 /* Client.swift */,
 				A10000000000000000000023 /* Models.swift */,
 				A10000000000000000000024 /* Store.swift */,
+				A1000000000000000000005A /* EpisodeRanges.swift */,
+				A1000000000000000000005C /* WatchStatus.swift */,
+				A1000000000000000000005E /* ResumeTarget.swift */,
+				A10000000000000000000068 /* SeriesTitle.swift */,
+				A1000000000000000000006A /* SeriesLookup.swift */,
+				A1000000000000000000006E /* SeriesCache.swift */,
+				A10000000000000000000070 /* PlaybackRules.swift */,
+				A10000000000000000000078 /* UpNext.swift */,
+				A1000000000000000000007C /* HeroLayout.swift */,
+				A1000000000000000000007E /* PreviewSelection.swift */,
+				A1000000000000000000008C /* ResumeAction.swift */,
+				A1000000000000000000008E /* LiveSearch.swift */,
+				A10000000000000000000094 /* ImageDownsampler.swift */,
+				A10000000000000000000096 /* Shimmer.swift */,
+				A1000000000000000000009A /* UserFacingError.swift */,
+				A1000000000000000000009C /* TimedCache.swift */,
+				A1000000000000000000009E /* Prefetch.swift */,
+				A100000000000000000000A0 /* DetailPrefetch.swift */,
+				A100000000000000000000A2 /* SearchCopy.swift */,
+				A100000000000000000000A6 /* FeedPaging.swift */,
+				A100000000000000000000A8 /* AsyncLimiter.swift */,
+				A100000000000000000000AA /* CoreRoute.swift */,
+				A100000000000000000000AC /* FeedSplice.swift */,
+				A100000000000000000000AE /* RankingSnapshot.swift */,
+				A100000000000000000000B0 /* RankingSnapshotStore.swift */,
+				A100000000000000000000B2 /* FollowUpdate.swift */,
+				A100000000000000000000B4 /* FollowUpdateChecker.swift */,
+				A100000000000000000000B6 /* DramaMetadata.swift */,
+				A100000000000000000000B8 /* ViewingStats.swift */,
+				A100000000000000000000BA /* HeroPauseIntent.swift */,
+				A100000000000000000000BC /* LoadGeneration.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -105,13 +236,32 @@
 				A10000000000000000000026 /* HomeView.swift */,
 				A10000000000000000000027 /* SearchView.swift */,
 				A10000000000000000000028 /* DetailView.swift */,
+				A100000000000000000000BF /* ProducerView.swift */,
 				A10000000000000000000029 /* PlayerView.swift */,
-				A1000000000000000000002A /* FollowingView.swift */,
-				A10000000000000000000055 /* ProducerView.swift */,
 				A1000000000000000000002B /* SettingsView.swift */,
 				A1000000000000000000002C /* PosterView.swift */,
-				A10000000000000000000051 /* HistoryView.swift */,
 				A10000000000000000000054 /* TVDesign.swift */,
+				A10000000000000000000056 /* PlayerControlsView.swift */,
+				A10000000000000000000058 /* PlayerController.swift */,
+				A10000000000000000000060 /* PlaybackLauncher.swift */,
+				A10000000000000000000062 /* EpisodeNumberGrid.swift */,
+				A10000000000000000000064 /* ContinueWatchingCard.swift */,
+				A10000000000000000000066 /* MyListView.swift */,
+				A1000000000000000000006C /* SeriesShelf.swift */,
+				A10000000000000000000072 /* PlaybackSession.swift */,
+				A10000000000000000000074 /* PlayerHostView.swift */,
+				A1000000000000000000007A /* FeedModel.swift */,
+				A10000000000000000000080 /* HeroPlayback.swift */,
+				A10000000000000000000082 /* HeroVideoPanel.swift */,
+				A10000000000000000000084 /* HeroInfoPanel.swift */,
+				A10000000000000000000086 /* UpNextRow.swift */,
+				A10000000000000000000088 /* FeedHeroView.swift */,
+				A1000000000000000000008A /* FeaturedBanner.swift */,
+				A10000000000000000000090 /* SearchModel.swift */,
+				A10000000000000000000092 /* NativeSearchContainer.swift */,
+				A10000000000000000000098 /* Skeleton.swift */,
+				A100000000000000000000A4 /* FeedLoader.swift */,
+				A100000000000000000000BE /* WatchHistoryView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -153,7 +303,7 @@
 		A10000000000000000000001 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 2720;
 				TargetAttributes = {
 					A10000000000000000000008 /* GuoAppTV */ = {
 						CreatedOnToolsVersion = 16.0;
@@ -206,13 +356,63 @@
 				A10000000000000000000046 /* HomeView.swift in Sources */,
 				A10000000000000000000047 /* SearchView.swift in Sources */,
 				A10000000000000000000048 /* DetailView.swift in Sources */,
+				A100000000000000000000C0 /* ProducerView.swift in Sources */,
 				A10000000000000000000049 /* PlayerView.swift in Sources */,
-				A1000000000000000000004A /* FollowingView.swift in Sources */,
-				A10000000000000000000056 /* ProducerView.swift in Sources */,
 				A1000000000000000000004B /* SettingsView.swift in Sources */,
 				A1000000000000000000004C /* PosterView.swift in Sources */,
-				A10000000000000000000052 /* HistoryView.swift in Sources */,
 				A10000000000000000000053 /* TVDesign.swift in Sources */,
+				A10000000000000000000055 /* PlayerControlsView.swift in Sources */,
+				A10000000000000000000057 /* PlayerController.swift in Sources */,
+				A10000000000000000000059 /* EpisodeRanges.swift in Sources */,
+				A1000000000000000000005B /* WatchStatus.swift in Sources */,
+				A1000000000000000000005D /* ResumeTarget.swift in Sources */,
+				A1000000000000000000005F /* PlaybackLauncher.swift in Sources */,
+				A10000000000000000000061 /* EpisodeNumberGrid.swift in Sources */,
+				A10000000000000000000063 /* ContinueWatchingCard.swift in Sources */,
+				A10000000000000000000065 /* MyListView.swift in Sources */,
+				A10000000000000000000067 /* SeriesTitle.swift in Sources */,
+				A10000000000000000000069 /* SeriesLookup.swift in Sources */,
+				A1000000000000000000006B /* SeriesShelf.swift in Sources */,
+				A1000000000000000000006D /* SeriesCache.swift in Sources */,
+				A1000000000000000000006F /* PlaybackRules.swift in Sources */,
+				A10000000000000000000071 /* PlaybackSession.swift in Sources */,
+				A10000000000000000000073 /* PlayerHostView.swift in Sources */,
+				A10000000000000000000077 /* UpNext.swift in Sources */,
+				A10000000000000000000079 /* FeedModel.swift in Sources */,
+				A1000000000000000000007B /* HeroLayout.swift in Sources */,
+				A1000000000000000000007D /* PreviewSelection.swift in Sources */,
+				A1000000000000000000007F /* HeroPlayback.swift in Sources */,
+				A10000000000000000000081 /* HeroVideoPanel.swift in Sources */,
+				A10000000000000000000083 /* HeroInfoPanel.swift in Sources */,
+				A10000000000000000000085 /* UpNextRow.swift in Sources */,
+				A10000000000000000000087 /* FeedHeroView.swift in Sources */,
+				A10000000000000000000089 /* FeaturedBanner.swift in Sources */,
+				A1000000000000000000008B /* ResumeAction.swift in Sources */,
+				A1000000000000000000008D /* LiveSearch.swift in Sources */,
+				A1000000000000000000008F /* SearchModel.swift in Sources */,
+				A10000000000000000000091 /* NativeSearchContainer.swift in Sources */,
+				A10000000000000000000093 /* ImageDownsampler.swift in Sources */,
+				A10000000000000000000095 /* Shimmer.swift in Sources */,
+				A10000000000000000000097 /* Skeleton.swift in Sources */,
+				A10000000000000000000099 /* UserFacingError.swift in Sources */,
+				A1000000000000000000009B /* TimedCache.swift in Sources */,
+				A1000000000000000000009D /* Prefetch.swift in Sources */,
+				A1000000000000000000009F /* DetailPrefetch.swift in Sources */,
+				A100000000000000000000A1 /* SearchCopy.swift in Sources */,
+				A100000000000000000000A3 /* FeedLoader.swift in Sources */,
+				A100000000000000000000A5 /* FeedPaging.swift in Sources */,
+				A100000000000000000000A7 /* AsyncLimiter.swift in Sources */,
+				A100000000000000000000A9 /* CoreRoute.swift in Sources */,
+				A100000000000000000000AB /* FeedSplice.swift in Sources */,
+				A100000000000000000000AD /* RankingSnapshot.swift in Sources */,
+				A100000000000000000000AF /* RankingSnapshotStore.swift in Sources */,
+				A100000000000000000000B1 /* FollowUpdate.swift in Sources */,
+				A100000000000000000000B3 /* FollowUpdateChecker.swift in Sources */,
+				A100000000000000000000B5 /* DramaMetadata.swift in Sources */,
+				A100000000000000000000B7 /* ViewingStats.swift in Sources */,
+				A100000000000000000000B9 /* HeroPauseIntent.swift in Sources */,
+				A100000000000000000000BB /* LoadGeneration.swift in Sources */,
+				A100000000000000000000BD /* WatchHistoryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -250,12 +450,14 @@
 				);
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GENERATE_INFOPLIST_FILE = NO;
+				GUOAPP_CORE_REVISION = "";
+				GUOAPP_DISPLAY_NAME = "火龙果短剧";
 				INFOPLIST_FILE = GuoAppTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.46;
+				MARKETING_VERSION = 2.41;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -269,7 +471,7 @@
 				SWIFT_EMBED_LIBRARIES_WITH_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = GuoAppTV/GuoAppTV-Bridging-Header.h;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 3;
 				TVOS_DEPLOYMENT_TARGET = 16.0;
 			};
@@ -289,12 +491,14 @@
 				);
 				GCC_OPTIMIZATION_LEVEL = s;
 				GENERATE_INFOPLIST_FILE = NO;
+				GUOAPP_CORE_REVISION = "";
+				GUOAPP_DISPLAY_NAME = "火龙果短剧";
 				INFOPLIST_FILE = GuoAppTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.46;
+				MARKETING_VERSION = 2.41;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-Wl,-u,_DuanjuRequest",
@@ -308,7 +512,7 @@
 				SWIFT_EMBED_LIBRARIES_WITH_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = GuoAppTV/GuoAppTV-Bridging-Header.h;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 3;
 				TVOS_DEPLOYMENT_TARGET = 16.0;
 			};
@@ -343,7 +547,7 @@
 			repositoryURL = "https://github.com/mpvkit/MPVKit.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
+				minimumVersion = "1.1.0-n9.0.2";
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

@@ -18,6 +18,9 @@ app_name = 'GuoAppTV'
 # Go 核心在上游仓库的 native/ 目录；上游整仓以 git submodule 形式
 # 放在 upstream/（见 .gitmodules），核心路径即 upstream/native。
 core = root / 'upstream' / 'native'
+# 核心编译时就决定了站源范围（-X buildAllSources），这里记下 xcframework 属于哪个版本，
+# 复用已编好的核心时据此拒绝把火龙果短剧（仅红果）核心装进真果鉴包（或反过来）。
+core_stamp = root / 'tvos' / 'DuanjuCore' / 'DuanjuCore.variant'
 
 
 def run(arguments, **kwargs):
@@ -117,6 +120,49 @@ def build_core(simulator=False, variant=BuildVariant()):
     # 与 GuoAppTV-Bridging-Header.h 同目录，clang 按引号包含规则找到它。
     header = root / 'tvos' / 'GuoAppTV' / 'GuoAppTV' / 'DuanjuCore.h'
     shutil.copy2(device[2] / 'DuanjuCore.h', header)
+    core_stamp.write_text(variant.slug + '\n')
+
+
+def require_core(variant):
+    built = core_stamp.read_text().strip() if core_stamp.is_file() else ''
+    if built != variant.slug:
+        raise SystemExit(f'现有 Go 核心是 {built or "未知"} 版本，与要构建的 {variant.slug} 不符；'
+                         '请去掉 --skip-core 重新编译核心。')
+
+
+def verify_display_name(application, variant):
+    # 两个版本共用一个工程，显示名由构建设置写入；这里核对没写错版本。
+    with open(application / 'Info.plist', 'rb') as handle:
+        display_name = plistlib.load(handle).get('CFBundleDisplayName')
+    if display_name != variant.display_name:
+        raise SystemExit(f'tvOS 包显示名应为 {variant.display_name}，实际为 {display_name!r}')
+
+
+def core_revision():
+    # 「我的」里显示的核心版本：upstream 子模块当前提交的短哈希；取不到（如下载的 ZIP）时为空。
+    result = subprocess.run(
+        ['git', '-C', str(root / 'upstream'), 'rev-parse', '--short', 'HEAD'],
+        capture_output=True, text=True, check=False,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ''
+
+
+def xcode_settings(variant, version):
+    # 关于页显示的版本以根目录 VERSION 为准：构建时覆盖工程里的 MARKETING_VERSION；
+    # 显示名按版本区分（火龙果短剧 / 真果鉴），作为构建设置在签名前写进 Info.plist；
+    # 核心版本（upstream 短哈希）同样写进 Info.plist 的 GUOAppCoreRevision。
+    return [
+        f'MARKETING_VERSION={version}',
+        f'GUOAPP_DISPLAY_NAME={variant.display_name}',
+        f'GUOAPP_CORE_REVISION={core_revision()}',
+    ]
+
+
+def resolve_packages(derived):
+    # 先解析 SPM 依赖（MPVKit 的 libmpv 二进制）：拉取失败时直接报错，不等到
+    # 编译阶段才暴露。只认提交进仓库的 Package.resolved，不让 Xcode 静默改版本。
+    run(['xcodebuild', '-project', str(project), '-scheme', app_name, '-derivedDataPath', str(derived),
+         '-onlyUsePackageVersionsFromResolvedFile', '-resolvePackageDependencies'])
 
 
 def read_version():
@@ -128,7 +174,7 @@ def read_version():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='构建红果鉴 / 真果鉴 tvOS 核心和应用')
+    parser = argparse.ArgumentParser(description='构建火龙果短剧 / 真果鉴 tvOS 核心和应用')
     parser.add_argument('--core-only', action='store_true')
     parser.add_argument('--simulator', action='store_true', help='额外生成模拟器核心；不启动模拟器')
     parser.add_argument('--export-options', type=Path, help='使用自己的 Xcode 签名配置导出 IPA')
@@ -152,18 +198,15 @@ def main():
         archive = derived / 'GuoAppTV.xcarchive'
         if archive.exists():
             shutil.rmtree(archive)
-        # 先解析 SPM 依赖（MPVKit 的 libmpv 二进制）：拉取失败时直接报错，
-        # 不等到 archive/build 阶段才暴露。
-        run(['xcodebuild', '-project', str(project), '-scheme', app_name,
-             '-resolvePackageDependencies'])
+        resolve_packages(derived)
         # 注意：xcodebuild 要求 -derivedDataPath 必须配合 -scheme，
         # 用 -target 会直接报错退出（exit 64）。
-        # 关于页显示的版本以根目录 VERSION 为准：构建时覆盖工程里的
-        # MARKETING_VERSION（工程文件里的旧值不再手动同步）。
         run(['xcodebuild', '-project', str(project), '-scheme', app_name,
              '-sdk', 'appletvos', '-configuration', 'Release',
              '-derivedDataPath', str(derived), '-archivePath', str(archive),
-             f'MARKETING_VERSION={version}', 'archive'])
+             '-onlyUsePackageVersionsFromResolvedFile',
+             *xcode_settings(variant, version), 'archive'])
+        verify_display_name(archive / 'Products' / 'Applications' / f'{app_name}.app', variant)
         exported = derived / 'export'
         if exported.exists():
             shutil.rmtree(exported)
@@ -174,19 +217,15 @@ def main():
             shutil.copy2(package, destination)
             artifacts.append(destination)
     else:
-        # 先解析 SPM 依赖（MPVKit 的 libmpv 二进制）：拉取失败时直接报错。
-        run(['xcodebuild', '-project', str(project), '-scheme', app_name,
-             '-resolvePackageDependencies'])
+        resolve_packages(derived)
         run(['xcodebuild', '-project', str(project), '-scheme', app_name,
              '-sdk', 'appletvos', '-configuration', 'Release',
              '-derivedDataPath', str(derived), 'CODE_SIGNING_ALLOWED=NO',
-             f'MARKETING_VERSION={version}', 'build'])
+             '-onlyUsePackageVersionsFromResolvedFile',
+             *xcode_settings(variant, version), 'build'])
         application = derived / 'Build' / 'Products' / 'Release-appletvos' / f'{app_name}.app'
         validate_unsigned_application(application)
-        # 两个版本共用一个工程：按版本改包内显示名（红果鉴 / 真果鉴）。
-        display_name = '真果鉴' if variant.all_sources else '红果鉴'
-        run(['/usr/libexec/PlistBuddy', '-c', f'Set :CFBundleDisplayName {display_name}',
-             str(application / 'Info.plist')])
+        verify_display_name(application, variant)
         symbols = subprocess.check_output(['xcrun', 'nm', '-gU', str(application / app_name)], text=True)
         for symbol in ['_DuanjuRequest', '_DuanjuFree']:
             if symbol not in symbols:
