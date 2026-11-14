@@ -116,6 +116,10 @@ python3 scripts/build_tvos.py [--all-sources]
 
 ### 安装到 Apple TV
 
+方法一（推荐）：
+部署https://github.com/bitxeno/atvloadly，通过atvloadly安装。
+
+方法二：
 需要在 Xcode › Settings › Accounts 登录 Apple ID（免费账号即可），并把 Apple TV 与本机配对
 （电视上打开 设置 › 遥控器与设备 › 遥控器 App 与设备，再在 Xcode › Window › Devices and
 Simulators 里配对）。然后：
