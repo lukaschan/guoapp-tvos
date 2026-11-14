@@ -107,8 +107,22 @@ struct SeriesGroup<Item> {
     let base: String
     let unit: String
     let parts: [SeriesPart<Item>]
+    /// 部数和 parts 里某一部相同、没排进去的同名剧：红果上同一季常有两个上传，不带后缀的同名剧也算第 1 部。
+    /// 搜索页把它们单独列出；从它们进详情时用 substituting 让它顶替同部数的那一部，照样有本系列。
+    let alternates: [SeriesPart<Item>]
 
     var partNumbers: [Int] { parts.map(\.part) }
+
+    /// 从 alternate 那一部看过去的本系列：它顶替 parts 里同部数的那一部。
+    func substituting(_ alternate: SeriesPart<Item>) -> SeriesGroup {
+        SeriesGroup(
+            key: key,
+            base: base,
+            unit: unit,
+            parts: parts.map { $0.part == alternate.part ? alternate : $0 },
+            alternates: alternates
+        )
+    }
 }
 
 extension SeriesGroup: Sendable where Item: Sendable {}
@@ -134,7 +148,8 @@ struct CollapsedSeriesItem<Item> {
 private struct PendingSeries {
     var base: String
     var unit: String
-    var members: [(part: Int, index: Int)]
+    /// inferred：不带后缀、按剧名算作第 1 部的。
+    var members: [(part: Int, index: Int, inferred: Bool)]
 }
 
 enum SeriesGrouping {
@@ -151,7 +166,7 @@ enum SeriesGrouping {
             guard let parsed = SeriesTitle.parse(title(item)) else { continue }
             let key = source(item) + "|" + parsed.key
             groups[key, default: PendingSeries(base: parsed.base, unit: parsed.unit, members: [])]
-                .members.append((parsed.part, index))
+                .members.append((parsed.part, index, false))
         }
         // 2. 无后缀、剧名与某组一致的标题算第 1 部（优先「部」）。
         for (index, item) in items.enumerated() where SeriesTitle.parse(title(item)) == nil {
@@ -159,24 +174,29 @@ enum SeriesGrouping {
             for unit in ["部", "季"] {
                 let key = source(item) + "|" + normalized + ":" + unit
                 if groups[key] != nil {
-                    groups[key]?.members.append((1, index))
+                    groups[key]?.members.append((1, index, true))
                     break
                 }
             }
         }
-        // 3. 至少两个不同部数才算系列；同一部数重复出现时只取最早的一项，其余按单部处理。
+        // 3. 至少两个不同部数才算系列；同一部数重复出现时只取一项（写明部数的优先于按剧名推断的，再取最早的），
+        //    其余在列表里按单部处理，并记进系列的 alternates。红果搜剧名时常把不带后缀的同名剧排在「第一季」前面。
         var membership: [Int: String] = [:]
         var series: [String: SeriesGroup<Item>] = [:]
         for (key, pending) in groups {
+            let ordered = pending.members
+                .sorted { ($0.part, $0.inferred ? 1 : 0, $0.index) < ($1.part, $1.inferred ? 1 : 0, $1.index) }
             var seen = Set<Int>()
-            let members = pending.members.sorted { ($0.part, $0.index) < ($1.part, $1.index) }.filter { seen.insert($0.part).inserted }
+            let members = ordered.filter { seen.insert($0.part).inserted }
             guard members.count >= 2 else { continue }
+            let chosen = Set(members.map(\.index))
             members.forEach { membership[$0.index] = key }
             series[key] = SeriesGroup(
                 key: key,
                 base: pending.base,
                 unit: pending.unit,
-                parts: members.map { SeriesPart(part: $0.part, item: items[$0.index]) }
+                parts: members.map { SeriesPart(part: $0.part, item: items[$0.index]) },
+                alternates: ordered.filter { !chosen.contains($0.index) }.map { SeriesPart(part: $0.part, item: items[$0.index]) }
             )
         }
         // 4. 按首次出现位置输出。

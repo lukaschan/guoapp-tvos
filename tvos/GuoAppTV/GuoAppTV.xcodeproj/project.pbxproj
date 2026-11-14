@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A100000000000000000000BF /* DanmakuLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000C0 /* DanmakuLayout.swift */; };
+		A10000000000000000000075 /* DanmakuScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000076 /* DanmakuScheduler.swift */; };
 		A100000000000000000000BD /* WatchHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BE /* WatchHistoryView.swift */; };
 		A100000000000000000000BB /* LoadGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BC /* LoadGeneration.swift */; };
 		A100000000000000000000B9 /* HeroPauseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000BA /* HeroPauseIntent.swift */; };
@@ -78,6 +80,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A100000000000000000000C0 /* DanmakuLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/DanmakuLayout.swift; sourceTree = "<group>"; };
+		A10000000000000000000076 /* DanmakuScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/DanmakuScheduler.swift; sourceTree = "<group>"; };
 		A100000000000000000000BE /* WatchHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHistoryView.swift; sourceTree = "<group>"; };
 		A100000000000000000000BC /* LoadGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/LoadGeneration.swift; sourceTree = "<group>"; };
 		A100000000000000000000BA /* HeroPauseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logic/HeroPauseIntent.swift; sourceTree = "<group>"; };
@@ -225,6 +229,8 @@
 				A100000000000000000000B8 /* ViewingStats.swift */,
 				A100000000000000000000BA /* HeroPauseIntent.swift */,
 				A100000000000000000000BC /* LoadGeneration.swift */,
+				A10000000000000000000076 /* DanmakuScheduler.swift */,
+				A100000000000000000000C0 /* DanmakuLayout.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -413,6 +419,8 @@
 				A100000000000000000000B9 /* HeroPauseIntent.swift in Sources */,
 				A100000000000000000000BB /* LoadGeneration.swift in Sources */,
 				A100000000000000000000BD /* WatchHistoryView.swift in Sources */,
+				A10000000000000000000075 /* DanmakuScheduler.swift in Sources */,
+				A100000000000000000000BF /* DanmakuLayout.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

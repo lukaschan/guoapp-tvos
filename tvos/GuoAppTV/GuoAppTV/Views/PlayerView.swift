@@ -6,47 +6,83 @@ import UIKit
 // MARK: - 弹幕浮层
 
 /// 透明浮层，加到播放容器视图上。
-/// 弹幕从右向左匀速滚动，分 6 行轮换，最多同时显示 40 条。
+/// 弹幕从右向左同一速度飘过，分 6 行；放哪一行、什么时候放、要不要放由 DanmakuLayout 决定：
+/// 前一条整条进屏后这一行才放下一条，不会叠在一起，一下子来太多时多出来的最多等 2 秒、等不到就不发；
+/// 同一句话屏上最多一条。很长的弹幕截到 1200 pt（末尾「…」），免得一条占住一行二十几秒。
 final class DanmakuOverlayView: UIView {
-    private var rowCounter = 0
+    private static let font = UIFont.systemFont(ofSize: 30, weight: .semibold)
+    private static let maxLabelWidth: CGFloat = 1200
+    private static let laneHeight: CGFloat = 44
+    private static let topInset: CGFloat = 20
+
+    private var layout = DanmakuLayout()
+    /// 有弹幕在排队时，等到有行空出来再放。
+    private var wakeTask: Task<Void, Never>?
 
     func clear() {
+        wakeTask?.cancel()
+        wakeTask = nil
+        layout.clear()
         subviews.forEach { $0.removeFromSuperview() }
     }
 
-    func emit(text: String) {
-        guard bounds.width > 0, subviews.count < 40 else { return }
-        let label = UILabel()
-        label.text = text
-        label.font = .systemFont(ofSize: 30, weight: .semibold)
-        label.textColor = .white
-        label.shadowColor = .black
-        label.shadowOffset = CGSize(width: 1, height: 1)
-        label.sizeToFit()
-        let row = rowCounter % 6
-        rowCounter += 1
-        label.frame = CGRect(x: bounds.width, y: CGFloat(row) * 44 + 20, width: label.bounds.width, height: 40)
-        addSubview(label)
-        UIView.animate(withDuration: 9, delay: 0, options: .curveLinear) {
-            label.frame.origin.x = -label.bounds.width
-        } completion: { _ in
-            label.removeFromSuperview()
+    func emit(texts: [String]) {
+        guard bounds.width > 0, !texts.isEmpty else { return }
+        let comments = texts.map { text in
+            let measured = ceil((text as NSString).size(withAttributes: [.font: Self.font]).width)
+            return (text: text, width: Double(min(measured, Self.maxLabelWidth)))
+        }
+        layout.screenWidth = Double(bounds.width)
+        show(layout.submit(comments, now: CACurrentMediaTime()))
+    }
+
+    private func show(_ placements: [DanmakuLayout.Placement]) {
+        for placement in placements {
+            let label = UILabel()
+            label.text = placement.text
+            label.font = Self.font
+            label.textColor = .white
+            label.shadowColor = .black
+            label.shadowOffset = CGSize(width: 1, height: 1)
+            label.lineBreakMode = .byTruncatingTail
+            let width = CGFloat(placement.width)
+            let y = CGFloat(placement.lane) * Self.laneHeight + Self.topInset
+            label.frame = CGRect(x: bounds.width, y: y, width: width, height: 40)
+            addSubview(label)
+            let duration = layout.duration(width: placement.width)
+            UIView.animate(withDuration: duration, delay: 0, options: .curveLinear) {
+                label.frame.origin.x = -width
+            } completion: { _ in
+                label.removeFromSuperview()
+            }
+        }
+        scheduleWake()
+    }
+
+    private func scheduleWake() {
+        wakeTask?.cancel()
+        wakeTask = nil
+        guard let wake = layout.nextWake else { return }
+        let delay = max(0.05, wake - CACurrentMediaTime())
+        wakeTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled, let self else { return }
+            self.show(self.layout.drain(now: CACurrentMediaTime()))
         }
     }
 }
 
 // MARK: - 弹幕拉取
 
-/// 按播放进度拉取弹幕页并在时间到达时投递到浮层。
+/// 按播放进度拉取弹幕页并在时间到达时投递到浮层；开关、拉取时机与投递窗口见 DanmakuScheduler。
 /// 核心返回一页弹幕（`nextMs` 为下一页起点），与 Dart 侧 DanmakuPage 一致。
 @MainActor
 final class DanmakuEngine {
     private weak var overlay: DanmakuOverlayView?
     private var plan: PlaybackPlan?
-    private var enabled = true
+    private var scheduler = DanmakuScheduler(isEnabled: true)
     private var page: DanmakuPage?
     private var fetching = false
-    private var shown = Set<String>()
 
     func attach(_ overlay: DanmakuOverlayView) {
         self.overlay = overlay
@@ -54,36 +90,36 @@ final class DanmakuEngine {
 
     func configure(plan: PlaybackPlan, enabled: Bool) {
         self.plan = plan
-        self.enabled = enabled
+        scheduler = DanmakuScheduler(isEnabled: enabled)
         page = nil
         fetching = false
-        shown.removeAll()
+    }
+
+    /// 播放中开关（全屏播放控件的「弹幕」按钮）：关掉时清掉屏上正在飘的，再打开从当前位置接着发。
+    func setEnabled(_ enabled: Bool) {
+        scheduler.setEnabled(enabled)
+        if !enabled { overlay?.clear() }
     }
 
     func reset() {
         plan = nil
         page = nil
-        shown.removeAll()
+        scheduler.reset()
     }
 
     func tick(positionMs: Int, durationMs: Int) {
-        guard enabled, let plan else { return }
+        guard let plan else { return }
         // 窗口结束时间必须是本集总时长（与 iOS 一致），而不是固定 60 秒：
         // Go 核心要求 durationMs > startMs；之前传固定 60000，播到 60 秒后
         // 所有请求都被拒（且 try? 把错误吞了），弹幕就再也拉不到。
         // 总时长未知时用当前位置 + 60 秒，保证 end > start。
         let endMs = durationMs > positionMs ? durationMs : positionMs + 60_000
-        if page == nil || positionMs >= page!.nextMs - 2000 || positionMs < page!.startMs {
+        if scheduler.needsPage(positionMs: positionMs, page: page.map { ($0.startMs, $0.nextMs) }) {
             fetchPage(from: positionMs, end: endMs, plan: plan)
         }
         guard let page else { return }
-        for item in page.items where !shown.contains(item.id) && item.timeMs >= positionMs
-            && item.timeMs < positionMs + 1000
-        {
-            shown.insert(item.id)
-            overlay?.emit(text: item.text)
-        }
-        if shown.count > 2000 { shown.removeAll() }
+        let due = scheduler.due(page.items, positionMs: positionMs, id: \.id, timeMs: \.timeMs)
+        overlay?.emit(texts: due.map(\.text))
     }
 
     private func fetchPage(from positionMs: Int, end endMs: Int, plan: PlaybackPlan) {
@@ -176,11 +212,16 @@ private struct PlayerScreen: View {
     @EnvironmentObject private var store: Store
     @AppStorage("playbackDiagnostics") private var diagnosticsEnabled = false
     @AppStorage("playbackSpeed") private var playbackSpeed = 1.0
+    /// 与「我的」里的弹幕开关同一个设置（PlaybackSession 起播时读它）；控件里的「弹幕」按钮直接改它。
+    @AppStorage("danmakuEnabled") private var danmakuEnabled = true
 
-    /// 播放控件（进度条 / 倍速 / 画面 / 选集）的显示与自动隐藏，见 PlayerControlsView.swift。
+    /// 播放控件（进度条 / 倍速 / 弹幕 / 选集）的显示与自动隐藏，见 PlayerControlsView.swift。
     @StateObject private var controls = PlayerControlsState()
     @FocusState private var focus: PlayerFocus?
     @State private var activeSheet: PlayerSheet?
+
+    /// 开发验证用：启动参数 -GUOAppShowControls YES 让播放控件一直显示、不自动隐藏（只对这次启动有效）。
+    private static let pinsControls = UserDefaults.standard.bool(forKey: "GUOAppShowControls")
 
     /// 倍速档位：与设置页 speedOptions 一致，改动时两边同步。
     private static let speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0]
@@ -219,10 +260,12 @@ private struct PlayerScreen: View {
                         progress: controller.progress,
                         isPaused: controller.isPaused,
                         speed: playbackSpeed,
+                        danmakuOn: danmakuEnabled,
                         showsEpisodes: episodes.count > 1,
                         focus: $focus,
                         onSeek: seek(by:),
                         onTogglePause: togglePause,
+                        onToggleDanmaku: toggleDanmaku,
                         onOpen: openSheet
                     )
                     .transition(.opacity)
@@ -283,6 +326,13 @@ private struct PlayerScreen: View {
         .task {
             session.onReachedEnd = { dismiss() }
             session.start()
+            if Self.pinsControls { revealControls() }
+            // 开发验证用：启动参数 -GUOAppToggleDanmakuAfter N 在打开播放页 N 秒后按一下「弹幕」（参数只对这次启动有效，
+            // 但和真按按钮一样会改掉保存的弹幕设置——验证时要再按回来）。
+            if let delay = Int(UserDefaults.standard.string(forKey: "GUOAppToggleDanmakuAfter") ?? "") {
+                try? await Task.sleep(for: .seconds(delay))
+                if !Task.isCancelled { toggleDanmaku() }
+            }
         }
         .onChange(of: controls.visible) { visible in
             // 控件出现时焦点落到进度条；隐藏时还给画面（下一轮再设，等可聚焦状态生效）。
@@ -302,6 +352,9 @@ private struct PlayerScreen: View {
         }
         .onChange(of: playbackSpeed) { speed in
             controller.setSpeed(speed)
+        }
+        .onChange(of: danmakuEnabled) { enabled in
+            controller.setDanmakuEnabled(session.allowsDanmaku && enabled)
         }
         .onChange(of: controller.endedToken) { token in
             guard token > 0 else { return }
@@ -329,7 +382,7 @@ private struct PlayerScreen: View {
     /// 显示控件并重新计时；暂停或开着弹窗时不自动隐藏。
     private func revealControls() {
         guard session.error == nil else { return }
-        controls.show(autoHide: !controller.isPaused && activeSheet == nil)
+        controls.show(autoHide: !Self.pinsControls && !controller.isPaused && activeSheet == nil)
     }
 
     private func togglePause() {
@@ -339,6 +392,12 @@ private struct PlayerScreen: View {
 
     private func seek(by seconds: Double) {
         controller.seek(by: seconds)
+        revealControls()
+    }
+
+    /// 「弹幕」按钮：开 / 关并重新计时自动隐藏（焦点留在按钮上，可以连按）。
+    private func toggleDanmaku() {
+        danmakuEnabled.toggle()
         revealControls()
     }
 

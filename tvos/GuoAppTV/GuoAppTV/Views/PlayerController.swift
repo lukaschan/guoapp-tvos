@@ -171,6 +171,14 @@ final class PlayerController: NSObject, ObservableObject {
         updateIdleTimer()
     }
 
+    /// 播放中开关弹幕（全屏播放控件的「弹幕」按钮），不重建播放器。画面重建后的续播、还在等的起播都沿用；
+    /// 换集与重试由 PlaybackSession 照设置里的同一开关（danmakuEnabled）传进 play()。
+    func setDanmakuEnabled(_ enabled: Bool) {
+        activeDanmakuEnabled = enabled
+        pendingPlay?.danmakuEnabled = enabled
+        danmaku.setEnabled(enabled)
+    }
+
     /// 视频参数出来了（出第一帧前）：按实际尺寸摆放画面（framing），并立刻更新画面尺寸（不等每秒的计时器）。
     private func videoReconfigured() {
         guard let handle = mpv else { return }

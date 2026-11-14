@@ -1,6 +1,7 @@
 import SwiftUI
 
-// 播放控件（Apple TV 系统播放器风格）：标题、按钮行（倍速 / 选集）、进度条与时间。
+// 播放控件（Apple TV 系统播放器风格）：标题、按钮行（倍速 / 弹幕 / 选集）、进度条与时间。
+// 「弹幕」按一下就开 / 关，与「我的」里的弹幕开关是同一个设置，下次播放沿用。
 // 画面始终按 mpv 默认的等比适应显示（原「画面：适应 / 填充 / 拉伸」已按 owner 要求删除）。
 // 只是画在 mpv 画面上的一层界面：播放、解析、预取、缓存逻辑都在 PlayerController / PlayerView，
 // 这里不碰。遥控器：控件隐藏时点按 = 暂停 / 播放，← → = 快退 / 快进 10 秒，↑ ↓ = 调出控件；
@@ -9,7 +10,7 @@ import SwiftUI
 // MARK: - 焦点与弹窗
 
 enum PlayerFocus: Hashable {
-    case surface, scrubber, speed, episodes
+    case surface, scrubber, speed, danmaku, episodes
 }
 
 enum PlayerSheet: String, Identifiable {
@@ -55,10 +56,12 @@ struct PlayerControlsOverlay: View {
     let progress: PlaybackProgress
     let isPaused: Bool
     let speed: Double
+    let danmakuOn: Bool
     let showsEpisodes: Bool
     let focus: FocusState<PlayerFocus?>.Binding
     let onSeek: (Double) -> Void
     let onTogglePause: () -> Void
+    let onToggleDanmaku: () -> Void
     let onOpen: (PlayerSheet) -> Void
 
     var body: some View {
@@ -79,6 +82,12 @@ struct PlayerControlsOverlay: View {
                         onOpen(.speed)
                     }
                     .focused(focus, equals: .speed)
+                    PlayerControlButton(
+                        icon: danmakuOn ? "text.bubble.fill" : "text.bubble",
+                        title: danmakuOn ? "弹幕 开" : "弹幕 关",
+                        action: onToggleDanmaku
+                    )
+                    .focused(focus, equals: .danmaku)
                     if showsEpisodes {
                         PlayerControlButton(icon: "list.number", title: "选集") {
                             onOpen(.episodes)

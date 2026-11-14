@@ -30,21 +30,68 @@ struct SeriesCacheTests {
     @Test func concurrentLookupsSearchOnce() async {
         let search = FakeSearch(results: [part1, part2])
         let lookup = cache(search)
-        async let first = lookup.parts(of: part1)
-        async let second = lookup.parts(of: part2)
+        async let first = lookup.outcome(of: part1)
+        async let second = lookup.outcome(of: part2)
         let (one, two) = await (first, second)
-        #expect(one?.partNumbers == [1, 2])
-        #expect(two?.partNumbers == [1, 2])
+        #expect(one.group?.partNumbers == [1, 2])
+        #expect(two.group?.partNumbers == [1, 2])
         #expect(await search.calls == 1)
     }
 
-    /// 搜索失败不记为已搜，下次再试。
-    @Test func failureIsRetried() async {
+    /// 搜索失败：报「没查成」（详情页显示重试，不当成没有其他部），也不记为已搜，下次再试。
+    @Test func failureIsReportedAndRetried() async {
         let search = FakeSearch(results: nil)
         let lookup = cache(search)
-        #expect(await lookup.parts(of: part1) == nil)
-        #expect(await lookup.parts(of: part1) == nil)
+        #expect(await lookup.outcome(of: part1) == .failed)
+        #expect(await lookup.outcome(of: part1) == .failed)
         #expect(await search.calls == 2)
+    }
+
+    /// 同时查、搜索失败：等同一次搜索的那一边也拿到「没查成」，不是「没有其他部」。
+    @Test func concurrentWaiterSeesTheFailure() async {
+        let search = FakeSearch(results: nil)
+        let lookup = cache(search)
+        async let first = lookup.outcome(of: part1)
+        async let second = lookup.outcome(of: part1)
+        let (one, two) = await (first, second)
+        #expect(one == .failed)
+        #expect(two == .failed)
+        #expect(await search.calls == 1)
+    }
+
+    /// 搜到了但没有其他部：报「单部剧」，本次运行内不再搜。
+    @Test func noOtherPartsIsSingle() async {
+        let search = FakeSearch(results: [part1])
+        let lookup = cache(search)
+        #expect(await lookup.outcome(of: part1) == .single)
+        #expect(await lookup.outcome(of: part1) == .single)
+        #expect(await search.calls == 1)
+    }
+
+    /// 实测搜「五灵根修仙：我有一个吞噬空间」：两部不带后缀的同名剧排在「…第1季」前面。第 1 季归写明的那部，
+    /// 但从不带后缀的那部进详情也要有本系列（它自己顶第 1 季），不能查完就什么都不显示。
+    @Test func bareTitleBesideExplicitFirstPartStillFindsItsSeries() async {
+        let bare = Show(id: "bare", title: "五灵根修仙：我有一个吞噬空间")
+        let bareBang = Show(id: "bang", title: "五灵根修仙：我有一个吞噬空间！")
+        let first = Show(id: "s1", title: "五灵根修仙：我有一个吞噬空间！第1季")
+        let second = Show(id: "s2", title: "五灵根修仙：我有一个吞噬空间！第二季")
+        let third = Show(id: "s3", title: "五灵根修仙：我有一个吞噬空间（第三季）")
+        let search = FakeSearch(results: [bare, bareBang, first, second, third])
+        let lookup = cache(search)
+        #expect(await lookup.outcome(of: bare).group?.parts.map(\.item.id) == ["bare", "s2", "s3"])
+        #expect(await lookup.outcome(of: bareBang).group?.parts.map(\.item.id) == ["bang", "s2", "s3"])
+        #expect(await lookup.outcome(of: first).group?.parts.map(\.item.id) == ["s1", "s2", "s3"])
+        #expect(await lookup.outcome(of: second).group?.parts.map(\.item.id) == ["s1", "s2", "s3"])
+        #expect(await search.calls == 1)
+    }
+
+    /// 同一季有两个上传（都写明第二季）：排不进系列的那一部进详情也要有本系列。
+    @Test func duplicateExplicitPartStillFindsItsSeries() async {
+        let other = Show(id: "b2", title: "霸总第2部")
+        let search = FakeSearch(results: [part1, part2, other])
+        let lookup = cache(search)
+        #expect(await lookup.outcome(of: other).group?.parts.map(\.item.id) == ["a", "b2"])
+        #expect(await lookup.outcome(of: part2).group?.parts.map(\.item.id) == ["a", "b"])
     }
 
     /// 搜索页存入的系列直接命中，不再搜索。
@@ -56,7 +103,7 @@ struct SeriesCacheTests {
             return
         }
         await lookup.remember(group)
-        #expect(await lookup.parts(of: part2)?.partNumbers == [1, 2])
+        #expect(await lookup.outcome(of: part2).group?.partNumbers == [1, 2])
         #expect(await search.calls == 0)
     }
 }

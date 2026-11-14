@@ -54,6 +54,15 @@ struct WatchHistoryView: View {
             ProducerView(drama: route.drama)
         }
         .playbackLauncher(launcher)
+        .task {
+            // 开发验证用：启动参数 -GUOAppPlayFirstHistory YES 直接续播观看记录里的第一部（只对这次启动有效）。
+            guard UserDefaults.standard.bool(forKey: "GUOAppPlayFirstHistory"),
+                  let first = WatchHistory.dramas(
+                      store.progress, dramaID: \.drama.id, position: \.position, updatedAt: \.updatedAt
+                  ).first
+            else { return }
+            launcher.play(first.drama, store: store)
+        }
     }
 
     private func header(count: Int) -> some View {

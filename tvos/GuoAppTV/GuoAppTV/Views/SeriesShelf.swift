@@ -57,3 +57,35 @@ struct SeriesShelf: View {
         ).posterCaption
     }
 }
+
+/// 「本系列」还没出来时占的位置：查找中，或没查到（重试）。查完是单部剧就什么都不显示。
+/// 查本系列要搜一次红果（2～3 秒），不提示的话看的人会以为这部剧没有其他季。
+struct SeriesShelfPlaceholder: View {
+    /// true 为没查到（搜索失败），false 为查找中。
+    let failed: Bool
+    let retry: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("本系列")
+                .font(.system(size: TVTheme.TextSize.headline, weight: .bold))
+                .foregroundColor(TVTheme.textPrimary)
+            if failed {
+                HStack(spacing: 28) {
+                    Text("暂时没查到同系列的其他季 / 部")
+                        .font(.system(size: TVTheme.TextSize.body))
+                        .foregroundColor(TVTheme.textSecondary)
+                    TVSecondaryButton(title: "重试", icon: "arrow.clockwise", action: retry)
+                }
+            } else {
+                HStack(spacing: 14) {
+                    ProgressView()
+                    Text("正在查找同系列的其他季 / 部…")
+                        .font(.system(size: TVTheme.TextSize.body))
+                        .foregroundColor(TVTheme.textSecondary)
+                }
+            }
+        }
+        .padding(.vertical, 12)
+    }
+}

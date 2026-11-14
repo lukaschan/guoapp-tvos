@@ -6,6 +6,7 @@ struct MyListView: View {
     @EnvironmentObject private var store: Store
     @StateObject private var launcher = PlaybackLauncher()
     @State private var path: [Drama] = []
+    @State private var openedFollowHook = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -18,6 +19,15 @@ struct MyListView: View {
                 }
         }
         .playbackLauncher(launcher)
+        .task {
+            // 开发验证用：启动参数 -GUOAppOpenFollow N 直接打开「我的追剧」第 N 部的详情（只对这次启动有效）。
+            if !openedFollowHook,
+               let index = Int(UserDefaults.standard.string(forKey: "GUOAppOpenFollow") ?? ""),
+               store.follows.indices.contains(index) {
+                openedFollowHook = true
+                path.append(store.follows[index].drama)
+            }
+        }
     }
 
     @ViewBuilder

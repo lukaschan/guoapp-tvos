@@ -11,8 +11,8 @@ struct DetailView: View {
     @State private var detail: DramaDetail?
     @State private var loading = true
     @State private var error: String?
-    /// 同名剧的各部（第 N 部 / 季），后台查询；单部剧为 nil。
-    @State private var series: SeriesGroup<Drama>?
+    /// 查本系列（同名剧的第 N 部 / 季）的结果；nil 为还在查。
+    @State private var seriesOutcome: SeriesOutcome<Drama>?
     /// 本页所有播放（点分集、继续观看、观看下一部）都走同一个播放页，避免两个全屏页互相抢。
     @StateObject private var launcher = PlaybackLauncher()
 
@@ -23,22 +23,47 @@ struct DetailView: View {
 
     private var displayDrama: Drama { detail?.drama ?? drama }
 
+    private static let seriesAnchor = "series"
+    private static let scrollsToSeries = UserDefaults.standard.bool(forKey: "GUOAppScrollToSeries")
+
+    /// 详情与本系列各到了哪一步（开发验证滚动用）。
+    private var seriesPhase: String {
+        let outcome: String
+        switch seriesOutcome {
+        case nil: outcome = "loading"
+        case .found: outcome = "found"
+        case .single: outcome = "single"
+        case .failed: outcome = "failed"
+        }
+        return "\(detail != nil)-\(outcome)"
+    }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: TVTheme.sectionSpacing) {
-                header
-                episodesSection
+            ScrollViewReader { proxy in
+                VStack(alignment: .leading, spacing: TVTheme.sectionSpacing) {
+                    header
+                    episodesSection
+                }
+                .padding(.bottom, 56)
+                // 开发验证用：启动参数 -GUOAppScrollToSeries YES 把详情页滚到「本系列」（只对这次启动有效）。
+                .task(id: seriesPhase) {
+                    guard Self.scrollsToSeries, detail != nil else { return }
+                    try? await Task.sleep(for: .milliseconds(300))
+                    proxy.scrollTo(Self.seriesAnchor, anchor: .bottom)
+                }
             }
-            .padding(.bottom, 56)
         }
         .background(TVTheme.background.ignoresSafeArea())
         .task {
             // 用户自己打开了这部剧：追剧更新的角标消失。
             store.acknowledgeUpdate(dramaID: drama.id)
             await load()
-            await loadSupplement()
-            // 详情到了再查本系列：搜索排在详情之后，不挡第一屏。
-            series = await SeriesLookup.shared.parts(of: drama)
+            // 详情到了再查本系列（搜索排在详情之后，不挡第一屏），和补评分 / 日期同时进行：
+            // 补全本身也要搜一次红果，排在它后面时本系列要 6～7 秒才出来，同时查约 2～3 秒。
+            async let supplemented: Void = loadSupplement()
+            await loadSeries()
+            await supplemented
         }
         .playbackLauncher(launcher)
     }
@@ -193,11 +218,30 @@ struct DetailView: View {
             }
             // 取下一部详情时（观看下一部）暂不响应分集点按，避免同时弹两个播放页。
             .disabled(launcher.loadingDramaID != nil)
-            if let series {
-                SeriesShelf(group: series, currentID: drama.id)
-            }
+            seriesSection
+                .id(Self.seriesAnchor)
         }
         .padding(.horizontal, TVTheme.pageInset)
+    }
+
+    /// 本系列：查找中有提示、没查到可重试，单部剧不显示。
+    @ViewBuilder
+    private var seriesSection: some View {
+        switch seriesOutcome {
+        case nil:
+            SeriesShelfPlaceholder(failed: false) {}
+        case .found(let group):
+            SeriesShelf(group: group, currentID: drama.id)
+        case .failed:
+            SeriesShelfPlaceholder(failed: true) {
+                Task {
+                    seriesOutcome = nil
+                    await loadSeries()
+                }
+            }
+        case .single:
+            EmptyView()
+        }
     }
 
     private func episodeProgress(_ episode: Episode) -> Double? {
@@ -213,7 +257,7 @@ struct DetailView: View {
 
     /// 本系列里这一部之后的那一部（没有系列或已是最后一部时为 nil）。
     private var nextPart: Drama? {
-        guard let series,
+        guard let series = seriesOutcome?.group,
               let current = series.parts.first(where: { $0.item.id == drama.id }),
               let next = series.parts.first(where: { $0.part > current.part })
         else { return nil }
@@ -252,6 +296,12 @@ struct DetailView: View {
               DramaMetadata.needsSupplement(source: shown.source, score: shown.score, onlineDate: shown.onlineDate)
         else { return }
         supplement = try? await CoreClient.shared.metadata(drama: shown)
+    }
+
+    /// 查本系列。页面重新出现时（切标签、关掉播放页）沿用已有结果直到新结果回来：先清空的话，
+    /// 看完的这部主按钮会从「观看下一部」闪成「重新观看」，那一下按到会从第 1 集重播。
+    private func loadSeries() async {
+        seriesOutcome = await SeriesLookup.shared.outcome(of: drama)
     }
 
     private func load() async {

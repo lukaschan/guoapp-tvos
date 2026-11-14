@@ -183,7 +183,7 @@ struct SettingsView: View {
             TVSettingDivider()
             TVToggleRow(title: "播放诊断", isOn: $diagnosticsEnabled)
             TVSettingDivider()
-            note("清晰度在下一次打开剧集时生效；倍速也可在播放时从控件里实时调整。")
+            note("清晰度在下一次打开剧集时生效；倍速和弹幕也可在播放时从控件里实时调整。")
         }
     }
 
