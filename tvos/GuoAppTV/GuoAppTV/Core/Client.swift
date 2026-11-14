@@ -289,7 +289,7 @@ actor CoreClient {
             "quality": quality,
             "sequence": nextSequence(),
         ])
-        return PlaybackPlan(dict: data)
+        return noted(PlaybackPlan(dict: data))
     }
 
     /// 当前线路失败时向核心要下一条线路。
@@ -299,7 +299,41 @@ actor CoreClient {
             "session": plan.session,
             "sequence": nextSequence(),
         ])
-        return PlaybackPlan(dict: data)
+        return noted(PlaybackPlan(dict: data))
+    }
+
+    // MARK: - 本机播放服务
+
+    /// 核心的本机播放服务地址（从最近一次起播的播放地址里认出来）；还没起播过为 nil。
+    private var gateway: GatewayEndpoint?
+    /// 本机播放服务是第几代：每被系统回收一次加一（见 GatewayGeneration）。
+    private(set) var gatewayGeneration = GatewayGeneration()
+
+    /// App 回到前台、或播放器报失败时调用：tvOS 在 App 挂起时会回收核心监听的套接字，
+    /// 之后所有播放地址都连不上。让核心检查一下，不在了就恢复。
+    /// 不走播放通道的串行队列：核心里这一步自己加锁、立刻返回，不必排在进行中的解析后面。
+    @discardableResult
+    func reviveGateway() async -> GatewayRevival {
+        let answer = await withCheckedContinuation { continuation in
+            readQueue.async { continuation.resume(returning: DuanjuBridge.reviveStream()) }
+        }
+        let revival = GatewayRevival(coreValue: answer)
+        gatewayGeneration = gatewayGeneration.after(revival)
+        return revival
+    }
+
+    private func noted(_ plan: PlaybackPlan) -> PlaybackPlan {
+        if let endpoint = GatewayEndpoint(planURL: plan.url) { gateway = endpoint }
+        return plan
+    }
+
+    /// 本机播放服务现在的状况，写诊断日志用：「127.0.0.1:端口 listening」/「… unreachable errno 61」/「none yet」。
+    func gatewayReport() -> String {
+        guard let gateway else { return "none yet" }
+        switch gateway.probe() {
+        case .listening: return "\(gateway.host):\(gateway.port) listening"
+        case .unreachable(let code): return "\(gateway.host):\(gateway.port) unreachable errno \(code)"
+        }
     }
 
     func danmaku(plan: PlaybackPlan, startMs: Int, durationMs: Int) async throws -> DanmakuPage {

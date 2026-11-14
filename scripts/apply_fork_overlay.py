@@ -6,7 +6,7 @@
 
 1. 先把上次补丁改过的文件还原到 submodule 指针版本；
 2. 删掉上次拷入的 fork 新增文件；
-3. 重新拷入 fork/core/*.go；
+3. 重新拷入 fork/core/*.go 与 fork/bridge/*.go；
 4. 按文件名顺序打上 fork/patches/*.patch。
 
 只动 fork 清单里的文件，不碰 submodule 其他内容。补丁打不上时直接报错
@@ -55,13 +55,20 @@ def main():
     if existing:
         run(['git', '-C', str(upstream), 'checkout', '--'] + existing)
     # 2. 删掉上次拷入的 fork 新增文件。
+    bridge = upstream / 'native' / 'bridge'
     for source in (fork_dir / 'core').glob('*.go'):
         target = core / source.name
+        if target.exists():
+            target.unlink()
+    for source in (fork_dir / 'bridge').glob('*.go'):
+        target = bridge / source.name
         if target.exists():
             target.unlink()
     # 3. 拷入 fork 新增文件。
     for source in sorted((fork_dir / 'core').glob('*.go')):
         shutil.copy2(source, core / source.name)
+    for source in sorted((fork_dir / 'bridge').glob('*.go')):
+        shutil.copy2(source, bridge / source.name)
     # 4. 打补丁（先逐个 --check，报错时指出是哪个文件）。
     # 补丁文件在 Windows 检出时可能被转成 CRLF，而目标 .go 文件固定是 LF，
     # 行尾不一致时 git apply 会直接失败；这里先统一转成 LF 再打。
@@ -85,8 +92,9 @@ def main():
                     f'补丁打不上：{source.name}，上游改了同处代码，'
                     '请人工重排该补丁后再构建（不要强行跳过）。')
             run(['git', '-C', str(upstream), 'apply', str(patch)])
-    print(f'fork 覆盖层已合入：{len(patched)} 个补丁，'
-          f'{len(list((fork_dir / "core").glob("*.go")))} 个新增文件。')
+    added = (len(list((fork_dir / 'core').glob('*.go')))
+             + len(list((fork_dir / 'bridge').glob('*.go'))))
+    print(f'fork 覆盖层已合入：{len(patched)} 个补丁，{added} 个新增文件。')
 
 
 if __name__ == '__main__':

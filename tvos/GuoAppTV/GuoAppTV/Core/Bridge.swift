@@ -17,4 +17,12 @@ enum DuanjuBridge {
         defer { DuanjuFree(cOutput) }
         return String(cString: cOutput)
     }
+
+    /// 让核心检查本机播放服务还在不在，不在就恢复；返回 idle / alive / revived / reset（GatewayRevival）。
+    /// 这个函数来自本仓库自带的核心补丁（tvos/CoreOverlay，构建时叠加进核心），不在上游的 bridge 里。
+    static func reviveStream() -> String {
+        guard let cOutput = DuanjuReviveStream() else { return "" }
+        defer { DuanjuFree(cOutput) }
+        return String(cString: cOutput)
+    }
 }

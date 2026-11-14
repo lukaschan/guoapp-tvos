@@ -34,7 +34,10 @@ final class PlaybackSession: ObservableObject {
     private var startPosition: Double
     private var lastSavedPosition = -1.0
     /// 下一集预取好的播放计划（还剩 60 秒时后台解析好，切集时直接用）。
+    /// 当前这集的播放地址是在本机播放服务的第几代时拿到的（见 GatewayGeneration）。
+    private var planGeneration = GatewayGeneration()
     private var prefetchedPlan: PlaybackPlan?
+    private var prefetchedGeneration = GatewayGeneration()
     /// 预取针对的分集下标（成功或失败都记录，避免失败后反复重试刷接口）。
     private var prefetchedIndex: Int?
     private var prefetchTask: Task<Void, Never>?
@@ -144,6 +147,7 @@ final class PlaybackSession: ObservableObject {
             warmTask = nil
             if let cached {
                 plan = cached
+                planGeneration = prefetchedGeneration
                 controller.play(plan: cached, start: startPosition, danmakuEnabled: danmakuEnabled, speed: playbackSpeed)
                 return
             }
@@ -153,12 +157,30 @@ final class PlaybackSession: ObservableObject {
             let resolved = try await CoreClient.shared.resolve(
                 drama: drama, episode: episode, quality: preferredQuality
             )
+            let generation = await CoreClient.shared.gatewayGeneration
             guard !Task.isCancelled else { return }
             plan = resolved
+            planGeneration = generation
             controller.play(plan: resolved, start: startPosition, danmakuEnabled: danmakuEnabled, speed: playbackSpeed)
         } catch {
             guard !Task.isCancelled else { return }
+            DiagnosticLog.record("resolve failed: \(error.localizedDescription)")
             self.error = error.localizedDescription
+        }
+    }
+
+    /// 播放器报失败时记下原因：mpv 的错误、本机播放服务还在不在、它对这个地址回了什么
+    /// （连不上 = 服务没了；502 之类 = 服务在、取不到片源）。
+    private func recordFailure(of plan: PlaybackPlan) {
+        let playerError = controller.lastError
+        let address = plan.url
+        Task.detached(priority: .utility) {
+            var detail = "direct address"
+            if let endpoint = GatewayEndpoint(planURL: address) {
+                let path = URLComponents(string: address)?.percentEncodedPath ?? "/"
+                detail = "gateway \(endpoint.host):\(endpoint.port) -> \(endpoint.statusLine(path: path))"
+            }
+            DiagnosticLog.record("playback failed: mpv \"\(playerError)\"; \(detail)")
         }
     }
 
@@ -177,6 +199,20 @@ final class PlaybackSession: ObservableObject {
 
     func handleFailed() async {
         guard let plan else { return }
+        recordFailure(of: plan)
+        // App 挂起期间系统回收了核心的本机播放服务（见 GatewayGeneration）：这个地址是在那之前拿到的，
+        // 连不上不是片源的问题。让核心恢复服务，从刚才的位置重新起播，不显示「播放失败」。
+        await CoreClient.shared.reviveGateway()
+        let generation = await CoreClient.shared.gatewayGeneration
+        guard self.plan?.session == plan.session else { return }
+        if generation != planGeneration {
+            DiagnosticLog.record("playback restarted: the gateway was lost since this episode started")
+            let position = controller.progress.position
+            if position > 0 { startPosition = position }
+            Task { try? await CoreClient.shared.release(session: plan.session) }
+            startLoad()
+            return
+        }
         if plan.hasAlternative {
             do {
                 let next = try await CoreClient.shared.fallback(plan: plan)
@@ -218,6 +254,7 @@ final class PlaybackSession: ObservableObject {
             guard let plan = try? await CoreClient.shared.resolve(
                 drama: drama, episode: episode, quality: preferredQuality
             ) else { return }
+            let generation = await CoreClient.shared.gatewayGeneration
             // 解析完成时若用户已不在触发那集（已切走/已退出），
             // 预取的计划用不上，释放其会话避免泄漏；
             // 若已经自动切到这一集（load() 在等这份计划），同样算命中。
@@ -225,6 +262,7 @@ final class PlaybackSession: ObservableObject {
                 try? await CoreClient.shared.release(session: plan.session)
                 return
             }
+            prefetchedGeneration = generation
             prefetchedPlan = plan
             warmUpNextMedia(plan: plan)
         }

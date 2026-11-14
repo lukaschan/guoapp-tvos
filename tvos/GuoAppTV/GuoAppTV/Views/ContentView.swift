@@ -18,11 +18,40 @@ struct ContentView: View {
             }
         }
         .task {
+            DiagnosticLog.record("launch")
             await appState.bootstrap()
+        }
+        // 「App 挂起后任何一集都播不了」：回到前台时恢复核心的本机播放服务，并记进诊断日志。
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            recordGateway("willResignActive")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            recordGateway("didEnterBackground")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            reviveGateway("willEnterForeground")
         }
         // App 回到前台（tvOS 常常把 App 挂起好几天而不是重新启动）：再检查一次追剧更新。
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            reviveGateway("didBecomeActive")
             if appState.initialized { FollowUpdateChecker.shared.checkIfDue(store: store) }
+        }
+    }
+
+    private func recordGateway(_ event: String) {
+        Task {
+            let report = await CoreClient.shared.gatewayReport()
+            DiagnosticLog.record("\(event); gateway \(report)")
+        }
+    }
+
+    /// 回到前台：App 挂起期间（切到后台几分钟、电视休眠）系统会回收核心的本机播放服务，
+    /// 不恢复的话之后任何一集都「播放失败」，只能重开 App。
+    private func reviveGateway(_ event: String) {
+        Task {
+            let before = await CoreClient.shared.gatewayReport()
+            let revival = await CoreClient.shared.reviveGateway()
+            DiagnosticLog.record("\(event); gateway \(before) -> \(revival.rawValue)")
         }
     }
 
