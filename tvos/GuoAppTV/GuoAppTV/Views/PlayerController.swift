@@ -76,7 +76,8 @@ final class PlayerController: NSObject, ObservableObject {
     private var metalLayer: CAMetalLayer?
     private var currentURL: URL?
     private var hasDecryptionKey = false
-    private var lastError = ""
+    /// 最近一次 mpv END_FILE 错误原文（失败页展示用，便于定位起播失败原因）。
+    private(set) var lastError = ""
     private var activePlan: PlaybackPlan?
     private var activeDanmakuEnabled = true
     private var pendingPlay: (plan: PlaybackPlan, start: Double, danmakuEnabled: Bool, speed: Double)?

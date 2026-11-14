@@ -171,7 +171,8 @@ final class PlaybackSession: ObservableObject {
                 self.error = error.localizedDescription
             }
         } else {
-            self.error = "播放失败，请返回重试"
+            let detail = controller.lastError.isEmpty ? controller.debugInfo : controller.lastError
+            self.error = detail.isEmpty ? "播放失败，请返回重试" : "播放失败，请返回重试（\(detail)）"
         }
     }
 
