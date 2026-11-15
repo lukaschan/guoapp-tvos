@@ -1,0 +1,76 @@
+--- a/native/core/provider_huangguo_api.go
++++ b/native/core/provider_huangguo_api.go
+@@ -2,6 +2,7 @@ package core
+ 
+ import (
+ 	"context"
++	"encoding/base64"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+@@ -14,7 +15,21 @@ import (
+ const huangguoAISearchPageSize = 20
+ 
+ func (d *Downloader) huangguoAIAPI(ctx context.Context, path string, out any) error {
+-	envelope, err := json.Marshal(map[string]string{"method": http.MethodGet, "path": path, "body": "", "content_type": ""})
++	return d.huangguoAIEdge(ctx, http.MethodGet, path, nil, out)
++}
++
++func (d *Downloader) huangguoAIEdge(ctx context.Context, method, path string, payload any, out any) error {
++	payloadBody := ""
++	contentType := ""
++	if payload != nil {
++		raw, err := json.Marshal(payload)
++		if err != nil {
++			return err
++		}
++		payloadBody = base64.StdEncoding.EncodeToString(raw)
++		contentType = "application/json"
++	}
++	envelope, err := json.Marshal(map[string]string{"method": method, "path": path, "body": payloadBody, "content_type": contentType})
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -81,18 +96,37 @@ func huangguoAIChapter(base, sourceID string, episode int, title string) Chapter
+ 		Title: firstNonEmpty(title, fmt.Sprintf("第%d集", episode)), PageURL: pageURL, CurrentEpisode: rawEpisode(episode)}
+ }
+ 
++type huangguoAIPlayReply struct {
++	VideoURL string `json:"video_url"`
++	Streams  struct {
++		Main string `json:"main"`
++		HEVC string `json:"hevc"`
++	} `json:"streams"`
++}
++
++func (reply huangguoAIPlayReply) mediaURL() string {
++	return firstNonEmpty(reply.VideoURL, reply.Streams.Main, reply.Streams.HEVC)
++}
++
+ func (d *Downloader) fetchHuangguoAIPlayURL(ctx context.Context, sourceID string, episode int) (string, error) {
+ 	if !rankingSourceID.MatchString(sourceID) || episode < 1 {
+ 		return "", errors.New("黄果集数无效")
+ 	}
+-	var play struct {
+-		VideoURL string `json:"video_url"`
++	// 新播放接口：POST /api/videos/{id}/episodes/{ep}/playback，地址在 streams 里。
++	// 旧 /play 接口已不再返回地址（status 1 但 video_url 为空），仅作兜底。
++	var playback huangguoAIPlayReply
++	path := fmt.Sprintf("/api/videos/%s/episodes/%d/playback", url.PathEscape(sourceID), episode)
++	if err := d.huangguoAIEdge(ctx, http.MethodPost, path, map[string]any{}, &playback); err == nil {
++		if media := playback.mediaURL(); media != "" {
++			return normalizeProviderMediaURL(d.providerBaseURL(sourceHuangguoAI)+"/", media), nil
++		}
+ 	}
+-	path := fmt.Sprintf("/api/videos/%s/play?ep=%d&page_texts=0", url.PathEscape(sourceID), episode)
+-	if err := d.huangguoAIAPI(ctx, path, &play); err != nil {
++	var legacy huangguoAIPlayReply
++	legacyPath := fmt.Sprintf("/api/videos/%s/play?ep=%d&page_texts=0", url.PathEscape(sourceID), episode)
++	if err := d.huangguoAIAPI(ctx, legacyPath, &legacy); err != nil {
+ 		return "", err
+ 	}
+-	return normalizeProviderMediaURL(d.providerBaseURL(sourceHuangguoAI)+"/", play.VideoURL), nil
++	return normalizeProviderMediaURL(d.providerBaseURL(sourceHuangguoAI)+"/", legacy.mediaURL()), nil
+ }
+ 
+ func (d *Downloader) searchHuangguoAI(ctx context.Context, page int, query string) ([]Drama, bool, error) {

@@ -1,0 +1,34 @@
+--- a/native/core/provider_media.go
++++ b/native/core/provider_media.go
+@@ -64,7 +64,7 @@ func providerSourceForURL(raw string) string {
+ 	}
+ 	host := strings.ToLower(parsed.Hostname())
+ 	switch {
+-	case host == "huangguoai.com" || isHuangguoAIMirrorHost(host):
++	case host == "huangguoai.com" || host == "huangguoai.ai" || isHuangguoAIMirrorHost(host):
+ 		return sourceHuangguoAI
+ 	case host == "huangguo.video":
+ 		return sourceHuangguoVideo
+@@ -103,7 +103,7 @@ func isHuangguoAIMirrorHost(host string) bool {
+ 			return true
+ 		}
+ 	}
+-	return false
++	return huangguoDiscoveredHost(host)
+ }
+ 
+ func (d *Downloader) providerURLCandidates(raw string) []string {
+@@ -129,6 +129,13 @@ func (d *Downloader) providerURLCandidates(raw string) []string {
+ 	if providerSourceForURL(configured) == "" {
+ 		return candidates
+ 	}
++	if source == sourceHuangguoAI {
++		discoverCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++		for _, mirror := range d.huangguoDiscoveredMirrors(discoverCtx) {
++			add(rehostProviderURL(parsed, mirror))
++		}
++		cancel()
++	}
+ 	for _, candidate := range providerURLCandidates(raw) {
+ 		add(candidate)
+ 	}

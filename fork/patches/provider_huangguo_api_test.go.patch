@@ -1,0 +1,22 @@
+--- a/native/core/provider_huangguo_api_test.go
++++ b/native/core/provider_huangguo_api_test.go
+@@ -17,7 +17,7 @@ func huangguoEdgeTarget(t *testing.T, request *http.Request) *url.URL {
+ 		Method string `json:"method"`
+ 		Path   string `json:"path"`
+ 	}
+-	if request.Method != http.MethodPost || request.URL.Path != "/api/edge/request" || json.NewDecoder(request.Body).Decode(&envelope) != nil || envelope.Method != http.MethodGet {
++	if request.Method != http.MethodPost || request.URL.Path != "/api/edge/request" || json.NewDecoder(request.Body).Decode(&envelope) != nil || envelope.Method != http.MethodGet && envelope.Method != http.MethodPost {
+ 		t.Errorf("request bypassed the edge envelope: %s %s", request.Method, request.URL)
+ 		return &url.URL{}
+ 	}
+@@ -74,6 +74,10 @@ func TestHuangguoAIDetailAndPlaybackUseEdgeAPI(t *testing.T) {
+ 				"id": 12, "title": "合成剧", "description": "合成简介", "cover": "/covers/12.jpg", "episode_count": 2, "is_finished": false,
+ 				"episodes": []any{map[string]any{"ep_num": 2, "title": "第2集"}, map[string]any{"ep_num": 1, "title": ""}},
+ 			})), nil
++		case "/api/videos/12/episodes/2/playback":
++			return sourceFixtureResponse(request, 200, huangguoEdgeReply(map[string]any{
++				"streams": map[string]any{"main": "https://media.example.test/12/2.mp4?auth_key=synthetic", "hevc": ""},
++			})), nil
+ 		case "/api/videos/12/play":
+ 			if target.Query().Get("ep") != "2" {
+ 				t.Errorf("requested the wrong episode: %s", target)

@@ -1,0 +1,13 @@
+diff --git a/native/core/app_categories.go b/native/core/app_categories.go
+index 1d6dcb8..5638677 100644
+--- a/native/core/app_categories.go
++++ b/native/core/app_categories.go
+@@ -21,8 +21,6 @@ type nativeCategory struct {
+ var nativeAICategories = []nativeCategory{
+ 	{ID: "ai-duanju", Name: "AI 短剧"},
+ 	{ID: "ai-manju", Name: "AI 漫剧"},
+-	{ID: "ai-huanlian", Name: "AI 换脸"},
+-	{ID: "ai-mogai", Name: "AI 魔改"},
+ }
+ 
+ func nativeCatalogKey(source, category string) string {

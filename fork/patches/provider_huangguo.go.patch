@@ -1,8 +1,28 @@
 diff --git a/native/core/provider_huangguo.go b/native/core/provider_huangguo.go
-index cb8d7b5..1f2eff3 100644
+index db04819..7d7c23f 100644
 --- a/native/core/provider_huangguo.go
 +++ b/native/core/provider_huangguo.go
-@@ -199,6 +199,9 @@ func mergeDramaMetadata(base, extra Drama) Drama {
+@@ -3,7 +3,6 @@ package core
+ import (
+ 	"bytes"
+ 	"context"
+-	"crypto/sha256"
+ 
+ 	"encoding/json"
+ 	"errors"
+@@ -43,8 +42,9 @@ const (
+ 
+ var (
+ 	huangguoAIBaseURL       = "https://huangguoai.com"
+-	huangguoAIBaseMirrors   = []string{"https://huangguoai.com", "https://thu.lbvrhyir.cc", "https://pku.xxbgwypx.cc", "https://ttvoij.ediayikma.cc", "https://thu.ediayikma.cc", "https://pku.ediayikma.cc", "https://fdu.ediayikma.cc", "https://thu.agdkczeyx.cc"}
+-	huangguoAIMirrorDomains = []string{"lbvrhyir.cc", "xxbgwypx.cc", "ediayikma.cc", "agdkczeyx.cc"}
++	huangguoAIBaseMirrors   = []string{"https://huangguoai.com", "https://huangguoai.ai", "https://thu.ixgukkejj.cc", "https://pku.ixgukkejj.cc", "https://fdu.ixgukkejj.cc", "https://thu.bmikbxhi.cc", "https://pku.bmikbxhi.cc", "https://fdu.bmikbxhi.cc"}
++	huangguoAIMirrorDomains = []string{"ixgukkejj.cc", "bmikbxhi.cc"}
++	huangguoAISubdomains    = []string{"thu", "pku", "fdu", "sjtu", "zju", "nju", "xmu", "sysu"}
+ 	huangguoVideoBaseURL    = "https://huangguo.video"
+ 
+ 	huangguoAISlugs = []string{"recommend", "newest", "ai-duanju", "ai-manju", "ai-huanlian", "ai-mogai", "ranks/hot"}
+@@ -202,6 +202,9 @@ func mergeDramaMetadata(base, extra Drama) Drama {
  	if strings.TrimSpace(base.OnlineDate) == "" {
  		base.OnlineDate = extra.OnlineDate
  	}
@@ -12,3 +32,37 @@ index cb8d7b5..1f2eff3 100644
  	if len(base.Tags) == 0 {
  		base.Tags = extra.Tags
  	}
+@@ -485,26 +488,19 @@ func rehostProviderURL(u *url.URL, mirror string) string {
+ }
+ 
+ func generatedHuangguoAIMirrors(seed string, n int) []string {
+-	if n <= 0 {
++	if n <= 0 || len(huangguoAIMirrorDomains) == 0 || len(huangguoAISubdomains) == 0 {
+ 		return nil
+ 	}
++	// 与官方发布页一致的组合方式：子域名 × 根域名轮转，先覆盖每个根域名。
+ 	out := make([]string, 0, n)
+ 	seen := map[string]bool{}
+-	for i := 0; len(out) < n && i < n*4; i++ {
+-		sum := sha256.Sum256([]byte(fmt.Sprintf("%s:%d", seed, i)))
+-		hexText := fmt.Sprintf("%x", sum[:])
+-		sub := strings.TrimLeft(hexText[:6], "0123456789")
+-		if len(sub) < 4 {
+-			sub = hexText[6:12]
+-		}
+-		if len(sub) > 6 {
+-			sub = sub[:6]
+-		}
+-		if len(sub) < 3 || seen[sub] {
++	for i := 0; len(out) < n && i < len(huangguoAISubdomains)*len(huangguoAIMirrorDomains); i++ {
++		host := huangguoAISubdomains[i/len(huangguoAIMirrorDomains)] + "." + huangguoAIMirrorDomains[i%len(huangguoAIMirrorDomains)]
++		if seen[host] {
+ 			continue
+ 		}
+-		seen[sub] = true
+-		out = append(out, "https://"+sub+"."+huangguoAIMirrorDomains[len(out)%len(huangguoAIMirrorDomains)])
++		seen[host] = true
++		out = append(out, "https://"+host)
+ 	}
+ 	return out
+ }
