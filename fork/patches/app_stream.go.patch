@@ -1,0 +1,15 @@
+diff --git a/native/core/app_stream.go b/native/core/app_stream.go
+index bbbf260..ef03c97 100644
+--- a/native/core/app_stream.go
++++ b/native/core/app_stream.go
+@@ -248,6 +248,10 @@ func (stream *nativeStreamServer) nativeRewrite(token string, session *nativeStr
+ }
+ 
+ func (stream *nativeStreamServer) nativeServe(writer http.ResponseWriter, request *http.Request) {
++	if request.URL.Path == "/__guoapp_health" {
++		writer.WriteHeader(http.StatusNoContent)
++		return
++	}
+ 	if request.Method != http.MethodGet && request.Method != http.MethodHead {
+ 		writer.WriteHeader(http.StatusMethodNotAllowed)
+ 		return

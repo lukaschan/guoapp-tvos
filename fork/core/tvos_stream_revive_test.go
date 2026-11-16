@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // 本仓库（tvOS 分支）自带补丁的测试，由 scripts/build_tvos.py --test-overlay 经 go test -overlay 运行。
@@ -106,7 +107,25 @@ func TestTVOSReviveStreamReopensTheSamePort(t *testing.T) {
 	}
 }
 
-// 原端口被别的程序占了：丢掉旧服务，下次起播时核心重新创建（新端口）。
+// 健康端点不需要会话令牌，直接回 204。
+func TestTVOSStreamHealthEndpointAnswersWithoutSession(t *testing.T) {
+	_, stream, _ := tvosReviveFixture(t)
+	client := &http.Client{
+		Transport: &http.Transport{Proxy: nil, DisableKeepAlives: true},
+		Timeout:   2 * time.Second,
+	}
+	response, err := client.Head(stream.address + "/__guoapp_health")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusNoContent {
+		t.Fatalf("health endpoint: got status %d, want 204", response.StatusCode)
+	}
+}
+
+// 原端口被别的 HTTP 服务占了：TCP 能连上、也能回 HTTP，但回的不是健康端点的 204，
+// 不能误判还活着；原端口又拿不回来，只能丢掉旧服务，下次起播时核心重新创建（新端口）。
 func TestTVOSReviveStreamResetsWhenThePortIsTaken(t *testing.T) {
 	engine, stream, address := tvosReviveFixture(t)
 	// 先取一次，确保服务已经在接连接：Close 才会同步关掉监听，端口立刻空出来。
@@ -114,26 +133,21 @@ func TestTVOSReviveStreamResetsWhenThePortIsTaken(t *testing.T) {
 		t.Fatalf("before: body %q err %v", body, err)
 	}
 	stream.server.Close()
-	squatter, err := net.Listen("tcp4", strings.TrimPrefix(stream.address, "http://"))
+	squatter := &http.Server{
+		Addr: strings.TrimPrefix(stream.address, "http://"),
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}),
+	}
+	listener, err := net.Listen("tcp4", squatter.Addr)
 	if err != nil {
 		t.Fatal("could not occupy the port: " + err.Error())
 	}
 	defer squatter.Close()
-	go func() {
-		for {
-			connection, err := squatter.Accept()
-			if err != nil {
-				return
-			}
-			connection.Close()
-		}
-	}()
-	// 端口上有别的程序在听：连得上，但不是我们的服务——这里只验证「重新监听失败」这一支，
-	// 所以直接走内部步骤。
-	if stream.relisten() {
-		t.Fatal("relisten should fail while another listener holds the port")
+	go func() { _ = squatter.Serve(listener) }()
+	if got := ReviveNativeStream(); got != "reset" {
+		t.Fatalf("port taken by another service: got %q, want reset", got)
 	}
-	engine.dropStream(stream)
 	engine.mu.Lock()
 	current := engine.stream
 	engine.mu.Unlock()
