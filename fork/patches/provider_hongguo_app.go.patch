@@ -1,0 +1,22 @@
+diff --git a/native/core/provider_hongguo_app.go b/native/core/provider_hongguo_app.go
+index cb0fac2..19d6965 100644
+--- a/native/core/provider_hongguo_app.go
++++ b/native/core/provider_hongguo_app.go
+@@ -47,6 +47,7 @@ type hongguoAppClient struct {
+ 	registerPausedUntil time.Time
+ 	registerPauseErr    error
+ 	baseURL             string
++	playbackBaseURL     string
+ 	state               hongguoCatalogState
+ 	details             map[string]hongguoDetailEntry
+ 	pending             map[string]*hongguoDetailCall
+@@ -63,7 +64,8 @@ type hongguoAppClient struct {
+ func (downloader *Downloader) hongguoClient() *hongguoAppClient {
+ 	downloader.hongguoOnce.Do(func() {
+ 		downloader.hongguo = &hongguoAppClient{
+-			baseURL: hongguoAppBaseURL,
++			baseURL:         hongguoAppBaseURL,
++			playbackBaseURL: hongguoPlaybackBaseURL,
+ 			state: hongguoCatalogState{Version: 1, DeviceID: newHongguoDeviceID(), InstallID: newHongguoDeviceID(),
+ 				HelperDeviceID: newHongguoDeviceID(), HelperInstallID: newHongguoDeviceID(), Feeds: map[string]hongguoCatalogCursor{}},
+ 			details: map[string]hongguoDetailEntry{}, pending: map[string]*hongguoDetailCall{},
