@@ -1,0 +1,13 @@
+diff --git a/native/core/provider_hongguo_player_sign.go b/native/core/provider_hongguo_player_sign.go
+index 6e24cd7..d9c1c55 100644
+--- a/native/core/provider_hongguo_player_sign.go
++++ b/native/core/provider_hongguo_player_sign.go
+@@ -84,7 +84,7 @@ func hongguoPlayerArgus(query string, body []byte, timestamp uint32, deviceID st
+ 	message = bytesField(message, 4, []byte("8662"))
+ 	message = bytesField(message, 5, []byte(deviceID))
+ 	message = bytesField(message, 6, []byte("1611921764"))
+-	message = bytesField(message, 7, []byte("7.3.5.32"))
++	message = bytesField(message, 7, []byte("7.4.5.32"))
+ 	message = bytesField(message, 8, []byte("v04.07.01-ml-android"))
+ 	message = varint(message, 9, 135135744)
+ 	message = bytesField(message, 10, make([]byte, 8))

@@ -3,35 +3,70 @@ package core
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
 
 const hongguoPlaybackBaseURL = "https://api5-normal-sinfonlinea.fqnovel.com"
 const hongguoPlaybackPath = "/novel/player/multi_video_model/player/v1"
-const hongguoPlaybackUserAgent = "com.phoenix.read/73932 (Linux; U; Android 12; zh_CN_#Hans; PGT-AN10; Build/V417IR;tt-ok/3.12.13.20)"
+const hongguoVideoTabPath = "/reading/bookapi/video_tab/multi_video_model/v1/"
+const hongguoPlaybackUserAgent = "com.phoenix.read/" + hongguoAppVersionCode + " (Linux; U; Android 12; zh_CN_#Hans; PGT-AN10; Build/V417IR;tt-ok/3.12.13.20)"
+const hongguoPlayURLSalt = "4dd4c2e6b83162090e52b3c7a6733ba41cb2462b829ab58a196b39db57177524f49baf7f08e8d68d26a72e37c1a95a2f1f05a51892aef2949732b62a38aadd58"
 
 var errHongguoNoCompatibleMedia = errors.New("红果 App 未返回兼容的媒体")
+var hongguoPlayURLPattern = regexp.MustCompile(`^https?://\S+$`)
+var hongguoFallbackCodecTypes = []string{"1", "3"}
+
+type hongguoPlayURLVersionError struct{ version int }
+
+func (e *hongguoPlayURLVersionError) Error() string {
+	return fmt.Sprintf("红果备用线路编码版本 %d 暂不支持", e.version)
+}
 
 func hongguoPlaybackQuery(deviceID, installID string) map[string]string {
 	return map[string]string{
-		"aid": "8662", "app_name": "novelread", "version_code": "74332", "version_name": "7.4.3.32",
+		"aid": "8662", "app_name": "novelread", "version_code": hongguoAppVersionCode, "version_name": hongguoAppVersionName,
 		"channel": "vivo_8662_64", "device_platform": "android", "device_type": "PGT-AN10", "os_version": "12",
-		"update_version_code": "74332", "iid": installID, "cdid": uuidLike(), "device_id": deviceID,
+		"update_version_code": hongguoAppVersionCode, "iid": installID, "cdid": uuidLike(), "device_id": deviceID,
 	}
 }
 
-// hongguoPlaybackRequest performs one V5-signed playback model request,
-// rotating the device identity on empty responses like the reference client.
-func (downloader *Downloader) hongguoPlaybackRequest(ctx context.Context, helper bool, payload any) (map[string]any, error) {
+func hongguoVideoTabQuery(deviceID, installID, videoID string) map[string]string {
+	values := map[string]string{}
+	for key, list := range hongguoAppQuery(deviceID, installID) {
+		if len(list) > 0 {
+			values[key] = list[0]
+		}
+	}
+	values["video_id"] = videoID
+	values["video_id_type"] = "0"
+	values["device_level"] = "1"
+	values["need_all_video_definition"] = "1"
+	values["need_mp4_align"] = "0"
+	values["use_os_player"] = "0"
+	values["video_platform"] = "1024"
+	values["source"] = "0"
+	values["from_video_id"] = ""
+	return values
+}
+
+// hongguoV5Request performs one V5-signed request (the video_tab GET or the
+// player POST), rotating the device identity on empty responses like the
+// reference client.
+func (downloader *Downloader) hongguoV5Request(ctx context.Context, helper bool, base, path string, buildValues func(deviceID, installID string) map[string]string, body []byte) (map[string]any, error) {
 	client := downloader.hongguoClient()
-	base := client.playbackBaseURL
 	if base == "" {
 		base = hongguoPlaybackBaseURL
 	}
@@ -43,11 +78,7 @@ func (downloader *Downloader) hongguoPlaybackRequest(ctx context.Context, helper
 		}
 		ctx = context.WithValue(ctx, requestLaneKey{}, "hongguo-helper")
 	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-	values := hongguoPlaybackQuery(deviceID, installID)
+	values := buildValues(deviceID, installID)
 	attempts := downloader.cfg.Retries
 	if attempts < 1 {
 		attempts = 1
@@ -65,14 +96,21 @@ func (downloader *Downloader) hongguoPlaybackRequest(ctx context.Context, helper
 				return nil, ctx.Err()
 			}
 		}
-		request, err := http.NewRequestWithContext(ctx, http.MethodPost, base+hongguoPlaybackPath, bytes.NewReader(body))
+		method := http.MethodPost
+		var reader io.Reader
+		if body == nil {
+			method = http.MethodGet
+		} else {
+			reader = bytes.NewReader(body)
+		}
+		request, err := http.NewRequestWithContext(ctx, method, base+path, reader)
 		if err != nil {
 			return nil, err
 		}
 		request.Header.Set("User-Agent", hongguoPlaybackUserAgent)
 		request.Header.Set("Accept", "application/json")
 		response, err := downloader.doPreparedCatalogRequest(request, 20*time.Second, func(prepared *http.Request) {
-			signedURL, headers, signErr := signHongguoPlaybackV5(base+hongguoPlaybackPath, values, body, time.Now().UnixMilli(), nil)
+			signedURL, headers, signErr := signHongguoPlaybackV5(base+path, values, body, time.Now().UnixMilli(), nil)
 			if signErr != nil {
 				return
 			}
@@ -138,29 +176,7 @@ func (downloader *Downloader) hongguoPlaybackRequest(ctx context.Context, helper
 	return nil, lastErr
 }
 
-func (downloader *Downloader) fetchHongguoPlaybackMedia(ctx context.Context, videoID string, helper bool) (providerMedia, error) {
-	payload := map[string]any{
-		"biz_param": map[string]any{
-			"detail_page_version": 0, "device_level": 1, "disable_digg_stat": false, "disable_video_relate_book": false,
-			"need_all_video_definition": true, "need_mp4_align": false, "use_os_player": false, "use_server_dns": false,
-			"video_platform": 1024,
-		},
-		"mixed_video_id_map": map[string]any{"1004": []string{videoID}},
-		"dr_scene":           "player",
-	}
-	result, err := downloader.hongguoPlaybackRequest(ctx, helper, payload)
-	if err != nil {
-		return providerMedia{}, err
-	}
-	entries := nestedMap(result, "data")
-	entry := entries
-	if grouped, ok := entries["1004"].(map[string]any); ok {
-		entry = grouped
-	}
-	data, _ := entry[videoID].(map[string]any)
-	if len(data) == 0 {
-		return providerMedia{}, errors.New("红果 App 未返回所请求的分集播放信息")
-	}
+func hongguoModelFromEntry(data map[string]any) (map[string]any, error) {
 	model, _ := data["video_model"].(map[string]any)
 	if encoded, ok := data["video_model"].(string); ok && encoded != "" {
 		if decoded, err := decodeHongguoBase64(encoded); err == nil && len(decoded) > 0 {
@@ -170,7 +186,7 @@ func (downloader *Downloader) fetchHongguoPlaybackMedia(ctx context.Context, vid
 		decoder.UseNumber()
 		parsed := map[string]any{}
 		if err := decoder.Decode(&parsed); err != nil {
-			return providerMedia{}, errors.New("红果 App 播放信息格式异常")
+			return nil, errors.New("红果 App 播放信息格式异常")
 		}
 		model = parsed
 	}
@@ -183,14 +199,280 @@ func (downloader *Downloader) fetchHongguoPlaybackMedia(ctx context.Context, vid
 			}
 		}
 	}
+	return model, nil
+}
+
+// hongguoMediaFromModel selects playable media from a playback model; when the
+// model only carries codecs the player cannot use, it follows the model's
+// fallback endpoint for a compatible codec like the reference client.
+func (downloader *Downloader) hongguoMediaFromModel(ctx context.Context, model map[string]any) (providerMedia, error) {
 	media, err := selectHongguoAppMedia(model)
-	if err != nil {
-		if strings.Contains(err.Error(), "未返回兼容的媒体") {
-			return providerMedia{}, errHongguoNoCompatibleMedia
-		}
+	if err == nil {
+		return media, nil
+	}
+	if !strings.Contains(err.Error(), "未返回兼容的媒体") {
 		return providerMedia{}, err
 	}
-	return media, nil
+	return downloader.hongguoFallbackMedia(ctx, model)
+}
+
+func (downloader *Downloader) fetchHongguoTabMedia(ctx context.Context, videoID string, helper bool) (providerMedia, error) {
+	client := downloader.hongguoClient()
+	result, err := downloader.hongguoV5Request(ctx, helper, client.baseURL, hongguoVideoTabPath, func(deviceID, installID string) map[string]string {
+		return hongguoVideoTabQuery(deviceID, installID, videoID)
+	}, nil)
+	if err != nil {
+		return providerMedia{}, err
+	}
+	data, _ := nestedMap(result, "data", "video_model_data")[videoID].(map[string]any)
+	if len(data) == 0 {
+		return providerMedia{}, errors.New("红果 App 未返回所请求的分集播放信息")
+	}
+	model, err := hongguoModelFromEntry(data)
+	if err != nil {
+		return providerMedia{}, err
+	}
+	return downloader.hongguoMediaFromModel(ctx, model)
+}
+
+func (downloader *Downloader) fetchHongguoPlayerMedia(ctx context.Context, videoID string, helper bool) (providerMedia, error) {
+	payload := map[string]any{
+		"biz_param": map[string]any{
+			"detail_page_version": 0, "device_level": 1, "disable_digg_stat": false, "disable_video_relate_book": false,
+			"need_all_video_definition": true, "need_mp4_align": false, "use_os_player": false, "use_server_dns": false,
+			"video_platform": 1024,
+		},
+		"mixed_video_id_map": map[string]any{"1004": []string{videoID}},
+		"dr_scene":           "player",
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return providerMedia{}, err
+	}
+	client := downloader.hongguoClient()
+	result, err := downloader.hongguoV5Request(ctx, helper, client.playbackBaseURL, hongguoPlaybackPath, hongguoPlaybackQuery, body)
+	if err != nil {
+		return providerMedia{}, err
+	}
+	entries := nestedMap(result, "data")
+	entry := entries
+	if grouped, ok := entries["1004"].(map[string]any); ok {
+		entry = grouped
+	}
+	data, _ := entry[videoID].(map[string]any)
+	if len(data) == 0 {
+		return providerMedia{}, errors.New("红果 App 未返回所请求的分集播放信息")
+	}
+	model, err := hongguoModelFromEntry(data)
+	if err != nil {
+		return providerMedia{}, err
+	}
+	return downloader.hongguoMediaFromModel(ctx, model)
+}
+
+// fetchHongguoPlaybackMedia mirrors the reference client: the video_tab
+// interface is primary and the player interface is the fallback; a model with
+// no compatible media is reported immediately so device lanes can rotate.
+func (downloader *Downloader) fetchHongguoPlaybackMedia(ctx context.Context, videoID string, helper bool) (providerMedia, error) {
+	media, tabErr := downloader.fetchHongguoTabMedia(ctx, videoID, helper)
+	if tabErr == nil {
+		return media, nil
+	}
+	if errors.Is(tabErr, errHongguoNoCompatibleMedia) {
+		return providerMedia{}, tabErr
+	}
+	media, err := downloader.fetchHongguoPlayerMedia(ctx, videoID, helper)
+	if err == nil {
+		return media, nil
+	}
+	if errors.Is(err, errHongguoNoCompatibleMedia) {
+		return providerMedia{}, err
+	}
+	return providerMedia{}, fmt.Errorf("%v；播放器接口：%v", tabErr, err)
+}
+
+func (downloader *Downloader) hongguoFallbackMedia(ctx context.Context, model map[string]any) (providerMedia, error) {
+	endpoint := mapString(nestedMap(model, "fallback_api"), "fallback_api")
+	if endpoint == "" {
+		return providerMedia{}, errHongguoNoCompatibleMedia
+	}
+	var lastErr error
+	for _, codecType := range hongguoFallbackCodecTypes {
+		data, err := downloader.fetchHongguoFallbackPlay(ctx, endpoint, codecType)
+		if err == nil {
+			var variants []any
+			variants, err = hongguoFallbackVariants(data)
+			if err == nil {
+				var media providerMedia
+				media, err = selectHongguoAppMedia(map[string]any{"video_list": variants, "video_duration": mapString(data, "video_duration")})
+				if err == nil {
+					return media, nil
+				}
+				if strings.Contains(err.Error(), "未返回兼容的媒体") {
+					err = errHongguoNoCompatibleMedia
+				}
+			}
+		}
+		if errors.Is(err, errHongguoNoCompatibleMedia) {
+			lastErr = err
+			continue
+		}
+		return providerMedia{}, fmt.Errorf("%v；备用线路：%v", errHongguoNoCompatibleMedia, err)
+	}
+	return providerMedia{}, fmt.Errorf("%w；备用线路：%v", errHongguoNoCompatibleMedia, lastErr)
+}
+
+func (downloader *Downloader) fetchHongguoFallbackPlay(ctx context.Context, endpoint, codecType string) (map[string]any, error) {
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("红果备用线路请求失败：%v", err)
+	}
+	query := parsed.Query()
+	query.Set("codec_type", codecType)
+	parsed.RawQuery = query.Encode()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("User-Agent", hongguoPlaybackUserAgent)
+	request.Header.Set("Accept", "application/json")
+	response, err := downloader.doCatalogRequestWithTimeout(request, 20*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("红果备用线路请求失败：%v", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("红果备用线路 HTTP %d", response.StatusCode)
+	}
+	content, err := io.ReadAll(io.LimitReader(response.Body, providerMaxBodyBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	var result map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder.UseNumber()
+	if err := decoder.Decode(&result); err != nil || result == nil {
+		return nil, errors.New("红果备用线路未返回有效数据")
+	}
+	data := nestedMap(result, "video_info", "data")
+	if len(data) == 0 {
+		return nil, errors.New("红果备用线路未返回有效数据")
+	}
+	return data, nil
+}
+
+func hongguoFallbackVariants(data map[string]any) ([]any, error) {
+	seed := mapString(data, "key_seed")
+	entries := anyList(data["video_list"])
+	if rows, ok := data["video_list"].(map[string]any); ok && len(entries) == 0 {
+		keys := make([]string, 0, len(rows))
+		for key := range rows {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			entries = append(entries, rows[key])
+		}
+	}
+	var variants []any
+	var versionErr error
+	decoded := 0
+	for _, row := range entries {
+		entry, _ := row.(map[string]any)
+		if entry == nil {
+			continue
+		}
+		variant := map[string]any{
+			"gear_des_key": mapString(entry, "gear_des_key"),
+			"video_meta": map[string]any{
+				"codec_type": mapString(entry, "codec_type"),
+				"definition": mapString(entry, "definition"),
+				"vwidth":     mapString(entry, "vwidth"),
+				"vheight":    mapString(entry, "vheight"),
+			},
+		}
+		for _, key := range []string{"main_url", "backup_url_1", "backup_url_2"} {
+			address, err := decodeHongguoPlayURL(mapString(entry, key), seed)
+			if err != nil {
+				var versionError *hongguoPlayURLVersionError
+				if errors.As(err, &versionError) {
+					versionErr = err
+					continue
+				}
+				return nil, err
+			}
+			if address != "" {
+				variant[key] = address
+				decoded++
+			}
+		}
+		spade := mapString(entry, "spade_a")
+		method := mapString(entry, "encryption_method")
+		if spade != "" || method != "" || entry["encrypt"] == true {
+			variant["encrypt_info"] = map[string]any{"spade_a": spade, "encryption_method": method, "encrypt": entry["encrypt"] == true}
+		}
+		variants = append(variants, variant)
+	}
+	if versionErr != nil && decoded == 0 {
+		return nil, versionErr
+	}
+	return variants, nil
+}
+
+// decodeHongguoPlayURL unwraps a fallback play address sealed by the server;
+// plain addresses and values that do not carry the seal pass through as-is.
+func decodeHongguoPlayURL(encoded, seed string) (string, error) {
+	if encoded == "" || seed == "" {
+		return encoded, nil
+	}
+	seedBytes, seedErr := decodeHongguoBase64(seed)
+	raw, rawErr := decodeHongguoBase64(encoded)
+	if seedErr != nil || rawErr != nil {
+		return encoded, nil
+	}
+	if len(raw) < 20 || raw[0] != 0xa8 || raw[1] != 0x00 || (len(raw)-4)%16 != 0 {
+		return encoded, nil
+	}
+	if address := decryptHongguoPlayURL(raw, seedBytes); address != "" {
+		return address, nil
+	}
+	return "", &hongguoPlayURLVersionError{version: int(raw[2]) | int(raw[3])<<8}
+}
+
+func decryptHongguoPlayURL(raw, seed []byte) string {
+	salt, err := hex.DecodeString(hongguoPlayURLSalt)
+	if err != nil {
+		return ""
+	}
+	seedHash := sha512.Sum512(seed)
+	digestInput := make([]byte, 0, sha512.Size+len(salt))
+	digestInput = append(digestInput, seedHash[:]...)
+	digestInput = append(digestInput, salt...)
+	digest := sha512.Sum512(digestInput)
+	block, err := aes.NewCipher(digest[:16])
+	if err != nil {
+		return ""
+	}
+	ciphertext := raw[4:]
+	plain := make([]byte, len(ciphertext))
+	cipher.NewCBCDecrypter(block, digest[16:32]).CryptBlocks(plain, ciphertext)
+	if len(plain) == 0 {
+		return ""
+	}
+	pad := int(plain[len(plain)-1])
+	if pad < 1 || pad > aes.BlockSize || pad > len(plain) {
+		return ""
+	}
+	for _, value := range plain[len(plain)-pad:] {
+		if int(value) != pad {
+			return ""
+		}
+	}
+	address := string(plain[:len(plain)-pad])
+	if !hongguoPlayURLPattern.MatchString(address) {
+		return ""
+	}
+	return address
 }
 
 // resolveHongguoPlaybackV5 mirrors the reference client's lane flow: primary

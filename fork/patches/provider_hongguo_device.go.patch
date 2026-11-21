@@ -1,0 +1,15 @@
+diff --git a/native/core/provider_hongguo_device.go b/native/core/provider_hongguo_device.go
+index 0c1066d..e5a775a 100644
+--- a/native/core/provider_hongguo_device.go
++++ b/native/core/provider_hongguo_device.go
+@@ -72,8 +72,8 @@ func (downloader *Downloader) ensureHongguoDevice(ctx context.Context, helper bo
+ 
+ func (downloader *Downloader) registerHongguoDevice(ctx context.Context) (string, string, error) {
+ 	header := map[string]any{
+-		"display_name": "红果免费短剧", "aid": 8662, "app_version": "7.3.5.32", "version_code": 73532,
+-		"manifest_version_code": 73532, "update_version_code": 73532, "channel": "update_64", "package": "com.phoenix.read",
++		"display_name": "红果免费短剧", "aid": 8662, "app_version": "7.4.5.32", "version_code": 74532,
++		"manifest_version_code": 74532, "update_version_code": 74532, "channel": "update_64", "package": "com.phoenix.read",
+ 		"app_language": "zh", "os": "Android", "os_version": "16", "os_api": 36, "device_model": "25053RT47C",
+ 		"device_brand": "Redmi", "device_manufacturer": "Xiaomi", "cpu_abi": "arm64-v8a", "density_dpi": 520,
+ 		"display_density": "xxhdpi", "resolution": "2772x1280", "language": "zh", "timezone": 8, "access": "wifi",
