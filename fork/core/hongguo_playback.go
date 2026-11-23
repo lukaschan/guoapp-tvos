@@ -45,6 +45,7 @@ func takeHongguoMainDeviceRotation() bool {
 	hongguoMainDeviceRotation.at = time.Now()
 	return true
 }
+
 var hongguoPlayURLPattern = regexp.MustCompile(`^https?://\S+$`)
 var hongguoFallbackCodecTypes = []string{"1", "3"}
 
@@ -533,6 +534,9 @@ func hongguoAppMediaError(skipped []error) error {
 func (downloader *Downloader) resolveHongguoPlaybackV5(ctx context.Context, videoID string) (providerMedia, error) {
 	if !hongguoNumericID.MatchString(videoID) {
 		return providerMedia{}, errors.New("红果视频 ID 无效")
+	}
+	if media, err := downloader.resolveHongguoPlaybackPure(ctx, videoID); err == nil {
+		return media, nil
 	}
 	var skipped []error
 	run := func(helper bool) (providerMedia, bool, error) {
