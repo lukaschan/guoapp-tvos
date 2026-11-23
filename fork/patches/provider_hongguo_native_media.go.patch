@@ -1,5 +1,5 @@
 diff --git a/native/core/provider_hongguo_native_media.go b/native/core/provider_hongguo_native_media.go
-index cbf8f09..376b3fa 100644
+index cbf8f09..813bf6a 100644
 --- a/native/core/provider_hongguo_native_media.go
 +++ b/native/core/provider_hongguo_native_media.go
 @@ -2,10 +2,8 @@ package core
@@ -54,3 +54,23 @@ index cbf8f09..376b3fa 100644
  }
  
  func selectHongguoAppMedia(model map[string]any) (providerMedia, error) {
+@@ -70,6 +36,9 @@ func selectHongguoAppMedia(model map[string]any) (providerMedia, error) {
+ 	for _, row := range variants {
+ 		variant, _ := row.(map[string]any)
+ 		meta := nestedMap(variant, "video_meta")
++		if len(meta) == 0 {
++			meta = variant
++		}
+ 		codec := strings.ToLower(mapString(meta, "codec_type"))
+ 		if codec == "bytevc2" || strings.Contains(strings.ToLower(mapString(variant, "gear_des_key")), "bytevc2") {
+ 			continue
+@@ -80,6 +49,9 @@ func selectHongguoAppMedia(model map[string]any) (providerMedia, error) {
+ 		}
+ 		media := providerMedia{Referer: "https://novel.snssdk.com/", Duration: time.Duration(duration * float64(time.Second))}
+ 		encryption := nestedMap(variant, "encrypt_info")
++		if len(encryption) == 0 {
++			encryption = variant
++		}
+ 		spade := mapString(encryption, "spade_a")
+ 		if spade != "" || encryption["encrypt"] == true || mapString(encryption, "encryption_method") == "cenc-aes-ctr" {
+ 			var err error

@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -26,6 +27,24 @@ const hongguoPlaybackUserAgent = "com.phoenix.read/" + hongguoAppVersionCode + "
 const hongguoPlayURLSalt = "4dd4c2e6b83162090e52b3c7a6733ba41cb2462b829ab58a196b39db57177524f49baf7f08e8d68d26a72e37c1a95a2f1f05a51892aef2949732b62a38aadd58"
 
 var errHongguoNoCompatibleMedia = errors.New("红果 App 未返回兼容的媒体")
+var errHongguoEmptyBody = errors.New("红果 App 接口对本次设备签名返回空响应，风控未放行")
+
+const hongguoMainDeviceRotateCooldown = 2 * time.Minute
+
+var hongguoMainDeviceRotation struct {
+	sync.Mutex
+	at time.Time
+}
+
+func takeHongguoMainDeviceRotation() bool {
+	hongguoMainDeviceRotation.Lock()
+	defer hongguoMainDeviceRotation.Unlock()
+	if time.Since(hongguoMainDeviceRotation.at) < hongguoMainDeviceRotateCooldown {
+		return false
+	}
+	hongguoMainDeviceRotation.at = time.Now()
+	return true
+}
 var hongguoPlayURLPattern = regexp.MustCompile(`^https?://\S+$`)
 var hongguoFallbackCodecTypes = []string{"1", "3"}
 
@@ -143,7 +162,7 @@ func (downloader *Downloader) hongguoV5Request(ctx context.Context, helper bool,
 			continue
 		}
 		if len(content) == 0 {
-			lastErr = errors.New("红果 App 接口未返回有效数据")
+			lastErr = errHongguoEmptyBody
 			if rotations < hongguoDeviceRotations {
 				if registerErr = downloader.ensureHongguoDevice(ctx, helper, deviceID); registerErr == nil {
 					rotations++
@@ -154,7 +173,7 @@ func (downloader *Downloader) hongguoV5Request(ctx context.Context, helper bool,
 				}
 			}
 			if registerErr != nil {
-				lastErr = fmt.Errorf("红果 App 接口未返回有效数据（设备注册失败：%v）", registerErr)
+				lastErr = fmt.Errorf("%w（设备注册失败：%v）", errHongguoEmptyBody, registerErr)
 			}
 			continue
 		}
@@ -165,7 +184,7 @@ func (downloader *Downloader) hongguoV5Request(ctx context.Context, helper bool,
 		decoder := json.NewDecoder(bytes.NewReader(content))
 		decoder.UseNumber()
 		if err := decoder.Decode(&result); err != nil || result == nil {
-			return nil, errors.New("红果 App 接口返回格式异常")
+			return nil, fmt.Errorf("%w（返回格式异常）", errHongguoEmptyBody)
 		}
 		code := firstNonEmpty(mapString(result, "code", "Code", "status_code"), mapString(nestedMap(result, "BaseResp"), "StatusCode"))
 		if code != "" && code != "0" {
@@ -179,8 +198,11 @@ func (downloader *Downloader) hongguoV5Request(ctx context.Context, helper bool,
 func hongguoModelFromEntry(data map[string]any) (map[string]any, error) {
 	model, _ := data["video_model"].(map[string]any)
 	if encoded, ok := data["video_model"].(string); ok && encoded != "" {
-		if decoded, err := decodeHongguoBase64(encoded); err == nil && len(decoded) > 0 {
-			encoded = string(decoded)
+		encoded = strings.TrimSpace(encoded)
+		if !strings.HasPrefix(encoded, "{") && !strings.HasPrefix(encoded, "[") {
+			if decoded, err := decodeHongguoBase64(encoded); err == nil && len(decoded) > 0 {
+				encoded = string(decoded)
+			}
 		}
 		decoder := json.NewDecoder(strings.NewReader(encoded))
 		decoder.UseNumber()
@@ -216,10 +238,14 @@ func (downloader *Downloader) hongguoMediaFromModel(ctx context.Context, model m
 	return downloader.hongguoFallbackMedia(ctx, model)
 }
 
-func (downloader *Downloader) fetchHongguoTabMedia(ctx context.Context, videoID string, helper bool) (providerMedia, error) {
+func (downloader *Downloader) fetchHongguoTabMedia(ctx context.Context, videoID string, helper bool, platform string) (providerMedia, error) {
 	client := downloader.hongguoClient()
 	result, err := downloader.hongguoV5Request(ctx, helper, client.baseURL, hongguoVideoTabPath, func(deviceID, installID string) map[string]string {
-		return hongguoVideoTabQuery(deviceID, installID, videoID)
+		values := hongguoVideoTabQuery(deviceID, installID, videoID)
+		if platform != "" {
+			values["device_platform"] = platform
+		}
+		return values
 	}, nil)
 	if err != nil {
 		return providerMedia{}, err
@@ -235,7 +261,7 @@ func (downloader *Downloader) fetchHongguoTabMedia(ctx context.Context, videoID 
 	return downloader.hongguoMediaFromModel(ctx, model)
 }
 
-func (downloader *Downloader) fetchHongguoPlayerMedia(ctx context.Context, videoID string, helper bool) (providerMedia, error) {
+func (downloader *Downloader) fetchHongguoPlayerMedia(ctx context.Context, videoID string, helper bool, platform string) (providerMedia, error) {
 	payload := map[string]any{
 		"biz_param": map[string]any{
 			"detail_page_version": 0, "device_level": 1, "disable_digg_stat": false, "disable_video_relate_book": false,
@@ -250,7 +276,13 @@ func (downloader *Downloader) fetchHongguoPlayerMedia(ctx context.Context, video
 		return providerMedia{}, err
 	}
 	client := downloader.hongguoClient()
-	result, err := downloader.hongguoV5Request(ctx, helper, client.playbackBaseURL, hongguoPlaybackPath, hongguoPlaybackQuery, body)
+	result, err := downloader.hongguoV5Request(ctx, helper, client.playbackBaseURL, hongguoPlaybackPath, func(deviceID, installID string) map[string]string {
+		values := hongguoPlaybackQuery(deviceID, installID)
+		if platform != "" {
+			values["device_platform"] = platform
+		}
+		return values
+	}, body)
 	if err != nil {
 		return providerMedia{}, err
 	}
@@ -272,20 +304,21 @@ func (downloader *Downloader) fetchHongguoPlayerMedia(ctx context.Context, video
 
 // fetchHongguoPlaybackMedia mirrors the reference client: the video_tab
 // interface is primary and the player interface is the fallback; a model with
-// no compatible media is reported immediately so device lanes can rotate.
-func (downloader *Downloader) fetchHongguoPlaybackMedia(ctx context.Context, videoID string, helper bool) (providerMedia, error) {
-	media, tabErr := downloader.fetchHongguoTabMedia(ctx, videoID, helper)
+// no compatible media, or an empty response, is reported immediately so the
+// caller can switch platform or device lanes.
+func (downloader *Downloader) fetchHongguoPlaybackMedia(ctx context.Context, videoID string, helper bool, platform string) (providerMedia, error) {
+	media, tabErr := downloader.fetchHongguoTabMedia(ctx, videoID, helper, platform)
 	if tabErr == nil {
 		return media, nil
 	}
-	if errors.Is(tabErr, errHongguoNoCompatibleMedia) {
+	if errors.Is(tabErr, errHongguoNoCompatibleMedia) || errors.Is(tabErr, errHongguoEmptyBody) {
 		return providerMedia{}, tabErr
 	}
-	media, err := downloader.fetchHongguoPlayerMedia(ctx, videoID, helper)
+	media, err := downloader.fetchHongguoPlayerMedia(ctx, videoID, helper, platform)
 	if err == nil {
 		return media, nil
 	}
-	if errors.Is(err, errHongguoNoCompatibleMedia) {
+	if errors.Is(err, errHongguoNoCompatibleMedia) || errors.Is(err, errHongguoEmptyBody) {
 		return providerMedia{}, err
 	}
 	return providerMedia{}, fmt.Errorf("%v；播放器接口：%v", tabErr, err)
@@ -475,25 +508,78 @@ func decryptHongguoPlayURL(raw, seed []byte) string {
 	return address
 }
 
-// resolveHongguoPlaybackV5 mirrors the reference client's lane flow: primary
-// device, then the helper device, then a rotated helper device — the fallbacks
-// only engage when the returned model has no compatible media.
+func hongguoAppMediaError(skipped []error) error {
+	unsupported, blocked := false, false
+	for _, err := range skipped {
+		unsupported = unsupported || errors.Is(err, errHongguoNoCompatibleMedia)
+		blocked = blocked || errors.Is(err, errHongguoEmptyBody)
+	}
+	switch {
+	case unsupported && blocked:
+		return fmt.Errorf("红果 App 两条取流车道都没成功：既有只给不兼容编码的分集，接口也在拦截本次设备：%w；%w", errHongguoNoCompatibleMedia, errHongguoEmptyBody)
+	case unsupported:
+		return errHongguoNoCompatibleMedia
+	default:
+		return fmt.Errorf("红果 App 接口对本次设备签名返回空响应，风控未放行，换设备重试也没通过：%w", errHongguoEmptyBody)
+	}
+}
+
+// resolveHongguoPlaybackV5 mirrors the reference client's lane flow: the
+// platform hands out different codecs per device_platform and may answer one
+// identity with empty responses while serving another, so each device is
+// tried with the default platform and then the pc platform; empty responses
+// additionally rotate the helper device, and finally the primary device (at
+// most once per cooldown, to stay clear of registration rate limits).
 func (downloader *Downloader) resolveHongguoPlaybackV5(ctx context.Context, videoID string) (providerMedia, error) {
 	if !hongguoNumericID.MatchString(videoID) {
 		return providerMedia{}, errors.New("红果视频 ID 无效")
 	}
-	media, err := downloader.fetchHongguoPlaybackMedia(ctx, videoID, false)
-	if !errors.Is(err, errHongguoNoCompatibleMedia) {
-		return media, err
+	var skipped []error
+	run := func(helper bool) (providerMedia, bool, error) {
+		for _, platform := range []string{"", "pc"} {
+			media, err := downloader.fetchHongguoPlaybackMedia(ctx, videoID, helper, platform)
+			if err == nil {
+				return media, true, nil
+			}
+			if !errors.Is(err, errHongguoNoCompatibleMedia) && !errors.Is(err, errHongguoEmptyBody) {
+				return providerMedia{}, false, err
+			}
+			skipped = append(skipped, err)
+		}
+		return providerMedia{}, false, nil
 	}
-	media, err = downloader.fetchHongguoPlaybackMedia(ctx, videoID, true)
-	if !errors.Is(err, errHongguoNoCompatibleMedia) {
-		return media, err
+	media, ok, err := run(false)
+	if err != nil {
+		return providerMedia{}, err
+	}
+	if ok {
+		return media, nil
+	}
+	blocked := false
+	for _, err := range skipped {
+		blocked = blocked || errors.Is(err, errHongguoEmptyBody)
+	}
+	if !blocked {
+		return providerMedia{}, hongguoAppMediaError(skipped)
 	}
 	client := downloader.hongguoClient()
 	helperID, _, _ := client.device(true)
 	if rotateErr := downloader.ensureHongguoDevice(ctx, true, helperID); rotateErr != nil {
-		return providerMedia{}, fmt.Errorf("%v；更换辅助设备也没有成功：%v", err, rotateErr)
+		skipped = append(skipped, rotateErr)
+	} else if media, ok, err := run(true); err != nil {
+		skipped = append(skipped, err)
+	} else if ok {
+		return media, nil
 	}
-	return downloader.fetchHongguoPlaybackMedia(ctx, videoID, true)
+	mainID, _, _ := client.device(false)
+	if mainID != "" && takeHongguoMainDeviceRotation() {
+		if rotateErr := downloader.ensureHongguoDevice(ctx, false, mainID); rotateErr != nil {
+			skipped = append(skipped, rotateErr)
+		} else if media, ok, err := run(false); err != nil {
+			skipped = append(skipped, err)
+		} else if ok {
+			return media, nil
+		}
+	}
+	return providerMedia{}, hongguoAppMediaError(skipped)
 }
