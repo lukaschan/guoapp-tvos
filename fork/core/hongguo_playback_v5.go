@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/bits"
 	"net/url"
 	"sort"
@@ -305,15 +306,20 @@ func v5AppendUvarint(out []byte, value uint64) []byte {
 }
 
 type v5Field struct {
-	tag   uint64
-	num   int64
-	bytes []byte
-	isNum bool
+	tag     uint64
+	num     int64
+	fnum    float32
+	bytes   []byte
+	isNum   bool
+	isFloat bool
 }
 
-func v5Num(tag uint64, value int64) v5Field  { return v5Field{tag: tag, num: value, isNum: true} }
+func v5Num(tag uint64, value int64) v5Field    { return v5Field{tag: tag, num: value, isNum: true} }
 func v5Bytes(tag uint64, value []byte) v5Field { return v5Field{tag: tag, bytes: value} }
-func v5Str(tag uint64, value string) v5Field { return v5Field{tag: tag, bytes: []byte(value)} }
+func v5Str(tag uint64, value string) v5Field   { return v5Field{tag: tag, bytes: []byte(value)} }
+func v5Float(tag uint64, value float32) v5Field {
+	return v5Field{tag: tag, fnum: value, isFloat: true}
+}
 
 func v5Proto(fields []v5Field) []byte {
 	out := []byte{}
@@ -322,6 +328,9 @@ func v5Proto(fields []v5Field) []byte {
 			zigzag := uint64(field.num<<1) ^ uint64(field.num>>63)
 			out = v5AppendUvarint(out, field.tag*8)
 			out = v5AppendUvarint(out, zigzag)
+		} else if field.isFloat {
+			out = v5AppendUvarint(out, field.tag*8+5)
+			out = append(out, v5Le32(math.Float32bits(field.fnum))...)
 		} else if len(field.bytes) != 0 {
 			out = v5AppendUvarint(out, field.tag*8+2)
 			out = v5AppendUvarint(out, uint64(len(field.bytes)))
@@ -452,15 +461,38 @@ func v5Medusa(queryHash, f13 []byte, ts int32, who map[string]string, nowMs int6
 	process := v5Process
 	v5ProcessMu.Unlock()
 
-	flags := make([]byte, 8)
+	flags := []byte{0x44, 0x80, 0, 0, 0, 0, 0, 0}
+	secToken := "A" + process.nonce
+	if len(secToken) > 25 {
+		secToken = secToken[:25]
+	}
+	brand := who["device_brand"]
+	if brand == "" {
+		brand = "HONOR"
+	}
+	deviceType := who["device_type"]
 	deviceInfo := v5Proto([]v5Field{
-		v5Num(1, 1), v5Num(2, 2), v5Str(3, "8662"), v5Str(4, who["device_id"]), v5Str(5, process.nonce),
-		v5Str(6, "!noperm!"), v5Str(12, "Asia/Shanghai,8"), v5Str(13, "zh_CN"), v5Str(22, who["os_version"]),
-		v5Num(25, process.started), v5Str(30, who["device_type"]), v5Str(31, who["device_brand"]),
-		v5Str(32, who["device_type"]), v5Str(34, who["device_brand"]),
+		v5Num(1, 1), v5Num(2, 2), v5Str(3, "8662"), v5Str(4, who["device_id"]), v5Str(5, secToken),
+		v5Str(6, "!noperm!"), v5Num(7, -888888), v5Num(8, -888888), v5Num(9, 3), v5Num(10, -888888),
+		v5Str(11, "!notset!"), v5Str(12, "Asia/Shanghai,8"), v5Str(13, "zh_CN"), v5Num(14, 4),
+		v5Float(16, 0), v5Float(17, 0), v5Float(18, 0), v5Float(19, 0), v5Float(20, 0), v5Float(21, 0),
+		v5Str(22, who["os_version"]), v5Num(23, 41), v5Num(24, 36),
+		v5Num(25, process.started), v5Num(26, process.started), v5Num(27, process.started), v5Num(28, nowMs),
+		v5Num(29, -1),
+		v5Str(30, deviceType), v5Str(31, brand), v5Str(32, deviceType), v5Str(33, deviceType),
+		v5Str(34, brand), v5Str(35, brand), v5Str(36, brand), v5Num(38, 31),
 	})
+	envRand := make([]byte, 4)
+	if _, err := io.ReadFull(random, envRand); err != nil {
+		return "", err
+	}
+	envLaunch := 100 + int64(float64(uint32(envRand[0])|uint32(envRand[1])<<8)/65536.0*21)
+	envPid := 10001 + int64(float64(uint32(envRand[2])|uint32(envRand[3])<<8)/65536.0*2000)
+	envSub13 := v5Proto([]v5Field{v5Num(1, int64(ts)), v5Num(2, -2), v5Num(4, 200)})
 	env := v5Proto([]v5Field{
-		v5Str(6, "v04.10.03.04-bugfix"), v5Str(8, who["channel"]), v5Bytes(12, deviceInfo), v5Str(14, who["version_name"]),
+		v5Num(1, envLaunch), v5Num(2, 247235599), v5Num(3, 247235596), v5Num(5, 7),
+		v5Str(6, "v04.10.03.04-bugfix"), v5Num(7, envPid), v5Str(8, who["channel"]), v5Bytes(12, deviceInfo),
+		v5Bytes(13, envSub13), v5Str(14, who["version_name"]),
 	})
 	field3 := make([]byte, 4)
 	if _, err := io.ReadFull(random, field3); err != nil {
@@ -471,8 +503,9 @@ func v5Medusa(queryHash, f13 []byte, ts int32, who map[string]string, nowMs int6
 		v5Bytes(1, v5Magic), v5Num(2, 5), v5Num(3, int64(field3Value)), v5Str(4, "8662"),
 		v5Str(5, who["device_id"]), v5Str(6, "646637794"), v5Str(7, who["version_name"]), v5Str(8, "v04.10.03-ml-android"),
 		v5Num(9, 0x040a0300), v5Bytes(10, flags), v5Num(12, int64(ts)), v5Bytes(13, f13), v5Bytes(14, queryHash[:6]),
-		v5Bytes(15, v5Proto([]v5Field{v5Num(1, 1), v5Num(2, 1), v5Num(3, 1), v5Num(5, 1)})), v5Num(17, int64(ts)), v5Str(20, "none"),
-		v5Num(21, 377), v5Bytes(23, env),
+		v5Bytes(15, v5Proto([]v5Field{v5Num(1, 305), v5Num(2, 4), v5Num(3, 694367), v5Num(5, 1621072674)})),
+		v5Str(16, secToken), v5Num(17, int64(ts)), v5Str(20, "none"),
+		v5Num(21, 312), v5Bytes(23, env),
 		v5Str(24, `{"cmr":16777216,"cmr2":16777216,"un_h":11,"vpn":0,"kd":0,"dyn":"","do":1,"tk":true}`),
 	})
 	nonceBytes := make([]byte, 4)

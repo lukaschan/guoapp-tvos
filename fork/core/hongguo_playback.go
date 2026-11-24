@@ -535,6 +535,9 @@ func (downloader *Downloader) resolveHongguoPlaybackV5(ctx context.Context, vide
 	if !hongguoNumericID.MatchString(videoID) {
 		return providerMedia{}, errors.New("红果视频 ID 无效")
 	}
+	if media, err := downloader.resolveHongguoPlaybackGD(ctx, videoID); err == nil {
+		return media, nil
+	}
 	if media, err := downloader.resolveHongguoPlaybackPure(ctx, videoID); err == nil {
 		return media, nil
 	}
