@@ -28,7 +28,7 @@
 
 ## 2.61
 
-- 修复红果源 11 月 24 日晚再次无法播放（平台又抬高了请求指纹门槛：V5 签名里的 Medusa 设备段必须补全——带 sec_device_token、设备浮点/时间字段与 env 段完整参数，缺了就回 HTTP 200 空包；官方 App 不受影响）：按 GuoDuo（81199000/GuoDuo，其补丁源自绿果TV 2.0.8）移植——V5 签名器 Medusa 构造逐项补全，签名输出已与 GuoDuo 的 JS 实现逐字节对齐验证；新增 GD 取流车道并置于所有车道之前：设备改走 ttEncrypt 加密注册（log5-applog）拿专用身份，取流按 video_tab（GET）→ player 批量（双 host）→ video_model 单集（双 host）顺序尝试，空包换新身份再试一轮，旧车道（pure player / V5 / pc）全部保留兜底。开发副本实测：注册成功、取流返回 1080p 地址与 CENC 密钥、媒体流 HTTP 206。
+- 修复红果源再次无法播放：按 GuoDuo 移植补全版 V5 签名（Medusa 设备段补全），新增 GD 取流车道（ttEncrypt 注册 + 五路取流），旧车道保留兜底。开发副本实测取流成功（1080p + CENC，媒体流 206）。
 
 ## 2.60
 
