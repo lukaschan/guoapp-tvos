@@ -3,6 +3,11 @@ package core
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,6 +50,86 @@ var hgPureState = struct {
 	clockAfter    time.Time
 }{rejected: map[string]bool{}}
 
+func hongguoBasicSignHeaders(params string, body []byte) map[string]string {
+	ts := time.Now().Unix()
+	var seed [2]byte
+	_, _ = rand.Read(seed[:])
+	variant := uint16(seed[0])<<8 | uint16(seed[1])
+	return map[string]string{
+		"X-Khronos": strconv.FormatInt(ts, 10),
+		"X-Gorgon":  hongguoClassicGorgon(params, body, ts, variant, 0x4481),
+		"X-Argus":   hongguoClassicArgus(ts),
+	}
+}
+
+func hongguoClassicArgus(ts int64) string {
+	var buf [4]byte
+	binary.LittleEndian.PutUint32(buf[:], uint32(ts))
+	return base64.StdEncoding.EncodeToString(buf[:])
+}
+
+func hongguoClassicGorgon(params string, body []byte, ts int64, variant uint16, flags uint16) string {
+	paramsDigest := md5.Sum([]byte(params))
+	chunk := [4]byte{}
+	if len(body) > 0 {
+		bodyDigest := md5.Sum(body)
+		copy(chunk[:], bodyDigest[:4])
+	}
+	concat := make([]byte, 0, 20)
+	concat = append(concat, paramsDigest[:4]...)
+	concat = append(concat, chunk[:]...)
+	concat = append(concat, 0, 0, 0, 0, 0x00, 0x03, 0x0a, 0x04)
+	var tsBuf [4]byte
+	binary.BigEndian.PutUint32(tsBuf[:], uint32(ts))
+	concat = append(concat, tsBuf[:]...)
+	fh, fl := byte(flags>>8), byte(flags)
+	key := []byte{0x4a, fh, 0x16, byte(variant), 0x47, 0x6c, fl, byte(variant >> 8)}
+	ks := hongguoBrokenRC4(key, 20)
+	for i := range concat {
+		concat[i] ^= ks[i]
+	}
+	head := []byte{0x84, 0x04, byte(variant >> 8), byte(variant), fh, fl}
+	return hex.EncodeToString(append(head, hongguoGorgonMix(concat)...))
+}
+
+func hongguoBrokenRC4(key []byte, n int) []byte {
+	s := make([]byte, 256)
+	for i := range s {
+		s[i] = byte(i)
+	}
+	j := 0
+	for i := 0; i < 256; i++ {
+		j = (j + int(s[i]) + int(key[i&7])) & 0xff
+		s[i] = s[j]
+	}
+	out := make([]byte, 0, n)
+	i, jj := 0, 0
+	for len(out) < n {
+		i = (i + 1) & 0xff
+		jj = (jj + int(s[i])) & 0xff
+		v := s[jj]
+		s[i] = v
+		out = append(out, s[(int(s[i])+int(v))&0xff])
+	}
+	return out
+}
+
+func hongguoGorgonMix(seed []byte) []byte {
+	buf := append([]byte(nil), seed...)
+	for n := 0; n < 20 && n < len(buf); n++ {
+		buf[n] = (buf[n]&0x0f)<<4 | (buf[n]>>4)&0x0f
+		x := buf[n] ^ buf[(n+1)%20]
+		var r byte
+		for i := 0; i < 8; i++ {
+			if x&(1<<uint(i)) != 0 {
+				r |= 1 << uint(7-i)
+			}
+		}
+		buf[n] = 0x14 ^ ^r
+	}
+	return buf
+}
+
 func (downloader *Downloader) registerHongguoPureDevice(ctx context.Context) (hongguoPureIdentity, error) {
 	cdid, openudid := uuidLike(), randomHex(8)
 	query := "aid=8662&app_name=novelread&version_code=73932&version_name=7.3.9.32&device_platform=android&os=android&ssmix=a" +
@@ -67,6 +152,9 @@ func (downloader *Downloader) registerHongguoPureDevice(ctx context.Context) (ho
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, hongguoDeviceRegisterURL+"?"+query, bytes.NewReader(body))
 	if err != nil {
 		return hongguoPureIdentity{}, err
+	}
+	for key, value := range hongguoBasicSignHeaders(query, body) {
+		request.Header.Set(key, value)
 	}
 	request.Header.Set("User-Agent", hongguoPureUA)
 	request.Header.Set("Content-Type", "application/json; charset=utf-8")
