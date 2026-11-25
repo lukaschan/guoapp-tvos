@@ -141,7 +141,7 @@ jobs:
           - 真果鉴 zhenguojian：全部站源
 
           tvOS：
-          - *-tvos-unsigned.ipa：未签名 IPA，需在 Mac 上用 Xcode 签名后安装到 Apple TV
+          - *-tvos-unsigned.ipa：未签名 IPA，优先推荐部署 atvloadly 进行安装；或在 Mac 上用 Xcode 签名后安装到 Apple TV
 
           注意：追剧与观看进度存在 Caches，系统空间不足时可能被清理。
           EOF
