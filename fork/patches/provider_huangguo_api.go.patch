@@ -1,37 +1,35 @@
+diff --git a/native/core/provider_huangguo_api.go b/native/core/provider_huangguo_api.go
+index 88e5b68..4748d8f 100644
 --- a/native/core/provider_huangguo_api.go
 +++ b/native/core/provider_huangguo_api.go
-@@ -2,6 +2,7 @@ package core
- 
- import (
- 	"context"
-+	"encoding/base64"
- 	"encoding/json"
- 	"errors"
- 	"fmt"
-@@ -14,7 +15,21 @@ import (
+@@ -14,12 +14,22 @@ import (
  const huangguoAISearchPageSize = 20
  
  func (d *Downloader) huangguoAIAPI(ctx context.Context, path string, out any) error {
 -	envelope, err := json.Marshal(map[string]string{"method": http.MethodGet, "path": path, "body": "", "content_type": ""})
+-	if err != nil {
+-		return err
 +	return d.huangguoAIEdge(ctx, http.MethodGet, path, nil, out)
 +}
 +
 +func (d *Downloader) huangguoAIEdge(ctx context.Context, method, path string, payload any, out any) error {
-+	payloadBody := ""
-+	contentType := ""
++	// 站方已停用 /api/edge/request 信封接口（503「接口已停用」），改为直连 API 路径；
++	// 响应包装 {status, msg, data} 不变，镜像故障转移仍由 fetchProviderRequest 负责。
++	var requestBody []byte
 +	if payload != nil {
 +		raw, err := json.Marshal(payload)
 +		if err != nil {
 +			return err
 +		}
-+		payloadBody = base64.StdEncoding.EncodeToString(raw)
-+		contentType = "application/json"
-+	}
-+	envelope, err := json.Marshal(map[string]string{"method": method, "path": path, "body": payloadBody, "content_type": contentType})
++		requestBody = raw
+ 	}
+ 	base := d.providerBaseURL(sourceHuangguoAI)
+-	body, err := d.fetchProviderRequest(ctx, base+"/api/edge/request", base+"/", envelope)
++	body, err := d.fetchProviderRequest(ctx, base+path, base+"/", requestBody)
  	if err != nil {
  		return err
  	}
-@@ -81,18 +96,37 @@ func huangguoAIChapter(base, sourceID string, episode int, title string) Chapter
+@@ -81,18 +91,37 @@ func huangguoAIChapter(base, sourceID string, episode int, title string) Chapter
  		Title: firstNonEmpty(title, fmt.Sprintf("第%d集", episode)), PageURL: pageURL, CurrentEpisode: rawEpisode(episode)}
  }
  

@@ -1,5 +1,5 @@
 diff --git a/native/core/provider_huangguo.go b/native/core/provider_huangguo.go
-index db04819..7d7c23f 100644
+index db04819..331d5b8 100644
 --- a/native/core/provider_huangguo.go
 +++ b/native/core/provider_huangguo.go
 @@ -3,7 +3,6 @@ package core
@@ -16,8 +16,8 @@ index db04819..7d7c23f 100644
  	huangguoAIBaseURL       = "https://huangguoai.com"
 -	huangguoAIBaseMirrors   = []string{"https://huangguoai.com", "https://thu.lbvrhyir.cc", "https://pku.xxbgwypx.cc", "https://ttvoij.ediayikma.cc", "https://thu.ediayikma.cc", "https://pku.ediayikma.cc", "https://fdu.ediayikma.cc", "https://thu.agdkczeyx.cc"}
 -	huangguoAIMirrorDomains = []string{"lbvrhyir.cc", "xxbgwypx.cc", "ediayikma.cc", "agdkczeyx.cc"}
-+	huangguoAIBaseMirrors   = []string{"https://huangguoai.com", "https://huangguoai.ai", "https://thu.ixgukkejj.cc", "https://pku.ixgukkejj.cc", "https://fdu.ixgukkejj.cc", "https://thu.bmikbxhi.cc", "https://pku.bmikbxhi.cc", "https://fdu.bmikbxhi.cc"}
-+	huangguoAIMirrorDomains = []string{"ixgukkejj.cc", "bmikbxhi.cc"}
++	huangguoAIBaseMirrors   = []string{"https://huangguoai.com", "https://huangguoai.io", "https://thu.ixgukkejj.cc", "https://pku.ixgukkejj.cc", "https://fdu.ixgukkejj.cc", "https://thu.bmikbxhi.cc", "https://pku.bmikbxhi.cc", "https://fdu.bmikbxhi.cc", "https://00b4b.adihsppe.cc", "https://bsl8m.adihsppe.cc", "https://brma.adihsppe.cc", "https://mzofzp.adihsppe.cc", "https://rpb7bz.adihsppe.cc", "https://v2tg.adihsppe.cc"}
++	huangguoAIMirrorDomains = []string{"ixgukkejj.cc", "bmikbxhi.cc", "adihsppe.cc"}
 +	huangguoAISubdomains    = []string{"thu", "pku", "fdu", "sjtu", "zju", "nju", "xmu", "sysu"}
  	huangguoVideoBaseURL    = "https://huangguo.video"
  

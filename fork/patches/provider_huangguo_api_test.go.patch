@@ -1,15 +1,45 @@
+diff --git a/native/core/provider_huangguo_api_test.go b/native/core/provider_huangguo_api_test.go
+index 08404cc..ee375d3 100644
 --- a/native/core/provider_huangguo_api_test.go
 +++ b/native/core/provider_huangguo_api_test.go
-@@ -17,7 +17,7 @@ func huangguoEdgeTarget(t *testing.T, request *http.Request) *url.URL {
- 		Method string `json:"method"`
- 		Path   string `json:"path"`
- 	}
+@@ -13,31 +13,22 @@ import (
+ 
+ func huangguoEdgeTarget(t *testing.T, request *http.Request) *url.URL {
+ 	t.Helper()
+-	var envelope struct {
+-		Method string `json:"method"`
+-		Path   string `json:"path"`
+-	}
 -	if request.Method != http.MethodPost || request.URL.Path != "/api/edge/request" || json.NewDecoder(request.Body).Decode(&envelope) != nil || envelope.Method != http.MethodGet {
-+	if request.Method != http.MethodPost || request.URL.Path != "/api/edge/request" || json.NewDecoder(request.Body).Decode(&envelope) != nil || envelope.Method != http.MethodGet && envelope.Method != http.MethodPost {
- 		t.Errorf("request bypassed the edge envelope: %s %s", request.Method, request.URL)
+-		t.Errorf("request bypassed the edge envelope: %s %s", request.Method, request.URL)
+-		return &url.URL{}
+-	}
+-	target, err := url.Parse(envelope.Path)
+-	if err != nil {
+-		t.Errorf("invalid envelope path %q", envelope.Path)
++	if request.URL.Path == "/api/edge/request" || request.Method != http.MethodGet && request.Method != http.MethodPost {
++		t.Errorf("request did not call the API path directly: %s %s", request.Method, request.URL)
  		return &url.URL{}
  	}
-@@ -74,6 +74,10 @@ func TestHuangguoAIDetailAndPlaybackUseEdgeAPI(t *testing.T) {
+-	return target
++	return request.URL
+ }
+ 
+ func TestHuangguoAILinesCoverEveryMirrorDomain(t *testing.T) {
+-	const address = "https://huangguoai.com/api/edge/request"
++	const address = "https://huangguoai.com/api/videos/category/ai-duanju"
+ 	candidates := providerURLCandidates(address)
+ 	if len(candidates) == 0 || candidates[0] != address {
+ 		t.Fatal("the primary line is no longer tried first")
+ 	}
+ 	for _, candidate := range candidates {
+ 		parsed, err := url.Parse(candidate)
+-		if err != nil || parsed.Path != "/api/edge/request" || providerSourceForURL(candidate) != sourceHuangguoAI {
++		if err != nil || parsed.Path != "/api/videos/category/ai-duanju" || providerSourceForURL(candidate) != sourceHuangguoAI {
+ 			t.Fatal("a line was not recognized as huangguoai")
+ 		}
+ 	}
+@@ -74,6 +65,10 @@ func TestHuangguoAIDetailAndPlaybackUseEdgeAPI(t *testing.T) {
  				"id": 12, "title": "合成剧", "description": "合成简介", "cover": "/covers/12.jpg", "episode_count": 2, "is_finished": false,
  				"episodes": []any{map[string]any{"ep_num": 2, "title": "第2集"}, map[string]any{"ep_num": 1, "title": ""}},
  			})), nil

@@ -1,3 +1,5 @@
+diff --git a/native/core/provider_media.go b/native/core/provider_media.go
+index 987475a..d00eda3 100644
 --- a/native/core/provider_media.go
 +++ b/native/core/provider_media.go
 @@ -64,7 +64,7 @@ func providerSourceForURL(raw string) string {
@@ -5,7 +7,7 @@
  	host := strings.ToLower(parsed.Hostname())
  	switch {
 -	case host == "huangguoai.com" || isHuangguoAIMirrorHost(host):
-+	case host == "huangguoai.com" || host == "huangguoai.ai" || isHuangguoAIMirrorHost(host):
++	case host == "huangguoai.com" || host == "huangguoai.io" || host == "huangguoai.ai" || isHuangguoAIMirrorHost(host):
  		return sourceHuangguoAI
  	case host == "huangguo.video":
  		return sourceHuangguoVideo
