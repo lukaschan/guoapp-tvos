@@ -24,6 +24,20 @@ struct EpisodeRangesTests {
         #expect(EpisodeRanges.label(for: 1...30) == "1–30")
     }
 
+    @Test func adaptivePageSizeForLongDramas() {
+        // 180 集以内仍是 30 集一段，段数不超过 6。
+        #expect(EpisodeRanges.pageSize(for: 180) == 30)
+        #expect(EpisodeRanges(episodeCount: 180).ranges.count == 6)
+        // 超过后每段放大（向上取整到 10 的倍数），段数仍封顶 6。
+        #expect(EpisodeRanges.pageSize(for: 181) == 40)
+        #expect(EpisodeRanges(episodeCount: 181).ranges == [1...40, 41...80, 81...120, 121...160, 161...181])
+        #expect(EpisodeRanges.pageSize(for: 1000) == 170)
+        let thousand = EpisodeRanges(episodeCount: 1000)
+        #expect(thousand.ranges.count == 6)
+        #expect(thousand.ranges.first == 1...170)
+        #expect(thousand.ranges.last == 851...1000)
+    }
+
     @Test func clampedIndex() {
         let ranges = EpisodeRanges(episodeCount: 80)
         #expect(ranges.clampedIndex(containing: 45) == 1)

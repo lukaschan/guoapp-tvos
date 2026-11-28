@@ -68,6 +68,8 @@ struct EpisodeNumberGrid: View {
                         TVChip(title: EpisodeRanges.label(for: range), isSelected: index == rangeIndex, compact: true) {
                             selectedRange = index
                         }
+                        // 标签不许被横排压缩（段数已封顶，这里兜底防挤成空白条）。
+                        .fixedSize(horizontal: true, vertical: false)
                     }
                 }
                 .focusSection()

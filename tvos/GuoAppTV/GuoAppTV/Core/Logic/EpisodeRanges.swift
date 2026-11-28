@@ -1,13 +1,25 @@
 import Foundation
 
-/// 选集分段：把分集按每段 30 集切成标签（1–30、31–60、61–80…），与 redfruit 一致。
+/// 选集分段：把分集切成标签（1–30、31–60…）。默认每段 30 集（与 redfruit 一致）；
+/// 集数多时每段自动放大、段数封顶，避免标签行挤压变形（标签行不可滚动，段数多了放不下）。
 struct EpisodeRanges: Equatable, Sendable {
     static let defaultPageSize = 30
+    /// 段数上限：标签行在详情页与播放选集弹窗里都要放得下。
+    static let maxRanges = 6
 
     /// 每段的集数范围（集数从 1 开始）。
     let ranges: [ClosedRange<Int>]
 
-    init(episodeCount: Int, pageSize: Int = EpisodeRanges.defaultPageSize) {
+    /// 某总集数下每段的集数：不超过 180 集时 30 集一段；更多时放大到段数不超过上限，
+    /// 并向上取整到 10 的倍数，标签好看些。
+    static func pageSize(for episodeCount: Int) -> Int {
+        guard episodeCount > defaultPageSize * maxRanges else { return defaultPageSize }
+        let raw = (episodeCount + maxRanges - 1) / maxRanges
+        return ((raw + 9) / 10) * 10
+    }
+
+    init(episodeCount: Int, pageSize: Int? = nil) {
+        let pageSize = pageSize ?? Self.pageSize(for: episodeCount)
         guard episodeCount > 0, pageSize > 0 else {
             ranges = []
             return
